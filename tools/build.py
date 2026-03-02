@@ -20,7 +20,7 @@ def build_index(posts):
     for p in posts:
         cards.append(f"""
         <a class="post-card" href="posts/{p['slug']}.html">
-          <div class="thumb" aria-hidden="true"></div>
+          <div class="thumb" aria-hidden="true" style="background-image:url('{p.get('thumbnail','assets/posts/'+p['slug']+'/1.jpg')}')"></div>
           <div>
             <div class="kicker">{p.get('category','Resources')}</div>
             <div class="post-title">{p['title']}</div>
@@ -30,7 +30,6 @@ def build_index(posts):
         """.strip())
 
     cards_html = "\n".join(cards) if cards else "<p>No posts yet.</p>"
-
     year = datetime.now().year
 
     html = f"""<!DOCTYPE html>
@@ -55,7 +54,6 @@ def build_index(posts):
       <a href="index.html">Home</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
-      <a class="btn primary" href="index.html">Home</a>
     </nav>
   </div>
 </header>
@@ -64,13 +62,12 @@ def build_index(posts):
   <section class="hero">
     <p class="breadcrumb">Global Lifestyle</p>
     <h1 class="h1">Trends, tools, and ideas for modern 20s & 30s</h1>
-    <p class="lead">Fresh posts, clean structure, no noise.</p>
+    <p class="lead">Curated trends, practical tools, and cool finds for young people across the US and Europe.</p>
   </section>
 
   <section class="layout">
     <article class="card article">
       <h2>Latest</h2>
-      <p class="lead">Fresh guides and checklists.</p>
       <hr class="hr">
       <div class="card" style="box-shadow:none;border:none;background:transparent;">
         {cards_html}
