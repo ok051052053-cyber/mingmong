@@ -10,14 +10,10 @@ import requests
 import feedparser
 from openai import OpenAI
 
-# -------------------------
-# CONFIG
-# -------------------------
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "5"))
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-# tools/ 기준으로 repo root는 parents[1]
 ROOT = Path(__file__).resolve().parents[1]
 POSTS_DIR = ROOT / "posts"
 ASSETS_DIR = ROOT / "assets" / "posts"
@@ -25,25 +21,11 @@ POSTS_JSON = ROOT / "posts.json"
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-RSS_TRENDS = [
-  "https://feeds.bbci.co.uk/news/rss.xml",
-  "https://www.theverge.com/rss/index.xml",
-  "https://www.wired.com/feed/rss",
-]
-
-RSS_FINDS = [
-  "https://www.theverge.com/rss/index.xml",
-  "https://www.wired.com/feed/rss",
-]
-
-IMG_COUNT = 6
-
 UA_HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; MingMongBot/1.0)",
   "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
 }
 
-# ✅ base64 없이 "진짜 PNG bytes" (1x1 transparent png)
 FALLBACK_PNG_BYTES = (
   b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
   b"\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
@@ -51,9 +33,8 @@ FALLBACK_PNG_BYTES = (
   b"\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
-# -------------------------
-# UTILS
-# -------------------------
+IMG_COUNT = 6
+
 def today_str():
   return datetime.today().strftime("%Y-%m-%d")
 
@@ -75,7 +56,26 @@ def load_posts():
 def save_posts(posts):
   POSTS_JSON.write_text(json.dumps(posts, indent=2, ensure_ascii=False), encoding="utf-8")
 
-def fetch_feed_items(urls, limit_each=25):
+def google_news_rss(query: str):
+  q = requests.utils.quote(query)
+  return f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
+
+RSS_TRENDS = [
+  google_news_rss("viral trend controversy backlash"),
+  google_news_rss("AI controversy lawsuit backlash"),
+  google_news_rss("social media trend banned backlash"),
+  google_news_rss("celebrity controversy backlash apology"),
+  google_news_rss("tech scandal data leak"),
+]
+
+RSS_FINDS = [
+  google_news_rss("best new app people switching to"),
+  google_news_rss("new gadget worth it 2026"),
+  google_news_rss("productivity tool trending right now"),
+  google_news_rss("wearable AI gadget new chip"),
+]
+
+def fetch_feed_items(urls, limit_each=30):
   items = []
   for url in urls:
     try:
@@ -91,13 +91,35 @@ def fetch_feed_items(urls, limit_each=25):
       continue
   return items
 
+SPICY_WORDS = [
+  "leak", "leaked", "ban", "banned", "backlash", "lawsuit", "crash",
+  "warning", "scandal", "controversy", "boycott", "outrage", "exposed",
+  "investigation", "charges", "shutdown"
+]
+
+def score_title(t: str) -> int:
+  tl = t.lower()
+  score = 0
+  for w in SPICY_WORDS:
+    if w in tl:
+      score += 2
+  if "2026" in tl:
+    score += 1
+  if re.search(r"\b\d+\b", tl):
+    score += 1
+  return score
+
 def pick_topic(category: str, used_slugs: set):
   pool = fetch_feed_items(RSS_FINDS if category == "Cool Finds" else RSS_TRENDS)
-  pool = pool[:80] if len(pool) > 80 else pool
-  random.shuffle(pool)
+  pool = sorted(pool, key=lambda x: score_title(x["title"]), reverse=True)
+  pool = pool[:120] if len(pool) > 120 else pool
+  random.shuffle(pool[:30])
 
   for it in pool:
-    slug = safe_slug(it["title"])
+    base = it["title"]
+    if not base:
+      continue
+    slug = safe_slug(base)
     if slug and slug not in used_slugs:
       return it
 
@@ -108,10 +130,8 @@ def ensure_title_has_number_or_year(title: str, category: str) -> str:
   y = str(current_year())
   has_year = re.search(r"\b(20\d{2})\b", title) is not None
   has_number = re.search(r"\b\d+\b", title) is not None
-
   if has_year or has_number:
     return title
-
   if category == "Cool Finds":
     return f"5 Things About {title} ({y})"
   return f"{y}: {title}"
@@ -123,7 +143,7 @@ def smart_description(main_keyword: str, category: str) -> str:
 
 def internal_link_candidates(posts, current_slug: str):
   cands = []
-  for p in posts[:50]:
+  for p in posts[:60]:
     s = p.get("slug")
     t = p.get("title")
     if not s or not t:
@@ -145,9 +165,6 @@ def build_internal_links_block(internal_links: list):
 </ul>
 """
 
-# -------------------------
-# IMAGE DOWNLOAD (절대 실패로 죽지 않게)
-# -------------------------
 def _try_download(url: str, out_path: Path, tries: int = 3):
   for i in range(tries):
     try:
@@ -161,28 +178,23 @@ def _try_download(url: str, out_path: Path, tries: int = 3):
   return False
 
 def _write_fallback_image(out_path: Path):
-  # 확장자가 jpg여도, 브라우저는 PNG도 표시함
   out_path.write_bytes(FALLBACK_PNG_BYTES)
 
 def download_image(seed: str, query: str, out_path: Path):
   out_path.parent.mkdir(parents=True, exist_ok=True)
 
-  # 1) picsum seed (안정적)
   picsum = f"https://picsum.photos/seed/{requests.utils.quote(seed)}/1600/900"
   if _try_download(picsum, out_path, tries=3):
     return
 
-  # 2) unsplash (가끔 503)
   unsplash = "https://source.unsplash.com/1600x900/?" + requests.utils.quote(query)
-  if _try_download(unsplash, out_path, tries=3):
+  if _try_download(unsplash, out_path, tries=2):
     return
 
-  # 3) placeholder
   placehold = "https://placehold.co/1600x900/png?text=" + requests.utils.quote(query[:40])
   if _try_download(placehold, out_path, tries=2):
     return
 
-  # 4) 최후 fallback
   _write_fallback_image(out_path)
 
 def ensure_images(slug: str, keyword: str, n=IMG_COUNT):
@@ -190,12 +202,12 @@ def ensure_images(slug: str, keyword: str, n=IMG_COUNT):
   folder.mkdir(parents=True, exist_ok=True)
 
   queries = [
-    f"{keyword} modern",
-    f"{keyword} lifestyle",
-    f"{keyword} trend",
-    f"{keyword} people",
-    f"{keyword} minimal",
+    f"{keyword} breaking news",
+    f"{keyword} social media",
+    f"{keyword} people reaction",
     f"{keyword} technology",
+    f"{keyword} lifestyle",
+    f"{keyword} modern",
   ]
 
   for i in range(1, n + 1):
@@ -206,9 +218,6 @@ def ensure_images(slug: str, keyword: str, n=IMG_COUNT):
     seed = f"{slug}-{i}"
     download_image(seed, q, p)
 
-# -------------------------
-# AI BODY
-# -------------------------
 def ai_body_html(main_keyword: str, display_title: str, category: str, source_link: str, internal_links: list):
   links_block = build_internal_links_block(internal_links)
 
@@ -228,10 +237,9 @@ Hard requirements
 - Output ONLY valid HTML for inside <div class="prose">
 - Do NOT output <html>, <head>, <body>
 - Use only: <h2> <h3> <p> <ul> <li> <hr> <strong> <a>
-- Target 1800 to 2300 words
+- Target 1600 to 2200 words
 - Human. Premium. Non generic. No filler
-- Short paragraphs. Clear reasoning. Practical steps
-- Avoid repeating phrases and sentence patterns
+- Short paragraphs. Practical steps. Clear reasoning
 
 Structure
 - First paragraph includes the main keyword exactly once
@@ -241,11 +249,13 @@ Structure
 - One section titled exactly: Quick checklist
 - One section titled exactly: FAQ with 4 questions answered
 
-Insert this exact HTML block somewhere natural near the end (keep unchanged):
-{links_block}
-
-Source link (mention at most once and keep neutral):
+Add ONE short neutral line like this once:
+<p><strong>Source:</strong> ...</p>
+Use this link:
 {source_link}
+
+Insert this exact HTML block somewhere near the end (keep unchanged):
+{links_block}
 """
 
   res = client.chat.completions.create(
@@ -254,45 +264,38 @@ Source link (mention at most once and keep neutral):
   )
   return (res.choices[0].message.content or "").strip()
 
-# -------------------------
-# PAGE TEMPLATE (quiet)
-# -------------------------
+def inject_images_into_body(body_html: str, slug: str) -> str:
+  imgs = []
+  for i in range(1, IMG_COUNT + 1):
+    imgs.append(f'<figure class="photo"><img src="../assets/posts/{slug}/{i}.jpg" alt="Image {i}" loading="lazy" /></figure>')
+
+  parts = re.split(r"(<h2>.*?</h2>)", body_html, flags=re.S)
+  if len(parts) < 3:
+    return imgs[0] + body_html + imgs[1]
+
+  out = []
+  img_idx = 0
+
+  out.append(imgs[img_idx])
+  img_idx += 1
+
+  for i, chunk in enumerate(parts):
+    out.append(chunk)
+    if img_idx >= len(imgs):
+      continue
+    if chunk.startswith("<h2>") and img_idx < len(imgs):
+      if img_idx % 2 == 0:
+        out.append(imgs[img_idx])
+        img_idx += 1
+
+  while img_idx < len(imgs):
+    out.append(imgs[img_idx])
+    img_idx += 1
+
+  return "\n".join(out)
+
 def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: str, body_html: str):
   today = today_str()
-
-  images_html = f"""
-<div class="grid-2">
-  <figure class="photo">
-    <img src="../assets/posts/{slug}/1.jpg" alt="{title} photo 1" loading="lazy" />
-    <figcaption class="caption">Context image.</figcaption>
-  </figure>
-  <figure class="photo">
-    <img src="../assets/posts/{slug}/2.jpg" alt="{title} photo 2" loading="lazy" />
-    <figcaption class="caption">Second angle.</figcaption>
-  </figure>
-</div>
-
-<figure class="photo" style="margin-top:14px;">
-  <img src="../assets/posts/{slug}/3.jpg" alt="{title} photo 3" loading="lazy" />
-  <figcaption class="caption">Practical detail.</figcaption>
-</figure>
-
-<div class="grid-2" style="margin-top:14px;">
-  <figure class="photo">
-    <img src="../assets/posts/{slug}/4.jpg" alt="{title} photo 4" loading="lazy" />
-    <figcaption class="caption">Extra context.</figcaption>
-  </figure>
-  <figure class="photo">
-    <img src="../assets/posts/{slug}/5.jpg" alt="{title} photo 5" loading="lazy" />
-    <figcaption class="caption">A related mood shot.</figcaption>
-  </figure>
-</div>
-
-<figure class="photo" style="margin-top:14px;">
-  <img src="../assets/posts/{slug}/6.jpg" alt="{title} photo 6" loading="lazy" />
-  <figcaption class="caption">Final reference image.</figcaption>
-</figure>
-"""
 
   return f"""<!DOCTYPE html>
 <html lang="en">
@@ -350,11 +353,7 @@ def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: s
 
     <article class="card article">
       <div class="prose">
-
-        {images_html}
-
         {body_html}
-
       </div>
     </article>
 
@@ -373,13 +372,13 @@ def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: s
       <div class="card related">
         <h4>More to read</h4>
         <div class="side-links">
-          <a href="carry-less-travel-kit-20s.html">
-            <span>Carry-Less Travel Kit</span>
-            <small>Gear</small>
+          <a href="../category.html?cat=Trends%20%26%20News">
+            <span>Browse Trends & News</span>
+            <small>Category</small>
           </a>
-          <a href="focus-stack-digital-nomads.html">
-            <span>Focus Stack for Remote Work</span>
-            <small>Tools</small>
+          <a href="../category.html?cat=Cool%20Finds">
+            <span>Browse Cool Finds</span>
+            <small>Category</small>
           </a>
         </div>
       </div>
@@ -442,9 +441,6 @@ def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: s
 </html>
 """
 
-# -------------------------
-# MAIN
-# -------------------------
 def main():
   POSTS_DIR.mkdir(parents=True, exist_ok=True)
   ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -461,7 +457,7 @@ def main():
     topic = pick_topic(category, used_slugs)
 
     main_keyword = topic["title"].strip()
-    source_link = topic.get("link", "")
+    source_link = topic.get("link", "").strip()
 
     display_title = ensure_title_has_number_or_year(main_keyword, category)
     slug = safe_slug(display_title)
@@ -480,6 +476,8 @@ def main():
       source_link=source_link,
       internal_links=links,
     )
+
+    body = inject_images_into_body(body, slug)
 
     page = build_quiet_template_page(
       slug=slug,
