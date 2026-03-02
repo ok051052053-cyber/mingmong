@@ -4,20 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MingMong Travels</title>
-<meta name="description" content="Korea travel experiences and lifestyle tips for young travelers">
+<meta name="description" content="Korea travel experiences and essentials for young travelers across the US and Europe.">
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="index.html">
-      <span class="logo"></span>
+      <span class="logo" aria-hidden="true"></span>
       <span>MingMong Travels</span>
     </a>
 
-    <nav class="nav">
+    <nav class="nav" aria-label="Primary">
       <a href="index.html">Home</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
@@ -25,41 +24,62 @@
   </div>
 </header>
 
-<section class="hero container">
-  <div class="hero-card">
-    <h1 class="hero-title">Korea, curated for young travelers</h1>
-    <p class="hero-sub">
-      Travel experiences and essential tips for US and Europe travelers.
-    </p>
-  </div>
-</section>
+<main class="container">
+  <section class="hero">
+    <div class="hero-card">
+      <h1 class="hero-title">Korea, curated for young travelers</h1>
+      <p class="hero-sub">Clean guides and real local experiences for US and Europe travelers.</p>
 
-<section class="container">
-  <h2>Latest Guides</h2>
-
-  <div class="card">
-
-    <a class="post-card" href="posts/clam-digging-taean.html">
-      <div class="thumb"></div>
-
-      <div>
-        <div class="kicker">Korea Travel Experiences</div>
-        <h3 class="post-title">How to Catch Clams in Taean Korea</h3>
-        <p class="post-desc">
-          Beginner friendly guide for foreign travelers
-        </p>
+      <div class="pills" aria-label="Highlights">
+        <span class="pill">Beginner friendly</span>
+        <span class="pill">Budget tips</span>
+        <span class="pill">Seoul and beyond</span>
+        <span class="pill">Local vibes</span>
       </div>
-    </a>
+    </div>
+  </section>
 
-  </div>
+  <section class="section">
+    <div class="section-head">
+      <h2>Latest guides</h2>
+      <p>Experiences and essentials</p>
+    </div>
 
-</section>
+    <div class="grid">
+      <div class="card">
+        <a class="post-card" href="posts/clam-digging-taean.html">
+          <div class="thumb" aria-hidden="true"></div>
+          <div>
+            <div class="kicker">Korea Travel Experiences</div>
+            <div class="post-title">How to catch clams in Taean, Korea</div>
+            <p class="post-desc">What to bring, best time, safety tips, FAQ.</p>
+          </div>
+        </a>
+      </div>
+
+      <aside class="card sidebar">
+        <a class="btn" href="privacy.html">Privacy Policy</a>
+        <p class="small">Needed for trust and AdSense.</p>
+
+        <a class="btn" href="about.html">About</a>
+        <p class="small">What this site is and who it is for.</p>
+
+        <a class="btn" href="contact.html">Contact</a>
+        <p class="small">Simple contact page for collaborations.</p>
+      </aside>
+    </div>
+  </section>
+</main>
 
 <footer class="site-footer">
   <div class="container">
-    <p>© 2026 MingMong Travels</p>
+    <div>© 2026 MingMong Travels</div>
+    <div class="footer-links">
+      <a href="privacy.html">Privacy</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+    </div>
   </div>
 </footer>
-
 </body>
 </html>
