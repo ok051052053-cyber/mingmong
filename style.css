@@ -294,7 +294,6 @@ a:hover{text-decoration:underline}
   --ink:#0f172a;
 }
 
-/* subtle background glow on content pages */
 .page-bg{
   background:
     radial-gradient(900px 520px at 12% 10%, var(--gradA), transparent 60%),
@@ -303,7 +302,6 @@ a:hover{text-decoration:underline}
   min-height:100vh;
 }
 
-/* post header */
 .post-hero{
   padding:26px 0 10px;
 }
@@ -344,7 +342,6 @@ a:hover{text-decoration:underline}
   max-width:72ch;
 }
 
-/* post body */
 .prose{
   max-width:78ch;
 }
@@ -434,71 +431,70 @@ a:hover{text-decoration:underline}
   font-weight:700;
 }
 
-/* HOT NEWS (sidebar) */
-.hotnews h4{
-  margin:0 0 12px 0;
-}
+/* HOT NEWS (match "More to read" style) */
+.hotnews{padding:16px}
+.hotnews h4{margin:0 0 10px;font-size:14px}
 
 .hot-list{
   display:flex;
   flex-direction:column;
   gap:10px;
-  margin-bottom:14px;
 }
 
 .hot-item{
   display:flex;
-  gap:12px;
   align-items:center;
-  padding:14px 14px;
+  gap:12px;
+  padding:12px 12px;
+  border-radius:12px;
   border:1px solid var(--border);
-  border-radius:14px;
-  background:#f8fafc;
-  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  background:#fff;
+  color:var(--text);
   text-decoration:none;
+  transition:background .16s ease, transform .16s ease;
 }
 
 .hot-item:hover{
-  background:linear-gradient(135deg, var(--accent), var(--accent2));
-  border-color:transparent;
+  background:#f3f4f6;
   transform:translateY(-1px);
 }
 
+.hot-item.is-active{
+  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  border-color:transparent;
+}
+
 .hot-icon{
-  width:44px;
-  height:44px;
+  width:36px;
+  height:36px;
   border-radius:12px;
   display:flex;
   align-items:center;
   justify-content:center;
-  background:#ffffff;
-  border:1px solid var(--border);
-  font-size:20px;
+  background:rgba(255,255,255,.75);
+  font-size:18px;
   flex:0 0 auto;
 }
 
 .hot-title{
-  font-weight:700;
+  font-weight:900;
+  font-size:15px;
+  letter-spacing:-.01em;
   line-height:1.2;
-  margin-bottom:4px;
-  color:var(--text);
+  margin-bottom:2px;
 }
 
 .hot-desc{
-  font-size:13px;
-  color:var(--muted);
-  line-height:1.25;
+  font-size:12px;
+  font-weight:700;
+  opacity:.85;
 }
 
-.hot-item:hover .hot-title,
-.hot-item:hover .hot-desc{
-  color:#ffffff;
+.hot-item.is-active .hot-title,
+.hot-item.is-active .hot-desc{
+  color:#fff;
 }
 
-.hot-skeleton{
-  padding:12px 12px;
-  border:1px dashed var(--border);
-  border-radius:14px;
-  color:var(--muted);
-  background:#fff;
+.hot-item.is-active .hot-icon{
+  background:rgba(255,255,255,.9);
 }
