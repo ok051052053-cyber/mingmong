@@ -3,7 +3,6 @@ import json
 import random
 import re
 import time
-import base64
 from datetime import datetime
 from pathlib import Path
 
@@ -18,7 +17,8 @@ SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "5"))
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-ROOT = Path(__file__).resolve().parents[0]
+# tools/ 기준으로 repo root는 parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 POSTS_DIR = ROOT / "posts"
 ASSETS_DIR = ROOT / "assets" / "posts"
 POSTS_JSON = ROOT / "posts.json"
@@ -39,13 +39,16 @@ RSS_FINDS = [
 IMG_COUNT = 6
 
 UA_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (compatible; MingMongBot/1.0; +https://github.com/)",
+  "User-Agent": "Mozilla/5.0 (compatible; MingMongBot/1.0)",
   "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
 }
 
-# 1x1 jpg fallback (valid jpeg bytes)
-FALLBACK_JPG = base64.b64decode(
-  "/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wCEAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAdEAACAQQDAQAAAAAAAAAAAAABAgMABAURBhIh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAL/xAAWEQEBAQAAAAAAAAAAAAAAAAAAARH/2gAMAwEAAhEDEQA/AKbqKz2yQw7y4oV7bqj1m4t6d+Qp1jWq8WwqV0cZp0qgYVnYlq2g0yZQF5Jt6gP/9k="
+# ✅ base64 없이 "진짜 PNG bytes" (1x1 transparent png)
+FALLBACK_PNG_BYTES = (
+  b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+  b"\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+  b"\x00\x00\x00\x0cIDATx\x9cc`\x00\x00\x00\x02\x00\x01\xe2!\xbc3"
+  b"\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
 # -------------------------
@@ -90,7 +93,6 @@ def fetch_feed_items(urls, limit_each=25):
 
 def pick_topic(category: str, used_slugs: set):
   pool = fetch_feed_items(RSS_FINDS if category == "Cool Finds" else RSS_TRENDS)
-
   pool = pool[:80] if len(pool) > 80 else pool
   random.shuffle(pool)
 
@@ -121,7 +123,7 @@ def smart_description(main_keyword: str, category: str) -> str:
 
 def internal_link_candidates(posts, current_slug: str):
   cands = []
-  for p in posts[:30]:
+  for p in posts[:50]:
     s = p.get("slug")
     t = p.get("title")
     if not s or not t:
@@ -144,10 +146,9 @@ def build_internal_links_block(internal_links: list):
 """
 
 # -------------------------
-# IMAGE DOWNLOAD (503 FIX)
+# IMAGE DOWNLOAD (절대 실패로 죽지 않게)
 # -------------------------
 def _try_download(url: str, out_path: Path, tries: int = 3):
-  last_err = None
   for i in range(tries):
     try:
       r = requests.get(url, headers=UA_HEADERS, timeout=30, allow_redirects=True)
@@ -155,31 +156,34 @@ def _try_download(url: str, out_path: Path, tries: int = 3):
         raise requests.HTTPError(f"{r.status_code} for {url}")
       out_path.write_bytes(r.content)
       return True
-    except Exception as e:
-      last_err = e
+    except Exception:
       time.sleep(1.0 + i * 1.5)
   return False
+
+def _write_fallback_image(out_path: Path):
+  # 확장자가 jpg여도, 브라우저는 PNG도 표시함
+  out_path.write_bytes(FALLBACK_PNG_BYTES)
 
 def download_image(seed: str, query: str, out_path: Path):
   out_path.parent.mkdir(parents=True, exist_ok=True)
 
-  # 1) Picsum seed (가장 안정적)
+  # 1) picsum seed (안정적)
   picsum = f"https://picsum.photos/seed/{requests.utils.quote(seed)}/1600/900"
   if _try_download(picsum, out_path, tries=3):
     return
 
-  # 2) Unsplash source (가끔 503)
+  # 2) unsplash (가끔 503)
   unsplash = "https://source.unsplash.com/1600x900/?" + requests.utils.quote(query)
   if _try_download(unsplash, out_path, tries=3):
     return
 
-  # 3) Placeholder (png일 수도 있음. 그래도 파일만 있으면 페이지는 살아감)
-  placehold = "https://placehold.co/1600x900/jpg?text=" + requests.utils.quote(query[:40])
+  # 3) placeholder
+  placehold = "https://placehold.co/1600x900/png?text=" + requests.utils.quote(query[:40])
   if _try_download(placehold, out_path, tries=2):
     return
 
-  # 4) 로컬 1x1 jpg로라도 저장해서 workflow가 절대 죽지 않게
-  out_path.write_bytes(FALLBACK_JPG)
+  # 4) 최후 fallback
+  _write_fallback_image(out_path)
 
 def ensure_images(slug: str, keyword: str, n=IMG_COUNT):
   folder = ASSETS_DIR / slug
@@ -251,22 +255,10 @@ Source link (mention at most once and keep neutral):
   return (res.choices[0].message.content or "").strip()
 
 # -------------------------
-# PAGE TEMPLATE (QUIET)
+# PAGE TEMPLATE (quiet)
 # -------------------------
 def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: str, body_html: str):
   today = today_str()
-
-  schema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": title,
-    "datePublished": today,
-    "dateModified": today,
-    "author": {"@type": "Organization", "name": SITE_NAME},
-    "publisher": {"@type": "Organization", "name": SITE_NAME},
-    "mainEntityOfPage": {"@type": "WebPage", "@id": f"posts/{slug}.html"},
-  }
-  schema_json = json.dumps(schema, ensure_ascii=False)
 
   images_html = f"""
 <div class="grid-2">
@@ -309,14 +301,11 @@ def build_quiet_template_page(slug: str, title: str, meta_desc: str, category: s
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} | {SITE_NAME}</title>
   <meta name="description" content="{meta_desc}" />
-
   <meta property="og:title" content="{title} | {SITE_NAME}" />
   <meta property="og:description" content="{meta_desc}" />
   <meta property="og:type" content="article" />
   <meta property="og:image" content="../assets/posts/{slug}/1.jpg" />
-
   <link rel="stylesheet" href="../style.css" />
-  <script type="application/ld+json">{schema_json}</script>
 </head>
 
 <body class="page-bg">
@@ -482,7 +471,6 @@ def main():
     ensure_images(slug, main_keyword, n=IMG_COUNT)
 
     meta_desc = smart_description(main_keyword, category)
-
     links = internal_link_candidates(posts, slug)
 
     body = ai_body_html(
