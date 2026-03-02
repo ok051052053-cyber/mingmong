@@ -1,77 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MingMong Travels</title>
-<meta name="description" content="Korea travel experiences and essentials for young travelers across the US and Europe.">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MingMong Travels</title>
+  <meta name="description" content="Korea travel experiences and essentials for young travelers across the US and Europe.">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<header class="site-header">
-  <div class="container header-inner">
+
+<header class="topbar">
+  <div class="container topbar-inner">
     <a class="brand" href="index.html">
-      <span class="logo" aria-hidden="true"></span>
+      <span class="mark" aria-hidden="true"></span>
       <span>MingMong Travels</span>
     </a>
 
     <nav class="nav" aria-label="Primary">
-      <a href="index.html">Home</a>
+      <a href="index.html">Resources</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
+      <a class="btn primary" href="posts/travel-tips-for-beginners.html">Start Here</a>
     </nav>
   </div>
 </header>
 
 <main class="container">
   <section class="hero">
-    <div class="hero-card">
-      <h1 class="hero-title">Korea, curated for young travelers</h1>
-      <p class="hero-sub">Clean guides and real local experiences for US and Europe travelers.</p>
-
-      <div class="pills" aria-label="Highlights">
-        <span class="pill">Beginner friendly</span>
-        <span class="pill">Budget tips</span>
-        <span class="pill">Seoul and beyond</span>
-        <span class="pill">Local vibes</span>
-      </div>
-    </div>
+    <p class="breadcrumb">Resources</p>
+    <h1 class="h1">Travel resources for Korea</h1>
+    <p class="lead">Clean beginner friendly guides for US and Europe travelers. Practical steps. Local context. No fluff.</p>
   </section>
 
-  <section class="section">
-    <div class="section-head">
-      <h2>Latest guides</h2>
-      <p>Experiences and essentials</p>
-    </div>
+  <section class="layout">
+    <article class="card article">
+      <h2>Featured</h2>
+      <p>Use these as your first reads.</p>
+      <hr class="hr">
+      <h3><a href="posts/travel-tips-for-beginners.html">Travel Tips for Beginners (Korea Edition)</a></h3>
+      <p class="lead">Planning, documents, money, SIM, safety, packing. All in one.</p>
+    </article>
 
-    <div class="grid">
-      <div class="card">
-        <a class="post-card" href="posts/clam-digging-taean.html">
-          <div class="thumb" aria-hidden="true"></div>
-          <div>
-            <div class="kicker">Korea Travel Experiences</div>
-            <div class="post-title">How to catch clams in Taean, Korea</div>
-            <p class="post-desc">What to bring, best time, safety tips, FAQ.</p>
-          </div>
-        </a>
+    <aside class="sidebar">
+      <div class="card sidebox">
+        <h4>Two core categories</h4>
+        <p>Korea Travel Experiences and Korea Lifestyle and Essentials</p>
+        <a class="btn" href="posts/travel-tips-for-beginners.html">Open the first guide</a>
       </div>
 
-      <aside class="card sidebar">
-        <a class="btn" href="privacy.html">Privacy Policy</a>
-        <p class="small">Needed for trust and AdSense.</p>
-
-        <a class="btn" href="about.html">About</a>
-        <p class="small">What this site is and who it is for.</p>
-
-        <a class="btn" href="contact.html">Contact</a>
-        <p class="small">Simple contact page for collaborations.</p>
-      </aside>
-    </div>
+      <div class="card related">
+        <h4>Coming next</h4>
+        <a href="#">Korea SIM vs eSIM for tourists</a>
+        <a href="#">How to use public transport in Korea</a>
+        <a href="#">What to pack for Korea by season</a>
+      </div>
+    </aside>
   </section>
 </main>
 
-<footer class="site-footer">
+<footer class="footer">
   <div class="container">
     <div>© 2026 MingMong Travels</div>
     <div class="footer-links">
@@ -81,5 +68,6 @@
     </div>
   </div>
 </footer>
+
 </body>
 </html>
