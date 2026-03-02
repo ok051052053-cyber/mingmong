@@ -162,6 +162,11 @@ a:hover{text-decoration:underline}
   border-radius:12px;
   background:linear-gradient(135deg,#e0f2fe,#f0f9ff);
   flex-shrink:0;
+
+  /* ✅ 이미지가 들어오면 꽉 채워서 보여주기 */
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
 }
 .kicker{
   font-size:12px;
@@ -186,7 +191,7 @@ a:hover{text-decoration:underline}
 .sidebox, .related{padding:16px}
 .sidebox h4, .related h4{margin:0 0 10px;font-size:14px}
 
-/* CATEGORY LIST like screenshot */
+/* CATEGORY LIST */
 .cat-list{display:flex;flex-direction:column;gap:10px}
 .cat-item{
   display:flex;
@@ -302,10 +307,7 @@ a:hover{text-decoration:underline}
   min-height:100vh;
 }
 
-.post-hero{
-  padding:26px 0 10px;
-}
-
+.post-hero{padding:26px 0 10px}
 .post-meta{
   display:flex;
   flex-wrap:wrap;
@@ -315,7 +317,6 @@ a:hover{text-decoration:underline}
   color:var(--muted);
   font-size:13px;
 }
-
 .badge{
   display:inline-flex;
   align-items:center;
@@ -327,35 +328,21 @@ a:hover{text-decoration:underline}
   font-weight:800;
   color:var(--ink);
 }
-
 .post-title-xl{
   font-size:clamp(30px,3.2vw,46px);
   line-height:1.12;
   letter-spacing:-.03em;
   margin:0;
 }
-
 .post-lead{
   margin:10px 0 0;
   color:var(--muted);
   font-size:17px;
   max-width:72ch;
 }
-
-.prose{
-  max-width:78ch;
-}
-
-.prose h2{
-  margin:26px 0 10px;
-  font-size:20px;
-  letter-spacing:-.01em;
-}
-
-.prose p{
-  margin:12px 0;
-}
-
+.prose{max-width:78ch}
+.prose h2{margin:26px 0 10px;font-size:20px;letter-spacing:-.01em}
+.prose p{margin:12px 0}
 .quote{
   border-left:4px solid var(--accent);
   padding:12px 14px;
@@ -364,7 +351,6 @@ a:hover{text-decoration:underline}
   margin:16px 0;
   color:var(--ink);
 }
-
 .grid-2{
   display:grid;
   grid-template-columns:1fr;
@@ -374,7 +360,6 @@ a:hover{text-decoration:underline}
 @media(min-width:900px){
   .grid-2{grid-template-columns: 1fr 1fr;}
 }
-
 .photo{
   border-radius:16px;
   overflow:hidden;
@@ -387,12 +372,6 @@ a:hover{text-decoration:underline}
   height:auto;
   display:block;
 }
-.caption{
-  padding:10px 12px;
-  font-size:13px;
-  color:var(--muted);
-}
-
 .pill-list{
   display:flex;
   flex-wrap:wrap;
@@ -410,7 +389,7 @@ a:hover{text-decoration:underline}
   font-size:13px;
 }
 
-/* sidebar post card links */
+/* sidebar links */
 .side-links a{
   display:flex;
   justify-content:space-between;
@@ -431,7 +410,6 @@ a:hover{text-decoration:underline}
   font-weight:700;
 }
 
-/* HOT NEWS uses same template as More to read */
-.hotnews .side-links a{
-  margin-top:10px;
-}
+/* HOT NEWS block matches More to read */
+.hotnews{padding:16px}
+.hotnews h4{margin:0 0 10px;font-size:14px}
