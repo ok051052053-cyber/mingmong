@@ -189,5 +189,52 @@
   </div>
 </footer>
 
+<script>
+(async function () {
+  try {
+    const res = await fetch("../posts.json", { cache: "no-store" });
+    const posts = await res.json();
+
+    // 최신 글 우선 정렬
+    posts.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+    // Trends & News 우선 노출하고 부족하면 전체로 채움
+    const hot = [];
+    for (const p of posts) {
+      if ((p.category || "").toLowerCase().includes("trends")) hot.push(p);
+      if (hot.length >= 5) break;
+    }
+    if (hot.length < 5) {
+      for (const p of posts) {
+        if (!hot.find(x => x.url === p.url)) hot.push(p);
+        if (hot.length >= 5) break;
+      }
+    }
+
+    const el = document.getElementById("hotNewsList");
+    if (!el) return;
+
+    el.innerHTML = hot.map(p => {
+      const emoji = p.emoji || "📰";
+      const title = p.title || "Untitled";
+      const desc = p.description || "";
+      const url = p.url || "#";
+      return `
+        <a class="hot-item" href="${url}">
+          <div class="hot-icon" aria-hidden="true">${emoji}</div>
+          <div class="hot-text">
+            <div class="hot-title">${title}</div>
+            <div class="hot-desc">${desc}</div>
+          </div>
+        </a>
+      `;
+    }).join("");
+  } catch (e) {
+    const el = document.getElementById("hotNewsList");
+    if (el) el.innerHTML = `<div class="hot-skeleton">Failed to load</div>`;
+  }
+})();
+</script>
+  
 </body>
 </html>
