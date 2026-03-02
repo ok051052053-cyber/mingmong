@@ -1,35 +1,42 @@
-name: Auto Post Generator
+name: Auto Post
 
 on:
   workflow_dispatch:
-    inputs:
-      keyword:
-        description: "Enter keyword"
-        required: true
+  schedule:
+    - cron: "20 1 * * *" # 매일 01:20 UTC 한국시간 10:20
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  post:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: pip install openai
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai requests feedparser python-slugify
 
-      - name: Generate post
+      - name: Generate posts
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          KEYWORD: ${{ github.event.inputs.keyword }}
-        run: python tools/auto_post.py
-
-      - name: Commit
+          SITE_NAME: MingMong
+          POSTS_PER_RUN: "5"
         run: |
-          git config user.name "bot"
-          git config user.email "bot@github.com"
-          git add posts.json sitemap.xml posts/*
-          git commit -m "auto post"
+          python tools/auto_post.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "auto: 5 new posts" || echo "nothing to commit"
           git push
