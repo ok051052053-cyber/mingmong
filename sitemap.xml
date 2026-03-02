@@ -1,46 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/</loc>
-    <priority>1.00</priority>
-  </url>
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/about.html</loc>
-    <priority>0.80</priority>
-  </url>
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/contact.html</loc>
-    <priority>0.80</priority>
-  </url>
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/privacy.html</loc>
-    <priority>0.60</priority>
-  </url>
-
-  <!-- CORE CONTENT -->
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/start-here.html</loc>
-    <priority>0.90</priority>
-  </url>
-
-  <!-- ARTICLES -->
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/quiet-luxury-lifestyle-2026.html</loc>
-    <priority>0.70</priority>
-  </url>
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/carry-less-travel-kit-20s.html</loc>
-    <priority>0.70</priority>
-  </url>
-
-  <url>
-    <loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/focus-stack-digital-nomads.html</loc>
-    <priority>0.70</priority>
-  </url>
-
+<url><loc>https://ok051052053-cyber.github.io/mingmong-travels/</loc></url>
+<url><loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/quiet-luxury-lifestyle-2026.html</loc></url>
+<url><loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/carry-less-travel-kit-20s.html</loc></url>
+<url><loc>https://ok051052053-cyber.github.io/mingmong-travels/posts/focus-stack-digital-nomads.html</loc></url>
 </urlset>
