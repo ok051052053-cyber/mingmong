@@ -1,23 +1,26 @@
 [
   {
     "slug": "quiet-luxury-lifestyle-2026",
-    "title": "Why ‘Quiet Luxury’ Is Taking Over in 2026",
-    "description": "Minimal, calm, and intentional. How young adults in the US and Europe are redefining status without showing off.",
+    "title": "Why Quiet Luxury Is Taking Over in 2026",
+    "description": "Minimal, calm, and intentional. A new definition of modern lifestyle for young adults.",
     "category": "Trends & News",
-    "date": "2026-03-02"
+    "date": "2026-03-02",
+    "views": 1530
   },
   {
     "slug": "carry-less-travel-kit-20s",
     "title": "The Carry-Less Travel Kit Everyone in Their 20s Is Switching To",
-    "description": "A lighter, smarter packing setup for city trips and short flights. What to remove, what to keep, and why it works.",
+    "description": "A lighter and smarter packing system for short trips and city travel.",
     "category": "Cool Finds",
-    "date": "2026-03-02"
+    "date": "2026-03-02",
+    "views": 980
   },
   {
     "slug": "focus-stack-digital-nomads",
     "title": "The Focus Stack Remote Workers Are Using Right Now",
-    "description": "Apps, setups, and small tools that quietly boost productivity without burnout or distraction.",
+    "description": "Tools and setups that boost focus without burnout.",
     "category": "Cool Finds",
-    "date": "2026-03-02"
+    "date": "2026-03-02",
+    "views": 1240
   }
 ]
