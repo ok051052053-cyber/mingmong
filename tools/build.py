@@ -31,13 +31,15 @@ def build_index(posts):
 
     cards_html = "\n".join(cards) if cards else "<p>No posts yet.</p>"
 
+    year = datetime.now().year
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MingMong Travels</title>
-  <meta name="description" content="Korea travel experiences and essentials for young travelers across the US and Europe.">
+  <title>MingMong | Global Trends & Cool Finds</title>
+  <meta name="description" content="Curated global trends, practical tools, and cool finds for people in their 20s and 30s across the US and Europe.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -46,23 +48,23 @@ def build_index(posts):
   <div class="container topbar-inner">
     <a class="brand" href="index.html">
       <span class="mark" aria-hidden="true"></span>
-      <span>MingMong Travels</span>
+      <span>MingMong</span>
     </a>
 
     <nav class="nav" aria-label="Primary">
-      <a href="index.html">Resources</a>
+      <a href="index.html">Home</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
-      <a class="btn primary" href="posts/{posts[0]['slug']}.html">Start Here</a>
+      <a class="btn primary" href="index.html">Home</a>
     </nav>
   </div>
 </header>
 
 <main class="container">
   <section class="hero">
-    <p class="breadcrumb">Resources</p>
-    <h1 class="h1">Travel resources for Korea</h1>
-    <p class="lead">Beginner friendly guides for US and Europe travelers. Clear steps. Local context. No fluff.</p>
+    <p class="breadcrumb">Global Lifestyle</p>
+    <h1 class="h1">Trends, tools, and ideas for modern 20s & 30s</h1>
+    <p class="lead">Fresh posts, clean structure, no noise.</p>
   </section>
 
   <section class="layout">
@@ -78,8 +80,8 @@ def build_index(posts):
     <aside class="sidebar">
       <div class="card sidebox">
         <h4>Categories</h4>
-        <p>Korea Travel Experiences and Korea Lifestyle and Essentials</p>
-        <a class="btn primary" href="posts/{posts[0]['slug']}.html">Open the latest guide</a>
+        <p>Trends & News and Cool Finds</p>
+        <a class="btn primary" href="posts/{posts[0]['slug']}.html">Open the latest</a>
       </div>
 
       <div class="card related">
@@ -94,7 +96,7 @@ def build_index(posts):
 
 <footer class="footer">
   <div class="container">
-    <div>© {datetime.now().year} MingMong Travels</div>
+    <div>© {year} MingMong</div>
     <div class="footer-links">
       <a href="privacy.html">Privacy</a>
       <a href="about.html">About</a>
