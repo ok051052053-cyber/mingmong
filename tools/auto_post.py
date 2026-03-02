@@ -281,23 +281,48 @@ def generate_image_openai(prompt: str, out_path: Path):
     if not p:
         p = "clean modern lifestyle photo, minimal, premium, natural light, no text"
 
-    p = f"""
+    final_prompt = f"""
 Create a photorealistic premium blog image that matches the content.
-No text, no captions, no watermarks, no logos.
-Style: clean modern, natural lighting, high resolution.
+No text.
+No captions.
+No watermarks.
+No logos.
+Style: clean modern.
+Natural lighting.
+High resolution.
 Content to match:
 {p}
 """.strip()
 
+    # output_format=jpeg 로 안정적으로 파일 저장
     res = client.images.generate(
         model=IMAGE_MODEL,
-        prompt=p,
+        prompt=final_prompt,
         size=IMAGE_SIZE,
+        output_format="jpeg",
     )
 
-    b64 = res.data[0].b64_json
-    img_bytes = base64.b64decode(b64)
-    out_path.write_bytes(img_bytes)
+    data0 = res.data[0]
+    b64 = getattr(data0, "b64_json", None)
+    url = getattr(data0, "url", None)
+
+    if b64:
+        out_path.write_bytes(base64.b64decode(b64))
+        return
+
+    if url:
+        download_file(url, out_path)
+        return
+
+    raise RuntimeError("OpenAI image response has no b64_json and no url")
+
+
+def is_free_image_ok(file_path: Path) -> bool:
+    # 최소 크기 체크만 해도 "빈 파일/HTML" 대부분 걸러짐
+    try:
+        return file_path.exists() and file_path.stat().st_size > 12_000
+    except Exception:
+        return False
 
 
 def ensure_images_text_matched(slug: str, body_html_with_markers: str):
@@ -309,8 +334,13 @@ def ensure_images_text_matched(slug: str, body_html_with_markers: str):
     for i in range(IMG_COUNT):
         n = i + 1
         jpg_path = folder / f"{n}.jpg"
+        svg_path = folder / f"{n}.svg"
 
-        if jpg_path.exists() and jpg_path.stat().st_size > 8000:
+        if FORCE_REGEN_IMAGES:
+            jpg_path.unlink(missing_ok=True)
+            svg_path.unlink(missing_ok=True)
+
+        if jpg_path.exists() and is_free_image_ok(jpg_path):
             paths_for_post_page.append(f"../assets/posts/{slug}/{n}.jpg")
             continue
 
@@ -318,17 +348,44 @@ def ensure_images_text_matched(slug: str, body_html_with_markers: str):
         ctx = context_after_marker(body_html_with_markers, marker, max_chars=520)
 
         ok = False
-        if IMAGE_PROVIDER == "openai":
+
+        # 1) 무료 이미지 먼저 (Wikimedia)
+        #    ctx에서 핵심 키워드 몇 개 뽑아 검색어로 쓰기
+        try:
+            q = (ctx[:140] or "").strip()
+            if not q:
+                q = slug.replace("-", " ")[:80]
+
+            free_url = wikimedia_image_url(q)
+            if free_url:
+                download_file(free_url, jpg_path)
+                if is_free_image_ok(jpg_path):
+                    ok = True
+                    print(f"IMG OK (FREE): {slug} {n}.jpg")
+                else:
+                    jpg_path.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"FREE IMG FAIL: {slug} {n} -> {type(e).__name__}: {e}")
+            ok = False
+
+        # 2) 무료가 별로면 OpenAI로 생성
+        if not ok and IMAGE_PROVIDER == "openai":
             try:
                 generate_image_openai(ctx, jpg_path)
-                ok = True
-            except Exception:
+                if is_free_image_ok(jpg_path):
+                    ok = True
+                    print(f"IMG OK (OPENAI): {slug} {n}.jpg")
+                else:
+                    jpg_path.unlink(missing_ok=True)
+                    ok = False
+            except Exception as e:
+                print(f"OPENAI IMG FAIL: {slug} {n} -> {type(e).__name__}: {e}")
                 ok = False
 
-        if ok and jpg_path.exists() and jpg_path.stat().st_size > 8000:
+        # 3) 둘 다 실패하면 플레이스홀더
+        if ok and is_free_image_ok(jpg_path):
             paths_for_post_page.append(f"../assets/posts/{slug}/{n}.jpg")
         else:
-            svg_path = folder / f"{n}.svg"
             write_svg_placeholder(svg_path)
             paths_for_post_page.append(f"../assets/posts/{slug}/{n}.svg")
 
