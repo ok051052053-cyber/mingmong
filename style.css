@@ -55,7 +55,7 @@ a:hover{text-decoration:underline}
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:16px 0;
+  padding:14px 0;
 }
 .brand{
   display:flex;
@@ -67,8 +67,8 @@ a:hover{text-decoration:underline}
   padding-left:2px;
 }
 .mark{
-  width:36px;
-  height:36px;
+  width:34px;
+  height:34px;
   border-radius:10px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
 }
@@ -79,7 +79,7 @@ a:hover{text-decoration:underline}
   flex-wrap:wrap;
 }
 .nav a{
-  padding:10px 12px;
+  padding:9px 10px;
   font-weight:700;
   font-size:14px;
   border-radius:10px;
@@ -112,17 +112,17 @@ a:hover{text-decoration:underline}
 .btn:hover{opacity:.95;text-decoration:none}
 
 /* HERO */
-.hero{padding:48px 0 18px}
+.hero{padding:44px 0 18px}
 .breadcrumb{
   color:var(--muted);
   font-size:13px;
   margin-bottom:12px;
 }
 .hero-title{
-  font-size:clamp(52px,6vw,92px);
+  font-size:clamp(44px,7vw,92px);
   line-height:1.02;
   letter-spacing:-.055em;
-  margin:0 0 18px;
+  margin:0 0 16px;
   font-weight:950;
 }
 .hero-light{
@@ -155,13 +155,22 @@ a:hover{text-decoration:underline}
 .home-h2{margin:0;font-size:20px}
 .home-sub{margin:6px 0 0;color:var(--muted);font-size:13px}
 
-/* GRID */
+/* ✅ MAIN LAYOUT */
 .layout{
   display:grid;
   grid-template-columns:1fr;
-  gap:20px;
+  gap:18px;
   padding:18px 0 50px;
 }
+
+/* ✅ 강제로 모바일 1열 고정
+   혹시 브라우저가 이상하게 넓게 잡아도 이 규칙이 우선됨 */
+@media(max-width:959px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{width:100%;}
+}
+
+/* 데스크탑에서만 2열 */
 @media(min-width:960px){
   .layout{grid-template-columns:1fr 320px;}
 }
@@ -177,8 +186,19 @@ a:hover{text-decoration:underline}
 /* ARTICLE */
 .article{padding:20px}
 .article h2{margin:0;font-size:20px}
-.article-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
-.article-sub{margin:0;color:var(--muted);font-size:12px;font-weight:700}
+.article-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.article-sub{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
 .hr{height:1px;background:var(--border);border:0;margin:18px 0}
 
 /* TOPIC GRID */
@@ -223,9 +243,7 @@ a:hover{text-decoration:underline}
   font-size:18px;
   color:#111;
 }
-.topic-item:hover .topic-ico{
-  background:rgba(255,255,255,.9);
-}
+.topic-item:hover .topic-ico{background:rgba(255,255,255,.9)}
 .topic-text{
   display:flex;
   flex-direction:column;
@@ -243,21 +261,19 @@ a:hover{text-decoration:underline}
   font-size:12px;
   opacity:.9;
 }
-.topic-item:hover .topic-desc{
-  color:rgba(255,255,255,.9);
-}
+.topic-item:hover .topic-desc{color:rgba(255,255,255,.9)}
 
-/* ✅ Latest 영역: 카드 그리드 */
+/* ✅ Latest 그리드 */
 .latest-grid{
   display:grid;
-  grid-template-columns: 1fr;
+  grid-template-columns:1fr;
   gap:16px;
 }
-@media(min-width:720px){
-  .latest-grid{grid-template-columns: 1fr 1fr;}
+@media(min-width:640px){
+  .latest-grid{grid-template-columns:1fr 1fr;}
 }
 @media(min-width:1100px){
-  .latest-grid{grid-template-columns: 1fr 1fr 1fr;}
+  .latest-grid{grid-template-columns:1fr 1fr 1fr;}
 }
 
 /* POST CARD */
@@ -321,15 +337,21 @@ a:hover{text-decoration:underline}
 .post-body{min-width:0}
 
 /* SIDEBAR */
-.sidebar{display:flex;flex-direction:column;gap:14px}
-.sidebox, .related{padding:16px}
-.sidebox h4, .related h4{margin:0 0 10px;font-size:14px}
+.sidebar{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.sidebox,.related{padding:16px}
+.sidebox h4,.related h4{margin:0 0 10px;font-size:14px}
 
-/* sidebar links */
+/* ✅ Start here 링크가 모바일에서 뭉개지는 문제 해결
+   기본은 세로 스택 */
 .side-links a{
   display:flex;
-  justify-content:space-between;
-  gap:10px;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
   padding:12px 12px;
   border-radius:12px;
   border:1px solid var(--border);
@@ -341,12 +363,23 @@ a:hover{text-decoration:underline}
   background:#f9fafb;
   text-decoration:none;
 }
+.side-links a span{line-height:1.2}
 .side-links small{
   color:var(--muted);
-  font-weight:700;
+  font-weight:750;
 }
 
-/* link list */
+/* 데스크탑에서는 가로 배치로 복귀 */
+@media(min-width:960px){
+  .side-links a{
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+}
+
+/* Popular picks */
 #popular-picks{display:flex;flex-direction:column;gap:10px}
 .hot-link{
   display:flex;
