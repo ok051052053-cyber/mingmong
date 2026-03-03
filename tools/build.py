@@ -6,21 +6,24 @@ ROOT = Path(__file__).resolve().parents[1]
 POSTS_JSON = ROOT / "posts.json"
 SITEMAP = ROOT / "sitemap.xml"
 
-# ✅ 지금 도메인으로
+# ✅ 네 도메인으로. 마지막 / 있으면 제거
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").rstrip("/")
 
 
 def load_posts():
     with open(POSTS_JSON, "r", encoding="utf-8") as f:
         posts = json.load(f)
+
     if not isinstance(posts, list):
         return []
+
     posts.sort(key=lambda x: x.get("date", ""), reverse=True)
     return posts
 
 
 def build_sitemap(posts):
     urls = [f"{SITE_URL}/"]
+
     for p in posts:
         slug = p.get("slug")
         if not slug:
