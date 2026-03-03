@@ -91,10 +91,10 @@ def title_with_number_or_year(title: str, category: str) -> str:
     if re.search(r"\d", title):
         return title
     if "cool" in category.lower():
-        return f"5 Things About {title} (2026)"
+        return f"{title} 2026 정리"
     if "guide" in category.lower():
-        return f"2026 Guide: How to {title}"
-    return f"2026: {title}"
+        return f"{title} 2026 가이드"
+    return f"{title} 2026 핵심 요약"
 
 
 def pick_category_for_item(title: str) -> str:
@@ -112,10 +112,8 @@ def pick_category_for_item(title: str) -> str:
     return "Trends & News"
 
 
-def make_meta_description(keyword: str, source_name: str) -> str:
-    base = f"{keyword}. What it is. Why it matters. Practical tips you can use in 2026."
-    if source_name:
-        base += f" Source: {source_name}."
+def make_meta_description(keyword: str) -> str:
+    base = f"{keyword}를 한 번에 정리합니다. 핵심 요점과 실전 체크리스트까지 담았습니다."
     return base[:155]
 
 
@@ -201,7 +199,7 @@ def wikimedia_image_urls(query: str, limit: int = 18):
         "generator": "search",
         "gsrsearch": q,
         "gsrlimit": limit,
-        "gsrnamespace": 6,  # File:
+        "gsrnamespace": 6,
         "gsrsort": "relevance",
         "prop": "imageinfo",
         "iiprop": "url|mime",
@@ -494,15 +492,17 @@ def build_image_block(src: str, alt: str):
 # -----------------------------
 def make_outline_prompt(keyword: str, title: str, category: str):
     return f"""
-You write for a premium blog called {SITE_NAME}.
+너는 프리미엄 블로그 {SITE_NAME}의 에디터야.
 
-Topic keyword: {keyword}
-Category: {category}
-Final page title: {title}
+키워드: {keyword}
+카테고리: {category}
+최종 제목: {title}
 
-Task
-Create a UNIQUE outline that fits the topic.
-Return ONLY valid JSON with schema
+할 일
+주제에 맞는 고유한 아웃라인을 만들어.
+반드시 JSON만 반환해.
+스키마는 아래와 같아.
+
 {{
   "h2": [
     {{
@@ -517,11 +517,12 @@ Return ONLY valid JSON with schema
   ]
 }}
 
-Rules
-- 6 to 9 H2
-- Each H2 has 1 to 3 H3
-- FAQ has 4 to 6 Q&A
-- No markdown fences
+규칙
+- H2는 6~8개
+- 각 H2는 H3 1~3개
+- FAQ는 4~6개
+- 마크다운 금지
+- 코드펜스 금지
 """.strip()
 
 
@@ -531,36 +532,42 @@ def make_body_prompt(keyword: str, title: str, category: str, internal_links, ou
         a = internal_links[0]
         b = internal_links[1]
         link_hints = f"""
-Internal links you MUST insert naturally (exact tags)
+내부링크를 자연스럽게 꼭 넣어.
+정확히 아래 태그를 그대로 사용해.
+
 - <a href="{a['slug']}.html">{a['title']}</a>
 - <a href="{b['slug']}.html">{b['title']}</a>
 """.strip()
 
     return f"""
-You write for a premium blog called {SITE_NAME}.
+너는 프리미엄 블로그 {SITE_NAME}의 에디터야.
 
-Topic keyword: {keyword}
-Category: {category}
-Final page title: {title}
+키워드: {keyword}
+카테고리: {category}
+최종 제목: {title}
 
-Use this outline JSON
+아웃라인 JSON
 {outline_json}
 
-Hard requirements
-- Output ONLY valid HTML for inside <div class="prose">
-- No <html> <head> <body>
-- Use only <h2> <h3> <p> <ul> <li> <hr> <strong> <a>
-- FIRST paragraph includes the exact keyword once: "{keyword}"
-- Include sections: Practical tips and Quick checklist
-- Include FAQ section using the provided Q&A
-- No markdown fences
-- Do not output <div class="prose"> wrapper
+필수 조건
+- 출력은 <div class="prose"> 안에 들어갈 HTML만
+- <html> <head> <body> 금지
+- 태그는 <h2> <h3> <p> <ul> <li> <hr> <strong> <a> 만 사용
+- 첫 문단에 키워드 "{keyword}"를 정확히 1번 포함
+- 아래 섹션을 반드시 포함
+  1) 바로 써먹는 팁
+  2) 실전 체크리스트
+  3) FAQ (제공된 Q&A 기반)
+- 뉴스 요약처럼 쓰지 말고 해설형으로 써
+- 원문 문장을 그대로 베끼지 말고 완전한 재작성
+- 마크다운 금지
+- 코드펜스 금지
+- <div class="prose"> 래퍼는 쓰지 마
 
-Image placement markers
-- Insert each marker exactly once
-- Spread across the article
-- Never place two markers back to back
-Markers
+이미지 마커
+- 각 마커는 정확히 1번씩만 삽입
+- 문단 사이에 자연스럽게 분산
+마커 목록
 <!--IMG1-->
 <!--IMG2-->
 <!--IMG3-->
@@ -570,10 +577,11 @@ Markers
 
 {link_hints}
 
-Length
-- 1800 to 2600 words
+분량
+- 한국어 기준 최소 1200자
+- 최대 2600자
 
-Write now.
+지금 작성해.
 """.strip()
 
 
@@ -610,9 +618,10 @@ def build_post_html(
         b = internal_links[1]
         inline_links_html = f"""
 <hr class="hr" />
-<p><strong>Related on {safe_text(SITE_NAME)}:</strong>
+<p><strong>{safe_text(SITE_NAME)}에서 더 보기</strong></p>
+<p>
   <a href="{safe_text(a['slug'])}.html">{safe_text(a['title'])}</a>
-  and
+  <br />
   <a href="{safe_text(b['slug'])}.html">{safe_text(b['title'])}</a>
 </p>
 """.strip()
@@ -622,12 +631,12 @@ def build_post_html(
         a = internal_links[0]
         b = internal_links[1]
         more_links = f"""
-<a href="{safe_text(a['slug'])}.html"><span>{safe_text(a['title'])}</span><small>Guide</small></a>
-<a href="{safe_text(b['slug'])}.html"><span>{safe_text(b['title'])}</span><small>Guide</small></a>
+<a href="{safe_text(a['slug'])}.html"><span>{safe_text(a['title'])}</span><small>More</small></a>
+<a href="{safe_text(b['slug'])}.html"><span>{safe_text(b['title'])}</span><small>More</small></a>
 """.strip()
 
     html_doc = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -660,7 +669,7 @@ def build_post_html(
     <h1 class="post-title-xl">{safe_text(title)}</h1>
 
     <p class="post-lead">
-      {safe_text(keyword)} matters right now. Here is the clear breakdown.
+      {safe_text(keyword)}를 이해하기 쉽게 정리했어.
     </p>
 
     <div class="post-meta">
@@ -668,7 +677,7 @@ def build_post_html(
       <span>•</span>
       <span>Updated: {today}</span>
       <span>•</span>
-      <span>Read time: 10–16 min</span>
+      <span>Read time: 6–10 min</span>
     </div>
   </section>
 
@@ -679,7 +688,7 @@ def build_post_html(
         {body_html}
         {inline_links_html}
         <p style="margin-top:14px;">
-          Source: <a href="{safe_text(source_link)}" rel="nofollow noopener" target="_blank">Link</a>
+          참고 링크: <a href="{safe_text(source_link)}" rel="nofollow noopener" target="_blank">원문 보기</a>
         </p>
       </div>
     </article>
@@ -790,7 +799,7 @@ def create_post_from_item(item, existing_posts):
         model=MODEL,
         messages=[{"role": "user", "content": body_prompt}],
         temperature=0.7,
-        max_tokens=6500,
+        max_tokens=5200,
     )
     body_html = (res.choices[0].message.content or "").strip()
     body_html = sanitize_body_html(body_html)
@@ -802,7 +811,7 @@ def create_post_from_item(item, existing_posts):
 
     image_srcs = ensure_images_text_matched(slug, keyword, category, body_html)
 
-    description = make_meta_description(keyword, item.get("source", ""))
+    description = make_meta_description(keyword)
 
     html_doc = build_post_html(
         slug=slug,
