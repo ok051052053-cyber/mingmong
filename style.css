@@ -27,9 +27,8 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 
-/* ✅ 링크 기본색 때문에 텍스트가 이상해지는 문제 차단 */
-a{color:inherit;text-decoration:none}
-a:hover{text-decoration:none}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
 
 .container{
   max-width:var(--max);
@@ -88,6 +87,7 @@ a:hover{text-decoration:none}
 }
 .nav a:hover{
   background:#f3f4f6;
+  text-decoration:none;
 }
 
 /* BUTTON */
@@ -102,7 +102,6 @@ a:hover{text-decoration:none}
   font-weight:800;
   font-size:14px;
   cursor:pointer;
-  color:var(--text);
 }
 .btn.primary{
   background:var(--accent);
@@ -110,7 +109,7 @@ a:hover{text-decoration:none}
   border:none;
   box-shadow:0 10px 22px rgba(37,99,235,.25);
 }
-.btn:hover{opacity:.95}
+.btn:hover{opacity:.95;text-decoration:none}
 
 /* HERO */
 .hero{padding:48px 0 18px}
@@ -173,7 +172,6 @@ a:hover{text-decoration:none}
   border-radius:var(--radius);
   background:var(--card);
   box-shadow:var(--shadow);
-  color:var(--text);
 }
 
 /* ARTICLE */
@@ -199,6 +197,7 @@ a:hover{text-decoration:none}
   border:1px solid var(--border);
   border-radius:14px;
   background:#f3f4f6;
+  text-decoration:none;
   color:var(--text);
   font-weight:900;
   transition:background .16s ease, transform .16s ease, border-color .16s ease;
@@ -208,6 +207,7 @@ a:hover{text-decoration:none}
   color:#fff;
   transform:translateY(-1px);
   border-color:transparent;
+  text-decoration:none;
 }
 .topic-ico{
   width:44px;
@@ -261,21 +261,16 @@ a:hover{text-decoration:none}
   overflow:hidden;
   text-decoration:none;
   color:var(--text);
-  transition:transform .18s ease;
 }
 @media(min-width:900px){
-  /* ✅ 사진 영역을 더 넓게 */
-  .featured{grid-template-columns: 1.6fr 1fr;}
+  .featured{grid-template-columns: 1.1fr 1fr;}
 }
 .featured:hover{transform:translateY(-1px)}
 .featured-media{
-  min-height:260px;
+  min-height:220px;
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
-}
-@media(max-width:520px){
-  .featured-media{min-height:240px;}
 }
 .featured-body{
   padding:16px 16px 18px;
@@ -286,7 +281,6 @@ a:hover{text-decoration:none}
   line-height:1.15;
   letter-spacing:-.02em;
   margin-top:6px;
-  color:var(--text);
 }
 .featured-desc{
   color:var(--muted);
@@ -295,7 +289,7 @@ a:hover{text-decoration:none}
 }
 .featured-cta{margin-top:14px}
 
-/* ✅ 홈 Latest 영역 */
+/* HOME Latest grid */
 .latest-grid{
   display:grid;
   grid-template-columns: 1fr;
@@ -313,11 +307,11 @@ a:hover{text-decoration:none}
   border-radius:14px;
   transition:transform .18s ease, background .18s ease;
   border:1px solid transparent;
-  color:var(--text);
 }
 .post-card:hover{
   background:#f9fafb;
   transform:translateY(-2px);
+  text-decoration:none;
   border-color:#eef2f7;
 }
 .thumb{
@@ -380,10 +374,10 @@ a:hover{text-decoration:none}
   color:var(--text);
   font-weight:850;
   margin-top:10px;
-  background:#fff;
 }
 .side-links a:hover{
   background:#f9fafb;
+  text-decoration:none;
 }
 .side-links small{
   color:var(--muted);
@@ -408,6 +402,7 @@ a:hover{text-decoration:none}
 .hot-link:hover{
   background:#f3f4f6;
   transform:translateY(-1px);
+  text-decoration:none;
 }
 .tiny-note{
   margin:8px 0 0;
@@ -433,61 +428,9 @@ a:hover{text-decoration:none}
   border-radius:10px;
   border:1px solid var(--border);
   color:var(--muted);
-  background:#fff;
 }
 .footer-links a:hover{
   background:#f9fafb;
   color:var(--text);
-}
-
-/* ===== Clean Browse List (mobile menu style) ===== */
-.menu-list{
-  display:flex;
-  flex-direction:column;
-  margin-top:8px;
-  border-top:1px solid var(--border);
-}
-
-.menu-item{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:14px 6px;
-  border-bottom:1px solid var(--border);
-  color:var(--text);
-  font-weight:850;
   text-decoration:none;
-}
-
-.menu-item:hover{
-  background:#f9fafb;
-}
-
-.menu-ico{
-  width:28px;
-  height:28px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:18px;
-  flex:0 0 28px;
-}
-
-.menu-text{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  min-width:0;
-}
-
-.menu-title{
-  font-size:15px;
-  line-height:1.15;
-  letter-spacing:-.01em;
-}
-
-.menu-sub{
-  font-size:12px;
-  color:var(--muted);
-  font-weight:750;
 }
