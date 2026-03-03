@@ -1,4 +1,4 @@
-<!-- index.html -->
+<!-- index.html (FULL REPLACE) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MingMong | Smart Tools for Young Professionals</title>
   <meta name="description" content="AI tools, productivity workflows, and practical ways to earn more. Clear guides for young professionals in the US and Europe." />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=999" />
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9PWEGHXHE7"></script>
@@ -106,12 +106,14 @@
 
     <article class="card article">
       <h2>Latest Articles</h2>
-      <p class="home-sub">All posts are shown here.</p>
+      <p class="tiny-note">All posts are shown here. Newest first.</p>
       <hr class="hr" />
       <div id="latest-list" class="latest-grid"></div>
     </article>
 
     <aside class="sidebar">
+      <!-- ✅ Start here removed on purpose -->
+
       <div class="card related">
         <h4>Popular picks</h4>
         <div id="popular-picks"></div>
@@ -162,6 +164,7 @@
     return "#";
   }
 
+  // home card: image top then title then desc
   function postCardVertical(p) {
     const href = postHref(p);
     const t = thumbUrl(p);
@@ -184,7 +187,9 @@
     const wrap = document.getElementById("popular-picks");
     if (!wrap) return;
 
+    // newest 6
     const pool = posts.filter(p => p && p.slug).slice(0, 6);
+
     if (!pool.length) {
       wrap.innerHTML = `<div class="tiny-note">No posts yet</div>`;
       return;
@@ -206,15 +211,15 @@
       posts = [];
     }
 
+    // ✅ newest first (important)
     posts = posts
       .filter(p => p && p.slug)
       .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
     const latestWrap = document.getElementById("latest-list");
     if (latestWrap) {
-      latestWrap.innerHTML = posts.length
-        ? posts.map(postCardVertical).join("")
-        : `<div class="tiny-note">No posts yet</div>`;
+      // ✅ show ALL posts on home (no cut)
+      latestWrap.innerHTML = posts.map(postCardVertical).join("");
     }
 
     renderPopularPicks(posts);
