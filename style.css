@@ -434,3 +434,56 @@ a:hover{text-decoration:underline}
   color:var(--text);
   text-decoration:none;
 }
+
+/* ===== Clean Browse List (mobile menu style) ===== */
+.menu-list{
+  display:flex;
+  flex-direction:column;
+  margin-top:8px;
+  border-top:1px solid var(--border);
+}
+
+.menu-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 6px;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+  font-weight:850;
+  text-decoration:none;
+}
+
+.menu-item:hover{
+  background:#f9fafb;
+  text-decoration:none;
+}
+
+.menu-ico{
+  width:28px;
+  height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  flex:0 0 28px;
+}
+
+.menu-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+
+.menu-title{
+  font-size:15px;
+  line-height:1.15;
+  letter-spacing:-.01em;
+}
+
+.menu-sub{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:750;
+}
