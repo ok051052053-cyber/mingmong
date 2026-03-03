@@ -6,7 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MingMong | Smart Tools for Young Professionals</title>
   <meta name="description" content="AI tools, productivity workflows, and practical ways to earn more. Clear guides for young professionals in the US and Europe." />
-  <link rel="stylesheet" href="style.css?v=4" />
+
+  <!-- ✅ CSS: always load from site root -->
+  <link rel="stylesheet" href="/style.css?v=5" />
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9PWEGHXHE7"></script>
@@ -22,15 +24,15 @@
 
 <header class="topbar">
   <div class="container topbar-inner">
-    <a class="brand" href="index.html" aria-label="MingMong Home">
+    <a class="brand" href="/index.html" aria-label="MingMong Home">
       <span class="mark" aria-hidden="true"></span>
       <span>MingMong</span>
     </a>
 
     <nav class="nav" aria-label="Primary">
-      <a href="index.html" aria-current="page">Home</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="/index.html" aria-current="page">Home</a>
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
     </nav>
   </div>
 </header>
@@ -54,8 +56,8 @@
     </p>
 
     <div class="hero-cta">
-      <a class="btn primary" href="category.html?cat=AI%20Tools">Start with AI Tools</a>
-      <a class="btn" href="category.html?cat=Make%20Money">Explore Make Money</a>
+      <a class="btn primary" href="/category.html?cat=AI%20Tools">Start with AI Tools</a>
+      <a class="btn" href="/category.html?cat=Make%20Money">Explore Make Money</a>
     </div>
   </section>
 
@@ -67,7 +69,7 @@
     </div>
 
     <div class="topic-grid" role="list">
-      <a class="topic-item" role="listitem" href="category.html?cat=AI%20Tools">
+      <a class="topic-item" role="listitem" href="/category.html?cat=AI%20Tools">
         <span class="topic-ico" aria-hidden="true">🤖</span>
         <span class="topic-text">
           <span class="topic-title">AI Tools</span>
@@ -75,7 +77,7 @@
         </span>
       </a>
 
-      <a class="topic-item" role="listitem" href="category.html?cat=Make%20Money">
+      <a class="topic-item" role="listitem" href="/category.html?cat=Make%20Money">
         <span class="topic-ico" aria-hidden="true">💸</span>
         <span class="topic-text">
           <span class="topic-title">Make Money</span>
@@ -83,7 +85,7 @@
         </span>
       </a>
 
-      <a class="topic-item" role="listitem" href="category.html?cat=Productivity">
+      <a class="topic-item" role="listitem" href="/category.html?cat=Productivity">
         <span class="topic-ico" aria-hidden="true">⚡</span>
         <span class="topic-text">
           <span class="topic-title">Productivity</span>
@@ -91,7 +93,7 @@
         </span>
       </a>
 
-      <a class="topic-item" role="listitem" href="category.html?cat=Reviews">
+      <a class="topic-item" role="listitem" href="/category.html?cat=Reviews">
         <span class="topic-ico" aria-hidden="true">🧾</span>
         <span class="topic-text">
           <span class="topic-title">Reviews</span>
@@ -125,10 +127,10 @@
       <div class="card sidebox">
         <h4>Start here</h4>
         <div class="side-links">
-          <a href="category.html?cat=AI%20Tools"><span>AI Tools</span><small>Tools that save time</small></a>
-          <a href="category.html?cat=Make%20Money"><span>Make Money</span><small>High intent guides</small></a>
-          <a href="category.html?cat=Productivity"><span>Productivity</span><small>Workflows that stick</small></a>
-          <a href="category.html?cat=Reviews"><span>Reviews</span><small>Pricing and alternatives</small></a>
+          <a href="/category.html?cat=AI%20Tools"><span>AI Tools</span><small>Tools that save time</small></a>
+          <a href="/category.html?cat=Make%20Money"><span>Make Money</span><small>High intent guides</small></a>
+          <a href="/category.html?cat=Productivity"><span>Productivity</span><small>Workflows that stick</small></a>
+          <a href="/category.html?cat=Reviews"><span>Reviews</span><small>Pricing and alternatives</small></a>
         </div>
       </div>
 
@@ -148,9 +150,9 @@
   <div class="container">
     <div>© 2026 MingMong</div>
     <div class="footer-links">
-      <a href="privacy.html">Privacy</a>
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
     </div>
   </div>
 </footer>
@@ -183,7 +185,6 @@
     return "#";
   }
 
-  // home card: image top then title then desc
   function postCardVertical(p) {
     const href = postHref(p);
     const t = thumbUrl(p);
@@ -225,8 +226,6 @@
 
   function pickFeatured(posts) {
     const pool = posts.filter(p => p && p.slug);
-
-    // prefer Make Money then Productivity then AI Tools then newest
     const prefCats = ["Make Money", "Productivity", "AI Tools", "Reviews"];
     for (const c of prefCats) {
       const hit = pool.find(p => String(p.category || "") === c);
@@ -254,7 +253,7 @@
   async function main() {
     let posts = [];
     try {
-      const res = await fetch("posts.json", { cache: "no-store" });
+      const res = await fetch("/posts.json", { cache: "no-store" });
       posts = await res.json();
       if (!Array.isArray(posts)) posts = [];
     } catch (e) {
