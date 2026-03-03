@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Category | MingMong</title>
   <meta name="description" content="Browse posts by category on MingMong." />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body class="page-bg">
@@ -37,7 +37,7 @@
     <article class="card article">
       <h2 id="countLine">Posts</h2>
       <hr class="hr" />
-      <div id="catList" class="latest-grid"></div>
+      <div id="catList"></div>
     </article>
 
     <aside class="sidebar">
@@ -45,43 +45,44 @@
       <div class="card sidebox">
         <h4>Browse</h4>
 
-        <div class="cat-list" role="list">
-          <a class="cat-item" role="listitem" href="category.html?cat=AI%20Tools">
-            <span class="cat-icon" aria-hidden="true">🤖</span>
-            <span class="cat-text">
-              <span class="cat-title">AI Tools</span>
-              <span class="cat-sub">ChatGPT, Claude, Notion AI, automation</span>
+        <!-- ✅ Clean list menu style -->
+        <nav class="menu-list" aria-label="Browse categories">
+          <a class="menu-item" href="category.html?cat=AI%20Tools">
+            <span class="menu-ico" aria-hidden="true">🤖</span>
+            <span class="menu-text">
+              <span class="menu-title">AI Tools</span>
+              <span class="menu-sub">ChatGPT. Claude. Notion AI. Automation</span>
             </span>
           </a>
 
-          <a class="cat-item" role="listitem" href="category.html?cat=Make%20Money">
-            <span class="cat-icon" aria-hidden="true">💸</span>
-            <span class="cat-text">
-              <span class="cat-title">Make Money</span>
-              <span class="cat-sub">Side hustles, freelancing, remote income</span>
+          <a class="menu-item" href="category.html?cat=Make%20Money">
+            <span class="menu-ico" aria-hidden="true">💸</span>
+            <span class="menu-text">
+              <span class="menu-title">Make Money</span>
+              <span class="menu-sub">Side hustles. Freelancing. Remote income</span>
             </span>
           </a>
 
-          <a class="cat-item" role="listitem" href="category.html?cat=Productivity">
-            <span class="cat-icon" aria-hidden="true">⚡</span>
-            <span class="cat-text">
-              <span class="cat-title">Productivity</span>
-              <span class="cat-sub">Workflows, extensions, systems, checklists</span>
+          <a class="menu-item" href="category.html?cat=Productivity">
+            <span class="menu-ico" aria-hidden="true">⚡</span>
+            <span class="menu-text">
+              <span class="menu-title">Productivity</span>
+              <span class="menu-sub">Workflows. Extensions. Systems. Checklists</span>
             </span>
           </a>
 
-          <a class="cat-item" role="listitem" href="category.html?cat=Reviews">
-            <span class="cat-icon" aria-hidden="true">🧾</span>
-            <span class="cat-text">
-              <span class="cat-title">Reviews</span>
-              <span class="cat-sub">Pricing, comparisons, alternatives</span>
+          <a class="menu-item" href="category.html?cat=Reviews">
+            <span class="menu-ico" aria-hidden="true">🧾</span>
+            <span class="menu-text">
+              <span class="menu-title">Reviews</span>
+              <span class="menu-sub">Pricing. Comparisons. Alternatives</span>
             </span>
           </a>
-        </div>
+        </nav>
       </div>
 
       <div class="card related">
-        <h4>Hot now</h4>
+        <h4>Hot now!</h4>
         <div id="hot-now"></div>
         <p class="tiny-note">Views based ranking when available.</p>
       </div>
@@ -105,10 +106,25 @@
 <script>
 function getParam(name) {
   const url = new URL(window.location.href);
-  return (url.searchParams.get(name) || "").trim();
+  return url.searchParams.get(name) || "";
 }
 
 (function () {
+  const CAT_META = {
+    "AI Tools": {
+      desc: "ChatGPT, Claude, Notion AI, automation tools, and workflows you can copy."
+    },
+    "Make Money": {
+      desc: "Freelancing, AI side hustles, and remote income."
+    },
+    "Productivity": {
+      desc: "Systems and habits that actually stick. Extensions, routines, templates, and checklists."
+    },
+    "Reviews": {
+      desc: "Pricing breakdowns, comparisons, and alternatives so you can pick faster with confidence."
+    }
+  };
+
   function esc(s) {
     return String(s || "")
       .replace(/&/g,"&amp;")
@@ -130,10 +146,11 @@ function getParam(name) {
   }
 
   function postHref(p) {
-    return p && p.slug ? `posts/${p.slug}.html` : "#";
+    if (p && p.url) return p.url;
+    if (p && p.slug) return `posts/${p.slug}.html`;
+    return "#";
   }
 
-  // ✅ 세로형 카드: 사진 위 → 제목 → 요약
   function postCard(p) {
     const href = postHref(p);
     const t = thumbUrl(p);
@@ -141,9 +158,9 @@ function getParam(name) {
     const thumbClass = t ? "thumb has-img" : "thumb";
 
     return `
-      <a class="post-card post-card--v" href="${href}">
+      <a class="post-card" href="${href}">
         <div class="${thumbClass}" ${thumbStyle} aria-hidden="true"></div>
-        <div class="post-body">
+        <div>
           <div class="kicker">${esc(p.category || "Article")}</div>
           <div class="post-title">${esc(p.title || "Untitled")}</div>
           <p class="post-desc">${esc(p.description || "")}</p>
@@ -152,34 +169,16 @@ function getParam(name) {
     `;
   }
 
-  const CAT_META = {
-    "AI Tools": {
-      title: "AI Tools",
-      desc: "ChatGPT, Claude, Notion AI, automation tools, and real workflows you can copy."
-    },
-    "Make Money": {
-      title: "Make Money",
-      desc: "High intent guides for earning online. Freelancing, AI side hustles, and remote income."
-    },
-    "Productivity": {
-      title: "Productivity",
-      desc: "Systems and habits that actually stick. Extensions, routines, templates, and checklists."
-    },
-    "Reviews": {
-      title: "Reviews",
-      desc: "Pricing breakdowns, comparisons, and alternatives so you can pick faster with confidence."
-    }
-  };
-
-  // 기본 카테고리
-  const cat = getParam("cat") || "AI Tools";
-  const meta = CAT_META[cat] || { title: cat, desc: "All posts in this category." };
-
-  document.getElementById("catName").textContent = meta.title;
-  document.getElementById("catTitle").textContent = meta.title;
-  document.getElementById("catDesc").textContent = meta.desc;
-
   async function main() {
+    const rawCat = getParam("cat").trim();
+    const cat = rawCat || "AI Tools";
+
+    const meta = CAT_META[cat] || { desc: "All posts in this category." };
+
+    document.getElementById("catName").textContent = cat;
+    document.getElementById("catTitle").textContent = cat;
+    document.getElementById("catDesc").textContent = meta.desc;
+
     let posts = [];
     try {
       const res = await fetch("posts.json", { cache: "no-store" });
@@ -193,8 +192,8 @@ function getParam(name) {
     const hotWrap = document.getElementById("hot-now");
 
     const filtered = posts
-      .filter(p => String(p.category || "").toLowerCase() === String(meta.title || "").toLowerCase())
-      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+      .filter(p => (p.category || "").toLowerCase() === cat.toLowerCase())
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
     document.getElementById("countLine").textContent = `Posts (${filtered.length})`;
 
@@ -204,19 +203,11 @@ function getParam(name) {
       listEl.innerHTML = filtered.map(postCard).join("");
     }
 
-    // Hot now: views > 0 우선
-    const byViews = posts
-      .filter(p => (Number(p.views) || 0) > 0 && p.slug)
+    const hot = posts
+      .filter(p => (p && p.slug))
+      .slice()
       .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0))
       .slice(0, 5);
-
-    // views가 전부 0이면 최신글로 대체
-    const byNewest = posts
-      .filter(p => p && p.slug)
-      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
-      .slice(0, 5);
-
-    const hot = byViews.length ? byViews : byNewest;
 
     if (!hot.length) {
       hotWrap.innerHTML = `<div class="tiny-note">No posts yet</div>`;
@@ -225,8 +216,8 @@ function getParam(name) {
 
     hotWrap.innerHTML = hot.map(p => {
       const href = postHref(p);
-      const label = byViews.length ? (Number(p.views) || 0).toLocaleString() : "New";
-      return `<a class="hot-link" href="${href}"><span>${esc(p.title || "Untitled")}</span><span class="hot-views">${label}</span></a>`;
+      const v = (Number(p.views) || 0).toLocaleString();
+      return `<a class="hot-link" href="${href}"><span>${esc(p.title || "Untitled")}</span><span class="hot-views">${v}</span></a>`;
     }).join("");
   }
 
