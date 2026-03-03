@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Category | MingMong</title>
   <meta name="description" content="Browse posts by category on MingMong." />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 
 <body class="page-bg">
@@ -37,7 +37,7 @@
     <article class="card article">
       <h2 id="countLine">Posts</h2>
       <hr class="hr" />
-      <div id="catList"></div>
+      <div id="catList" class="latest-grid"></div>
     </article>
 
     <aside class="sidebar">
@@ -46,36 +46,44 @@
         <h4>Browse</h4>
 
         <div class="cat-list" role="list">
-          <a class="cat-item" role="listitem" href="category.html?cat=Trends%20%26%20News">
-            <span class="cat-icon" aria-hidden="true">📰</span>
+          <a class="cat-item" role="listitem" href="category.html?cat=AI%20Tools">
+            <span class="cat-icon" aria-hidden="true">🤖</span>
             <span class="cat-text">
-              <span class="cat-title">Trends & News</span>
-              <span class="cat-sub">Culture, work, travel, modern life</span>
+              <span class="cat-title">AI Tools</span>
+              <span class="cat-sub">ChatGPT, Claude, Notion AI, automation</span>
             </span>
           </a>
 
-          <a class="cat-item" role="listitem" href="category.html?cat=Cool%20Finds">
-            <span class="cat-icon" aria-hidden="true">✨</span>
+          <a class="cat-item" role="listitem" href="category.html?cat=Make%20Money">
+            <span class="cat-icon" aria-hidden="true">💸</span>
             <span class="cat-text">
-              <span class="cat-title">Cool Finds</span>
-              <span class="cat-sub">Tools, gear, products worth using</span>
+              <span class="cat-title">Make Money</span>
+              <span class="cat-sub">Side hustles, freelancing, remote income</span>
             </span>
           </a>
 
-          <a class="cat-item" role="listitem" href="category.html?cat=Guides">
-            <span class="cat-icon" aria-hidden="true">🧭</span>
+          <a class="cat-item" role="listitem" href="category.html?cat=Productivity">
+            <span class="cat-icon" aria-hidden="true">⚡</span>
             <span class="cat-text">
-              <span class="cat-title">Guides</span>
-              <span class="cat-sub">How-to, checklists, practical steps</span>
+              <span class="cat-title">Productivity</span>
+              <span class="cat-sub">Workflows, extensions, systems, checklists</span>
+            </span>
+          </a>
+
+          <a class="cat-item" role="listitem" href="category.html?cat=Reviews">
+            <span class="cat-icon" aria-hidden="true">🧾</span>
+            <span class="cat-text">
+              <span class="cat-title">Reviews</span>
+              <span class="cat-sub">Pricing, comparisons, alternatives</span>
             </span>
           </a>
         </div>
       </div>
 
       <div class="card related">
-        <h4>Hot now!</h4>
+        <h4>Hot now</h4>
         <div id="hot-now"></div>
-        <p class="tiny-note">Sorted by views from posts.json</p>
+        <p class="tiny-note">Views based ranking when available.</p>
       </div>
 
     </aside>
@@ -97,21 +105,10 @@
 <script>
 function getParam(name) {
   const url = new URL(window.location.href);
-  return url.searchParams.get(name) || "";
+  return (url.searchParams.get(name) || "").trim();
 }
 
-(async function () {
-  const cat = getParam("cat").trim() || "Trends & News";
-
-  document.getElementById("catName").textContent = cat;
-  document.getElementById("catTitle").textContent = cat;
-
-  const res = await fetch("posts.json", { cache: "no-store" });
-  const posts = await res.json();
-
-  const listEl = document.getElementById("catList");
-  const hotWrap = document.getElementById("hot-now");
-
+(function () {
   function esc(s) {
     return String(s || "")
       .replace(/&/g,"&amp;")
@@ -128,49 +125,112 @@ function getParam(name) {
   }
 
   function thumbUrl(p) {
-    const raw = p.thumbnail || p.image || `assets/posts/${p.slug}/1.jpg`;
+    const raw = p.thumbnail || p.image || (p.slug ? `assets/posts/${p.slug}/1.jpg` : "");
     return normalizeImgPath(raw);
   }
 
+  function postHref(p) {
+    return p && p.slug ? `posts/${p.slug}.html` : "#";
+  }
+
+  // ✅ 세로형 카드: 사진 위 → 제목 → 요약
   function postCard(p) {
-    const href = `posts/${p.slug}.html`;
+    const href = postHref(p);
     const t = thumbUrl(p);
     const thumbStyle = t ? `style="background-image:url('${esc(t)}')"` : "";
     const thumbClass = t ? "thumb has-img" : "thumb";
 
     return `
-      <a class="post-card" href="${href}">
+      <a class="post-card post-card--v" href="${href}">
         <div class="${thumbClass}" ${thumbStyle} aria-hidden="true"></div>
-        <div>
+        <div class="post-body">
           <div class="kicker">${esc(p.category || "Article")}</div>
-          <div class="post-title">${esc(p.title)}</div>
+          <div class="post-title">${esc(p.title || "Untitled")}</div>
           <p class="post-desc">${esc(p.description || "")}</p>
         </div>
       </a>
     `;
   }
 
-  const filtered = posts
-    .filter(p => (p.category || "").toLowerCase() === cat.toLowerCase())
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const CAT_META = {
+    "AI Tools": {
+      title: "AI Tools",
+      desc: "ChatGPT, Claude, Notion AI, automation tools, and real workflows you can copy."
+    },
+    "Make Money": {
+      title: "Make Money",
+      desc: "High intent guides for earning online. Freelancing, AI side hustles, and remote income."
+    },
+    "Productivity": {
+      title: "Productivity",
+      desc: "Systems and habits that actually stick. Extensions, routines, templates, and checklists."
+    },
+    "Reviews": {
+      title: "Reviews",
+      desc: "Pricing breakdowns, comparisons, and alternatives so you can pick faster with confidence."
+    }
+  };
 
-  document.getElementById("countLine").textContent = `Posts (${filtered.length})`;
+  // 기본 카테고리
+  const cat = getParam("cat") || "AI Tools";
+  const meta = CAT_META[cat] || { title: cat, desc: "All posts in this category." };
 
-  if (!filtered.length) {
-    listEl.innerHTML = `<p style="color: var(--muted); margin: 0;">No posts found in this category.</p>`;
-  } else {
-    listEl.innerHTML = filtered.map(postCard).join("");
+  document.getElementById("catName").textContent = meta.title;
+  document.getElementById("catTitle").textContent = meta.title;
+  document.getElementById("catDesc").textContent = meta.desc;
+
+  async function main() {
+    let posts = [];
+    try {
+      const res = await fetch("posts.json", { cache: "no-store" });
+      posts = await res.json();
+      if (!Array.isArray(posts)) posts = [];
+    } catch (e) {
+      posts = [];
+    }
+
+    const listEl = document.getElementById("catList");
+    const hotWrap = document.getElementById("hot-now");
+
+    const filtered = posts
+      .filter(p => String(p.category || "").toLowerCase() === String(meta.title || "").toLowerCase())
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+    document.getElementById("countLine").textContent = `Posts (${filtered.length})`;
+
+    if (!filtered.length) {
+      listEl.innerHTML = `<p style="color: var(--muted); margin: 0;">No posts found in this category.</p>`;
+    } else {
+      listEl.innerHTML = filtered.map(postCard).join("");
+    }
+
+    // Hot now: views > 0 우선
+    const byViews = posts
+      .filter(p => (Number(p.views) || 0) > 0 && p.slug)
+      .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0))
+      .slice(0, 5);
+
+    // views가 전부 0이면 최신글로 대체
+    const byNewest = posts
+      .filter(p => p && p.slug)
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+      .slice(0, 5);
+
+    const hot = byViews.length ? byViews : byNewest;
+
+    if (!hot.length) {
+      hotWrap.innerHTML = `<div class="tiny-note">No posts yet</div>`;
+      return;
+    }
+
+    hotWrap.innerHTML = hot.map(p => {
+      const href = postHref(p);
+      const label = byViews.length ? (Number(p.views) || 0).toLocaleString() : "New";
+      return `<a class="hot-link" href="${href}"><span>${esc(p.title || "Untitled")}</span><span class="hot-views">${label}</span></a>`;
+    }).join("");
   }
 
-  const hot = [...posts]
-    .filter(p => (p.views || 0) > 0)
-    .sort((a, b) => (b.views || 0) - (a.views || 0));
-
-  hotWrap.innerHTML = hot.slice(0, 5).map(p => {
-    const href = `posts/${p.slug}.html`;
-    const v = (p.views || 0).toLocaleString();
-    return `<a class="hot-link" href="${href}"><span>${esc(p.title)}</span><span class="hot-views">${v}</span></a>`;
-  }).join("");
+  main();
 })();
 </script>
 
