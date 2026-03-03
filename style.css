@@ -163,7 +163,6 @@ a:hover{text-decoration:underline}
   background:linear-gradient(135deg,#e0f2fe,#f0f9ff);
   flex-shrink:0;
 
-  /* ✅ 이미지가 들어오면 꽉 채워서 보여주기 */
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
