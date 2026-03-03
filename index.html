@@ -186,4 +186,66 @@
     return `
       <a class="post-card post-card--v" href="${href}">
         <div class="${thumbClass}" ${thumbStyle} aria-hidden="true"></div>
-        <div
+        <div class="post-body">
+          <div class="kicker">${esc(p.category || "Article")}</div>
+          <div class="post-title">${esc(p.title || "Untitled")}</div>
+          <p class="post-desc">${esc(p.description || "")}</p>
+        </div>
+      </a>
+    `;
+  }
+
+  function renderPopularPicks(posts) {
+    const wrap = document.getElementById("popular-picks");
+    if (!wrap) return;
+
+    const pool = posts.filter(p => p && p.slug).slice(0, 8);
+    if (!pool.length) {
+      wrap.innerHTML = `<div class="tiny-note">No posts yet</div>`;
+      return;
+    }
+
+    wrap.innerHTML = pool.map(p => {
+      const href = postHref(p);
+      return `<a class="hot-link" href="${href}"><span>${esc(p.title || "Untitled")}</span></a>`;
+    }).join("");
+  }
+
+  async function main() {
+    let posts = [];
+    try {
+      const res = await fetch("posts.json", { cache: "no-store" });
+      posts = await res.json();
+      if (!Array.isArray(posts)) posts = [];
+    } catch (e) {
+      posts = [];
+    }
+
+    posts = posts
+      .filter(p => p && p.slug)
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+    const latestWrap = document.getElementById("latest-list");
+    const emptyEl = document.getElementById("latest-empty");
+
+    if (!posts.length) {
+      if (emptyEl) emptyEl.style.display = "block";
+      if (latestWrap) latestWrap.innerHTML = "";
+      renderPopularPicks([]);
+      return;
+    }
+
+    // ✅ IMPORTANT: show ALL posts on home
+    if (latestWrap) {
+      latestWrap.innerHTML = posts.map(postCardVertical).join("");
+    }
+
+    renderPopularPicks(posts);
+  }
+
+  main();
+})();
+</script>
+
+</body>
+</html>
