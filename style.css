@@ -412,3 +412,60 @@ a:hover{text-decoration:underline}
 /* HOT NEWS block matches More to read */
 .hotnews{padding:16px}
 .hotnews h4{margin:0 0 10px;font-size:14px}
+
+/* Popular Topics card list */
+.topic-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:12px;
+}
+
+.topic-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 14px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#f8fafc;
+  text-decoration:none;
+  color:var(--text);
+}
+
+.topic-item:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 24px rgba(15,23,42,.08);
+}
+
+.topic-ico{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  background:#ffffff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  flex:0 0 auto;
+  font-size:18px;
+}
+
+.topic-text{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+
+.topic-title{
+  font-weight:800;
+  line-height:1.2;
+}
+
+.topic-desc{
+  color:var(--muted);
+  font-weight:600;
+  font-size:14px;
+}
+
