@@ -14,11 +14,12 @@
   --gradA: rgba(37,99,235,.14);
   --gradB: rgba(6,182,212,.12);
   --ink:#0f172a;
+
+  --postMax: 920px;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
-
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -26,35 +27,22 @@ body{
   background:var(--bg);
   line-height:1.7;
   -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
 }
 
-/* ✅ 링크 긴 텍스트로 가로 터지는 것 방지 */
-a, p, div, span{
-  overflow-wrap:anywhere;
-  word-break:break-word;
-}
-
+img{max-width:100%;height:auto}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
 .container{
   max-width:var(--max);
   margin:0 auto;
-  padding-left:calc(20px + env(safe-area-inset-left));
-  padding-right:calc(20px + env(safe-area-inset-right));
+  padding:0 20px;
 }
 @media(min-width:680px){
-  .container{
-    padding-left:calc(28px + env(safe-area-inset-left));
-    padding-right:calc(28px + env(safe-area-inset-right));
-  }
+  .container{padding:0 28px;}
 }
 @media(min-width:980px){
-  .container{
-    padding-left:calc(32px + env(safe-area-inset-left));
-    padding-right:calc(32px + env(safe-area-inset-right));
-  }
+  .container{padding:0 32px;}
 }
 
 /* HEADER */
@@ -71,7 +59,6 @@ a:hover{text-decoration:underline}
   justify-content:space-between;
   align-items:center;
   padding:16px 0;
-  gap:12px;
 }
 .brand{
   display:flex;
@@ -80,24 +67,24 @@ a:hover{text-decoration:underline}
   font-weight:900;
   letter-spacing:-.02em;
   color:var(--text);
-  padding-left:6px; /* ✅ 아이콘이 벽에 붙는 느낌 제거 */
+  padding-left:6px; /* ✅ 아이콘/브랜드가 벽에 딱 붙지 않게 */
 }
 .mark{
   width:36px;
   height:36px;
   border-radius:10px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
+  flex:0 0 auto;
 }
 
 .nav{
   display:flex;
   gap:8px;
   flex-wrap:wrap;
-  justify-content:flex-end;
 }
 .nav a{
   padding:10px 12px;
-  font-weight:800;
+  font-weight:700;
   font-size:14px;
   border-radius:10px;
   color:var(--text);
@@ -107,9 +94,12 @@ a:hover{text-decoration:underline}
   text-decoration:none;
 }
 
-/* ✅ 모바일에서 메뉴가 답답하면 조금 줄이기 */
-@media(max-width:420px){
+/* 모바일에서 헤더 넘침 방지 */
+@media(max-width:520px){
+  .topbar-inner{gap:10px}
+  .nav{gap:6px}
   .nav a{padding:8px 10px;font-size:13px}
+  .brand span:last-child{font-size:16px}
 }
 
 /* BUTTON */
@@ -121,7 +111,7 @@ a:hover{text-decoration:underline}
   border-radius:12px;
   border:1px solid var(--border);
   background:var(--card);
-  font-weight:900;
+  font-weight:800;
   font-size:14px;
   cursor:pointer;
 }
@@ -141,7 +131,7 @@ a:hover{text-decoration:underline}
   margin-bottom:12px;
 }
 .hero-title{
-  font-size:clamp(46px,7vw,92px);
+  font-size:clamp(44px,6vw,92px);
   line-height:1.02;
   letter-spacing:-.055em;
   margin:0 0 18px;
@@ -170,18 +160,18 @@ a:hover{text-decoration:underline}
   flex-wrap:wrap;
   margin-top:16px;
 }
+@media(max-width:520px){
+  .hero{padding:26px 0 12px}
+  .lead{font-size:16px}
+  .hero-cta{gap:8px}
+  .btn{padding:10px 12px}
+}
 
 /* HOME BLOCK */
 .home-block{padding:8px 0 8px}
 .home-block-head{margin:6px 0 12px}
 .home-h2{margin:0;font-size:20px}
 .home-sub{margin:6px 0 0;color:var(--muted);font-size:13px}
-
-.muted-note{
-  margin:8px 0 0;
-  color:var(--muted);
-  font-size:13px;
-}
 
 /* GRID */
 .layout{
@@ -192,6 +182,11 @@ a:hover{text-decoration:underline}
 }
 @media(min-width:960px){
   .layout{grid-template-columns:1fr 320px;}
+}
+
+/* ✅ 모바일은 무조건 1컬럼으로 고정 */
+@media(max-width:959px){
+  .layout{grid-template-columns:1fr}
 }
 
 /* CARD */
@@ -229,7 +224,6 @@ a:hover{text-decoration:underline}
   color:var(--text);
   font-weight:900;
   transition:background .16s ease, transform .16s ease, border-color .16s ease;
-  min-width:0;
 }
 .topic-item:hover{
   background:linear-gradient(135deg, var(--accent), var(--accent2));
@@ -275,7 +269,7 @@ a:hover{text-decoration:underline}
   color:rgba(255,255,255,.9);
 }
 
-/* ✅ 홈 Latest 영역: 카드 그리드 */
+/* Latest grid */
 .latest-grid{
   display:grid;
   grid-template-columns: 1fr;
@@ -293,7 +287,6 @@ a:hover{text-decoration:underline}
   border-radius:14px;
   transition:transform .18s ease, background .18s ease;
   border:1px solid transparent;
-  min-width:0;
 }
 .post-card:hover{
   background:#f9fafb;
@@ -314,11 +307,11 @@ a:hover{text-decoration:underline}
 .kicker{
   font-size:12px;
   color:var(--accent);
-  font-weight:900;
+  font-weight:800;
   margin-bottom:4px;
 }
 .post-title{
-  font-weight:950;
+  font-weight:900;
   font-size:16px;
   margin-bottom:6px;
   color:var(--text);
@@ -328,7 +321,6 @@ a:hover{text-decoration:underline}
   font-size:13px;
   margin:0;
 }
-.post-body{min-width:0}
 
 /* vertical card for home */
 .post-card--v{
@@ -344,84 +336,72 @@ a:hover{text-decoration:underline}
 @media(max-width:420px){
   .post-card--v .thumb{height:160px;}
 }
+.post-body{min-width:0}
 
 /* SIDEBAR */
 .sidebar{display:flex;flex-direction:column;gap:14px}
 .sidebox, .related{padding:16px}
-.sidebox h4, .related h4{margin:0 0 12px;font-size:14px}
+.sidebox h4, .related h4{margin:0 0 10px;font-size:14px}
 
-/* ✅ Start here (예쁘게 카드형) */
-.start-grid{
+/* ✅ Start here: 예쁘게 카드형 리스트 */
+.side-links{
   display:flex;
   flex-direction:column;
   gap:10px;
 }
-.start-item{
+.side-links a{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:12px;
   padding:12px 12px;
-  border-radius:14px;
+  border-radius:12px;
   border:1px solid var(--border);
-  background:#fff;
   color:var(--text);
-  text-decoration:none;
   font-weight:900;
-  min-width:0;
+  background:#fff;
 }
-.start-item:hover{
+.side-links a:hover{
   background:#f9fafb;
   text-decoration:none;
 }
-.start-left{
+.side-links a span{
   display:flex;
   align-items:center;
   gap:10px;
-  min-width:0;
 }
-.start-ico{
-  width:34px;
-  height:34px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:#f3f4f6;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+.side-links a span::before{
+  content:"";
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 8px 18px rgba(37,99,235,.18);
   flex:0 0 auto;
 }
-.start-name{
-  font-size:14px;
-  letter-spacing:-.01em;
-  min-width:0;
-}
-.start-desc{
+.side-links small{
   color:var(--muted);
-  font-weight:800;
-  font-size:12px;
-  text-align:right;
-  flex:0 0 auto;
+  font-weight:750;
+  white-space:nowrap;
+}
+@media(max-width:520px){
+  .side-links small{white-space:normal}
 }
 
-/* ✅ popular picks가 가로로 안 터지게 */
+/* Popular picks */
 #popular-picks{display:flex;flex-direction:column;gap:10px}
 .hot-link{
   display:flex;
-  align-items:flex-start;
-  justify-content:flex-start;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
   padding:12px;
   border-radius:12px;
   border:1px solid var(--border);
   color:var(--text);
-  font-weight:900;
+  font-weight:850;
   background:#fff;
   transition:background .16s ease, transform .16s ease;
-  min-width:0;
-}
-.hot-link span{
-  min-width:0;
-  white-space:normal;
 }
 .hot-link:hover{
   background:#f3f4f6;
@@ -441,14 +421,8 @@ a:hover{text-decoration:underline}
   color:var(--muted);
   font-size:14px;
 }
-.footer .container{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:12px;
-  flex-wrap:wrap;
-}
 .footer-links{
+  margin-top:10px;
   display:flex;
   gap:10px;
   flex-wrap:wrap;
@@ -465,68 +439,77 @@ a:hover{text-decoration:underline}
   text-decoration:none;
 }
 
-/* ===== PC에서 Start here가 줄글처럼 보일 때(구버전 side-links 대응) ===== */
-
-.side-links{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+/* =========================
+   POST PAGE (폭 통일 핵심)
+   ========================= */
+.post-page{
+  padding:18px 0 48px;
 }
-
-.side-links a{
+.post-shell{
+  max-width:var(--postMax);
+  margin:0 auto;
+}
+.post-header{
+  margin:10px 0 14px;
+}
+.post-header .kicker{
+  margin:0 0 6px;
+}
+.post-h1{
+  margin:0;
+  font-size:clamp(28px,3.2vw,44px);
+  line-height:1.15;
+  letter-spacing:-.02em;
+  font-weight:950;
+}
+.post-meta{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:13px;
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:12px 12px;
-  border-radius:14px;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.post-hero{
+  margin:16px 0 18px;
+}
+.post-hero img{
+  width:100%;
+  display:block;
+  border-radius:18px;
   border:1px solid var(--border);
-  background:#fff;
-  color:var(--text);
-  text-decoration:none;
-  font-weight:900;
-  min-width:0;
 }
-
-.side-links a:hover{
-  background:#f9fafb;
-  text-decoration:none;
+.post-content{
+  font-size:16px;
 }
-
-.side-links a span{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:0;
-  font-size:14px;
+.post-content h2{
+  margin:22px 0 10px;
+  font-size:18px;
   letter-spacing:-.01em;
 }
-
-.side-links a span::before{
-  content:"";
-  width:34px;
-  height:34px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:#f3f4f6;
-  flex:0 0 auto;
+.post-content p{
+  margin:10px 0;
+  color:#0f172a;
 }
-
-.side-links a:nth-child(1) span::before{ content:"🤖"; display:flex; align-items:center; justify-content:center; }
-.side-links a:nth-child(2) span::before{ content:"💸"; display:flex; align-items:center; justify-content:center; }
-.side-links a:nth-child(3) span::before{ content:"⚡"; display:flex; align-items:center; justify-content:center; }
-.side-links a:nth-child(4) span::before{ content:"🧾"; display:flex; align-items:center; justify-content:center; }
-
-.side-links a small{
+.post-content img{
+  width:100%;
   display:block;
-  color:var(--muted);
-  font-weight:800;
-  font-size:12px;
-  text-align:right;
-  flex:0 0 auto;
+  border-radius:18px;
+  border:1px solid var(--border);
+  margin:16px 0;
+}
+.post-content a{
+  text-decoration:underline;
+}
+.post-content hr{
+  border:0;
+  height:1px;
+  background:var(--border);
+  margin:18px 0;
 }
 
-/* ✅ 혹시라도 줄바꿈/겹침 생기면 강제 */
-.side-links a, .start-item{
-  white-space:normal;
+/* 작은 화면 글 가독성 */
+@media(max-width:520px){
+  .post-content{font-size:15px}
+  .post-shell{max-width:100%}
 }
