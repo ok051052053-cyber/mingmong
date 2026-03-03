@@ -28,7 +28,7 @@ a:hover{text-decoration:underline}
 .container{
   max-width:var(--max);
   margin:0 auto;
-  padding:0 20px;
+  padding:0 32px;
 }
 
 /* HEADER */
@@ -526,5 +526,6 @@ a:hover{text-decoration:underline}
 .topic-item:hover .topic-desc{
   color:rgba(255,255,255,.9);
 }
+
 
 
