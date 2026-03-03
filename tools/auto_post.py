@@ -7,10 +7,9 @@ import random
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 
 import requests
-import feedparser
 from slugify import slugify
 from openai import OpenAI
 
@@ -32,16 +31,13 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "3"))  # 글 안 이미지 개수
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "3"))
 HTTP_TIMEOUT = 25
 
-# 이미지 공급자: "wikimedia" 우선, 실패/중복이면 openai 생성
 IMAGE_PROVIDER = os.environ.get("IMAGE_PROVIDER", "wikimedia").strip().lower()
 IMAGE_MODEL = os.environ.get("IMAGE_MODEL", "gpt-image-1").strip()
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-
-money_re = re.compile(r"([\d,]+)\s*원")
 
 def now_iso():
   return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -63,9 +59,6 @@ def safe_write_json(path: Path, data):
 def sha256_bytes(b: bytes) -> str:
   return hashlib.sha256(b).hexdigest()
 
-def sha256_file(p: Path) -> str:
-  return sha256_bytes(p.read_bytes())
-
 def ensure_dirs(slug: str):
   POSTS_DIR.mkdir(parents=True, exist_ok=True)
   (ASSETS_POSTS_DIR / slug).mkdir(parents=True, exist_ok=True)
@@ -73,21 +66,12 @@ def ensure_dirs(slug: str):
 def esc(s: str) -> str:
   return html.escape(s or "", quote=True)
 
-def normalize_img_path(pth: str) -> str:
-  s = (pth or "").strip()
-  if not s:
-    return s
-  if s.lower().endswith(".svg"):
-    return s[:-4] + ".jpg"
-  return s
-
 # -----------------------------------
-# Wikimedia image fetch (unique-first)
+# Wikimedia image fetch
 # -----------------------------------
 WIKI_API = "https://commons.wikimedia.org/w/api.php"
 
 def wikimedia_search_image_urls(query: str, limit: int = 12) -> List[str]:
-  # Search file pages
   params = {
     "action": "query",
     "format": "json",
@@ -128,13 +112,12 @@ def download_image(url: str) -> Optional[bytes]:
     return None
 
 # -----------------------------------
-# OpenAI image (unique prompt)
+# OpenAI image
 # -----------------------------------
 def openai_generate_image_bytes(prompt: str) -> Optional[bytes]:
   if not client:
     return None
   try:
-    # gpt-image-1 returns base64 via images.generate
     res = client.images.generate(
       model=IMAGE_MODEL,
       prompt=prompt,
@@ -159,15 +142,6 @@ def save_used_images(s: Set[str]):
   safe_write_json(USED_IMAGES_JSON, sorted(list(s)))
 
 def pick_unique_images_for_post(keyword: str, slug: str, count: int) -> List[str]:
-  """
-  Returns relative paths like:
-  assets/posts/<slug>/1.jpg
-  assets/posts/<slug>/2.jpg
-  ...
-  Guarantees:
-    - no duplicates inside the post
-    - no duplicates across the whole site (via used_images.json)
-  """
   ensure_dirs(slug)
 
   used_global = load_used_images()
@@ -176,25 +150,21 @@ def pick_unique_images_for_post(keyword: str, slug: str, count: int) -> List[str
   saved_paths: List[str] = []
   attempts = 0
 
-  # candidate urls (wikimedia)
   candidates: List[str] = []
   if IMAGE_PROVIDER in ("wikimedia", "auto", "hybrid"):
-    # widen query so you get more variety
     q = f"{keyword} abstract modern photo"
-    candidates = wikimedia_search_image_urls(q, limit=30)
+    candidates = wikimedia_search_image_urls(q, limit=40)
 
-  while len(saved_paths) < count and attempts < 120:
+  while len(saved_paths) < count and attempts < 160:
     attempts += 1
 
     img_bytes = None
-    source_id = None  # used for de-dup
+    h = None
 
-    # 1) try wikimedia candidate that is not used
     url = None
     while candidates:
       u = candidates.pop()
-      # use url as an id first
-      if u in used_global or u in used_in_post:
+      if u in used_global:
         continue
       url = u
       break
@@ -202,19 +172,13 @@ def pick_unique_images_for_post(keyword: str, slug: str, count: int) -> List[str
     if url:
       b = download_image(url)
       if b:
-        h = sha256_bytes(b)
-        # hash-level de-dup (strong)
-        if h in used_global or h in used_in_post:
-          img_bytes = None
-          source_id = None
-        else:
+        hh = sha256_bytes(b)
+        if hh not in used_global and hh not in used_in_post:
           img_bytes = b
-          source_id = h
+          h = hh
 
-    # 2) if no usable unique image, generate with openai (must be unique)
     if img_bytes is None:
-      # force uniqueness with random token
-      uniq = hashlib.sha1(f"{slug}-{len(saved_paths)}-{time.time()}-{random.random()}".encode()).hexdigest()[:8]
+      uniq = hashlib.sha1(f"{slug}-{len(saved_paths)}-{time.time()}-{random.random()}".encode()).hexdigest()[:10]
       prompt = (
         f"High quality realistic photo for a blog post about: {keyword}. "
         f"Clean composition, professional lighting, no text, no logos, no watermarks. "
@@ -223,57 +187,28 @@ def pick_unique_images_for_post(keyword: str, slug: str, count: int) -> List[str
       b = openai_generate_image_bytes(prompt)
       if not b:
         continue
-      h = sha256_bytes(b)
-      if h in used_global or h in used_in_post:
-        # extremely rare, but still handle
+      hh = sha256_bytes(b)
+      if hh in used_global or hh in used_in_post:
         continue
       img_bytes = b
-      source_id = h
+      h = hh
 
-    # 3) write file
     idx = len(saved_paths) + 1
     out_file = ASSETS_POSTS_DIR / slug / f"{idx}.jpg"
     out_file.write_bytes(img_bytes)
 
-    # 4) mark used
-    used_in_post.add(source_id)
-    used_global.add(source_id)
+    used_in_post.add(h)
+    used_global.add(h)
     saved_paths.append(f"assets/posts/{slug}/{idx}.jpg")
 
   save_used_images(used_global)
-
-  # absolute guarantee: if still short, just repeat-generation until filled (no duplicates)
-  while len(saved_paths) < count:
-    uniq = hashlib.sha1(f"{slug}-{len(saved_paths)}-{time.time()}-{random.random()}".encode()).hexdigest()[:10]
-    b = openai_generate_image_bytes(
-      f"High quality realistic photo for a blog post about: {keyword}. "
-      f"Clean composition, professional lighting, no text, no logos, no watermarks. "
-      f"Unique variation token: {uniq}."
-    )
-    if not b:
-      break
-    h = sha256_bytes(b)
-    if h in load_used_images():
-      continue
-    idx = len(saved_paths) + 1
-    out_file = ASSETS_POSTS_DIR / slug / f"{idx}.jpg"
-    out_file.write_bytes(b)
-    used_global = load_used_images()
-    used_global.add(h)
-    save_used_images(used_global)
-    saved_paths.append(f"assets/posts/{slug}/{idx}.jpg")
-
   return saved_paths
 
 # -----------------------------------
-# Content generation (simple example)
+# Content generation
 # -----------------------------------
 def llm_generate_article(keyword: str) -> Dict[str, str]:
-  """
-  Return title, description, category, html_body (NO outer html).
-  """
   if not client:
-    # fallback: minimal
     title = keyword.title()
     desc = f"A practical guide about {keyword}."
     cat = "AI Tools"
@@ -308,7 +243,6 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
       "body": str(data.get("body_html","")).strip() or "<p></p>",
     }
   except Exception:
-    # if model returned non-json
     title = keyword.title()
     desc = f"A practical guide about {keyword}."
     cat = "AI Tools"
@@ -317,10 +251,8 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
 
 def build_post_html(site_name: str, title: str, description: str, category: str, date_iso: str, slug: str, images: List[str], body_html: str) -> str:
   hero_img = images[0] if images else ""
-  # Insert remaining images between sections: simple strategy
   extra_imgs = images[1:]
 
-  # If body has multiple <h2>, inject images after some headers
   if extra_imgs:
     parts = re.split(r"(<h2>.*?</h2>)", body_html, flags=re.S)
     out = []
@@ -395,9 +327,8 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
 """
 
 def add_post_to_index(posts: List[dict], post_obj: dict) -> List[dict]:
-  # keep newest first by date string
   posts.append(post_obj)
-  posts = [p for p in posts if p.get("slug")]
+  posts = [p for p in posts if isinstance(p, dict) and p.get("slug")]
   posts.sort(key=lambda x: str(x.get("date","")), reverse=True)
   return posts
 
@@ -428,12 +359,11 @@ def main():
   if not keywords:
     raise SystemExit("keywords.json has no keywords")
 
-  # avoid generating same slug twice
   existing_slugs = set([p.get("slug") for p in posts if isinstance(p, dict)])
 
   made = 0
   tries = 0
-  while made < POSTS_PER_RUN and tries < POSTS_PER_RUN * 8:
+  while made < POSTS_PER_RUN and tries < POSTS_PER_RUN * 10:
     tries += 1
     keyword = random.choice(keywords).strip()
     if not keyword:
@@ -443,7 +373,6 @@ def main():
     if not slug or slug in existing_slugs:
       continue
 
-    # generate text
     art = llm_generate_article(keyword)
     title = art["title"]
     description = art["description"]
@@ -451,10 +380,8 @@ def main():
     body = art["body"]
     date_iso = now_iso()
 
-    # images unique (global + per post)
     images = pick_unique_images_for_post(keyword, slug, IMG_COUNT)
 
-    # write html
     html_doc = build_post_html(SITE_NAME, title, description, category, date_iso, slug, images, body)
     out_path = POSTS_DIR / f"{slug}.html"
     out_path.write_text(html_doc, encoding="utf-8")
