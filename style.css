@@ -99,22 +99,34 @@ a:hover{text-decoration:underline}
 .btn:hover{opacity:.95;text-decoration:none}
 
 /* HERO */
-.hero{padding:32px 0 10px}
+.hero{padding:48px 0 18px}
 .breadcrumb{
   color:var(--muted);
   font-size:13px;
   margin-bottom:12px;
 }
-.h1{
-  font-size:clamp(30px,3vw,44px);
-  line-height:1.15;
-  letter-spacing:-.03em;
-  margin:0 0 12px;
+.hero-title{
+  font-size:clamp(52px,6vw,92px);
+  line-height:1.02;
+  letter-spacing:-.055em;
+  margin:0 0 18px;
+  font-weight:950;
+}
+.hero-light{
+  display:block;
+  color:#94a3b8;
+  font-weight:800;
+}
+.hero-strong{
+  display:block;
+  background:linear-gradient(90deg,#2563eb,#06b6d4);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
 }
 .lead{
-  color:var(--muted);
-  max-width:70ch;
-  font-size:17px;
+  color:#64748b;
+  max-width:62ch;
+  font-size:18px;
   margin:0;
 }
 
@@ -143,6 +155,18 @@ a:hover{text-decoration:underline}
 .article p{margin:10px 0}
 .hr{height:1px;background:var(--border);border:0;margin:18px 0}
 
+/* ✅ 홈 Latest 영역: 카드 그리드 */
+.latest-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:16px;
+}
+@media(min-width:780px){
+  .latest-grid{
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* POST CARD */
 .post-card{
   display:flex;
@@ -150,11 +174,13 @@ a:hover{text-decoration:underline}
   padding:14px;
   border-radius:14px;
   transition:transform .18s ease, background .18s ease;
+  border:1px solid transparent;
 }
 .post-card:hover{
   background:#f9fafb;
   transform:translateY(-2px);
   text-decoration:none;
+  border-color:#eef2f7;
 }
 .thumb{
   width:110px;
@@ -175,7 +201,7 @@ a:hover{text-decoration:underline}
 .post-title{
   font-weight:900;
   font-size:16px;
-  margin-bottom:4px;
+  margin-bottom:6px;
   color:var(--text);
 }
 .post-desc{
@@ -183,6 +209,22 @@ a:hover{text-decoration:underline}
   font-size:13px;
   margin:0;
 }
+
+/* ✅ 세로형 카드 (홈에서만 사용) */
+.post-card--v{
+  flex-direction:column;
+  gap:12px;
+  padding:14px;
+}
+.post-card--v .thumb{
+  width:100%;
+  height:180px;
+  border-radius:14px;
+}
+@media(max-width:420px){
+  .post-card--v .thumb{height:160px;}
+}
+.post-body{min-width:0}
 
 /* SIDEBAR */
 .sidebar{display:flex;flex-direction:column;gap:14px}
@@ -483,38 +525,4 @@ a:hover{text-decoration:underline}
 }
 .topic-item:hover .topic-desc{
   color:rgba(255,255,255,.9);
-}
-
-/* ===== HERO TITLE (FINAL, SINGLE SOURCE OF TRUTH) ===== */
-
-.hero{
-  padding:48px 0 18px;
-}
-
-.hero-title{
-  font-size:clamp(52px,6vw,92px);
-  line-height:1.02;
-  letter-spacing:-.055em;
-  margin:0 0 18px;
-  font-weight:950;
-}
-
-.hero-light{
-  display:block;
-  color:#94a3b8;
-  font-weight:800;
-}
-
-.hero-strong{
-  display:block;
-  background:linear-gradient(90deg,#2563eb,#06b6d4);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-}
-
-.lead{
-  color:#64748b;
-  max-width:62ch;
-  font-size:18px;
-  margin:0;
 }
