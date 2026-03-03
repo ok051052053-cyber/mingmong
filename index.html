@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MingMong | Smart Tools for Young Professionals</title>
   <meta name="description" content="AI tools, productivity workflows, and practical ways to earn more. Clear guides for young professionals in the US and Europe." />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=6" />
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9PWEGHXHE7"></script>
@@ -106,57 +106,17 @@
 
     <article class="card article">
       <h2>Latest Articles</h2>
-      <p class="muted-note">All posts are shown here.</p>
+      <p class="home-sub">All posts are shown here.</p>
       <hr class="hr" />
       <div id="latest-list" class="latest-grid"></div>
     </article>
 
     <aside class="sidebar">
-
-      <div class="card sidebox">
-        <h4>Start here</h4>
-
-        <div class="start-grid">
-          <a class="start-item" href="category.html?cat=AI%20Tools">
-            <span class="start-left">
-              <span class="start-ico" aria-hidden="true">🤖</span>
-              <span class="start-name">AI Tools</span>
-            </span>
-            <span class="start-desc">Tools that save time</span>
-          </a>
-
-          <a class="start-item" href="category.html?cat=Make%20Money">
-            <span class="start-left">
-              <span class="start-ico" aria-hidden="true">💸</span>
-              <span class="start-name">Make Money</span>
-            </span>
-            <span class="start-desc">High intent guides</span>
-          </a>
-
-          <a class="start-item" href="category.html?cat=Productivity">
-            <span class="start-left">
-              <span class="start-ico" aria-hidden="true">⚡</span>
-              <span class="start-name">Productivity</span>
-            </span>
-            <span class="start-desc">Workflows that stick</span>
-          </a>
-
-          <a class="start-item" href="category.html?cat=Reviews">
-            <span class="start-left">
-              <span class="start-ico" aria-hidden="true">🧾</span>
-              <span class="start-name">Reviews</span>
-            </span>
-            <span class="start-desc">Pricing and alternatives</span>
-          </a>
-        </div>
-      </div>
-
       <div class="card related">
         <h4>Popular picks</h4>
         <div id="popular-picks"></div>
         <p class="tiny-note">Auto selected from your newest posts.</p>
       </div>
-
     </aside>
 
   </section>
@@ -252,8 +212,9 @@
 
     const latestWrap = document.getElementById("latest-list");
     if (latestWrap) {
-      // ✅ 홈에서 전부 보여주기
-      latestWrap.innerHTML = posts.map(postCardVertical).join("");
+      latestWrap.innerHTML = posts.length
+        ? posts.map(postCardVertical).join("")
+        : `<div class="tiny-note">No posts yet</div>`;
     }
 
     renderPopularPicks(posts);
