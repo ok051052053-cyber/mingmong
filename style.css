@@ -506,3 +506,32 @@ a:hover{text-decoration:underline}
   }
 
 }
+
+/* ===== MOBILE NAV FIX ===== */
+@media (max-width:600px){
+
+  .topbar-inner{
+    flex-direction:row;
+    align-items:center;
+    gap:8px;
+  }
+
+  .nav{
+    gap:4px;
+  }
+
+  .nav a{
+    padding:6px 6px;
+    font-size:13px;
+  }
+
+  .brand{
+    gap:8px;
+  }
+
+  .mark{
+    width:28px;
+    height:28px;
+  }
+
+}
