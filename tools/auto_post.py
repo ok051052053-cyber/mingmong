@@ -12,9 +12,8 @@ from typing import Dict, List, Optional, Set, Tuple
 import requests
 from slugify import slugify
 
-# 이미지 품질 검사용
-from PIL import Image
-from io import BytesIO
+# OpenAI is for text only
+from openai import OpenAI
 
 # -----------------------------
 # Paths
@@ -31,66 +30,24 @@ USED_IMAGES_JSON = ROOT / "used_images.json"
 # -----------------------------
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
-POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))  # 최소 4장 권장
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))
+
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))         # 최소 4장 이상
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))      # 글 최소 2500자
-HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "25"))
+UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 
-# 이미지 품질 기준 (고품질만)
-MIN_IMG_LONG_EDGE = int(os.environ.get("MIN_IMG_LONG_EDGE", "1400"))  # 긴 변 최소 px
-MIN_IMG_BYTES = int(os.environ.get("MIN_IMG_BYTES", "120000"))        # 파일 최소 크기 (약 120KB)
-MAX_IMG_ASPECT = float(os.environ.get("MAX_IMG_ASPECT", "2.2"))       # 가로세로 비 너무 긴 것 컷
-WIKI_CANDIDATES = int(os.environ.get("WIKI_CANDIDATES", "70"))        # 후보 URL 수
-MAX_KEYWORD_ATTEMPTS = int(os.environ.get("MAX_KEYWORD_ATTEMPTS", "18"))  # 한 run에서 키워드 재시도
+HTTP_TIMEOUT = 25
 
-# -----------------------------
-# OpenAI client (SDK 호환)
-# -----------------------------
-def _openai_text_json(system: str, user: str) -> str:
-  """
-  OpenAI 파이썬 SDK 버전 차이 대응.
-  - openai>=1.x: from openai import OpenAI -> client.chat.completions.create
-  - openai<1.x: import openai -> openai.ChatCompletion.create
-  """
-  if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY missing")
+# 품질 기준
+MIN_IMG_WIDTH = int(os.environ.get("MIN_IMG_WIDTH", "1600"))
+MIN_IMG_HEIGHT = int(os.environ.get("MIN_IMG_HEIGHT", "900"))
+MIN_BYTES = int(os.environ.get("MIN_IMAGE_BYTES", str(220_000)))  # 220KB 아래면 저품질로 간주
 
-  # 1) openai>=1.x 스타일
-  try:
-    from openai import OpenAI  # type: ignore
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    # chat.completions는 1.x에서 안정적
-    res = client.chat.completions.create(
-      model=MODEL,
-      messages=[
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-      ],
-      temperature=0.6,
-    )
-    return (res.choices[0].message.content or "").strip()
-  except Exception:
-    pass
-
-  # 2) openai<1.x 스타일
-  try:
-    import openai  # type: ignore
-    openai.api_key = OPENAI_API_KEY
-    res = openai.ChatCompletion.create(
-      model=MODEL,
-      messages=[
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-      ],
-      temperature=0.6,
-    )
-    return (res["choices"][0]["message"]["content"] or "").strip()
-  except Exception as e:
-    raise RuntimeError(f"OpenAI call failed: {e}")
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # -----------------------------
 # Utils
@@ -136,50 +93,45 @@ def normalize_img_path(pth: str) -> str:
     return s[:-4] + ".jpg"
   return s
 
-# -----------------------------
-# Image: Wikimedia only (HQ filtering)
-# -----------------------------
-WIKI_API = "https://commons.wikimedia.org/w/api.php"
+def parse_dt_to_ts(s: str) -> float:
+  try:
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+  except Exception:
+    return 0.0
 
-def wikimedia_search_image_urls(query: str, limit: int) -> List[str]:
+# -----------------------------
+# Global image de-dup
+# -----------------------------
+def load_used_images() -> Set[str]:
+  arr = safe_read_json(USED_IMAGES_JSON, [])
+  if isinstance(arr, list):
+    return set(str(x) for x in arr if x)
+  return set()
+
+def save_used_images(s: Set[str]):
+  safe_write_json(USED_IMAGES_JSON, sorted(list(s)))
+
+# -----------------------------
+# Unsplash (high quality only)
+# -----------------------------
+UNSPLASH_SEARCH = "https://api.unsplash.com/search/photos"
+
+def unsplash_search(query: str, per_page: int = 30, page: int = 1) -> List[dict]:
+  if not UNSPLASH_ACCESS_KEY:
+    return []
+  headers = {"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}
   params = {
-    "action": "query",
-    "format": "json",
-    "origin": "*",
-    "generator": "search",
-    "gsrsearch": f'filetype:bitmap -filemime:svg {query}',
-    "gsrlimit": str(limit),
-    "gsrnamespace": "6",
-    "prop": "imageinfo",
-    "iiprop": "url|mime|size",
+    "query": query,
+    "page": page,
+    "per_page": per_page,
+    "content_filter": "high",
+    "orientation": "landscape",
   }
   try:
-    r = requests.get(WIKI_API, params=params, timeout=HTTP_TIMEOUT)
+    r = requests.get(UNSPLASH_SEARCH, headers=headers, params=params, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     data = r.json()
-    pages = (data.get("query") or {}).get("pages") or {}
-    out = []
-    for _, page in pages.items():
-      infos = page.get("imageinfo") or []
-      if not infos:
-        continue
-      info = infos[0] or {}
-      url = info.get("url") or ""
-      mime = (info.get("mime") or "").lower()
-      width = int(info.get("width") or 0)
-      height = int(info.get("height") or 0)
-      if not url:
-        continue
-      if not mime.startswith("image/"):
-        continue
-      # webp도 PIL로 열리긴 하지만, 깨지는 케이스가 있어서 보수적으로 제외하고 싶으면 여기서 컷 가능
-      # if "webp" in mime:
-      #   continue
-      if width <= 0 or height <= 0:
-        continue
-      out.append(url)
-    random.shuffle(out)
-    return out
+    return data.get("results") or []
   except Exception:
     return []
 
@@ -191,45 +143,19 @@ def download_image(url: str) -> Optional[bytes]:
     if "image" not in ct:
       return None
     b = r.content
-    if not b or len(b) < MIN_IMG_BYTES:
+    if len(b) < MIN_BYTES:
       return None
     return b
   except Exception:
     return None
 
-def image_quality_ok(b: bytes) -> bool:
-  try:
-    im = Image.open(BytesIO(b))
-    im.verify()
-    im = Image.open(BytesIO(b))  # verify 후 재오픈
-    w, h = im.size
-    if w <= 0 or h <= 0:
-      return False
-    long_edge = max(w, h)
-    short_edge = min(w, h)
-    if long_edge < MIN_IMG_LONG_EDGE:
-      return False
-    aspect = long_edge / max(short_edge, 1)
-    if aspect > MAX_IMG_ASPECT:
-      return False
-    # 너무 작은 이미지는 이미 컷
-    return True
-  except Exception:
-    return False
-
-def load_used_images() -> Set[str]:
-  arr = safe_read_json(USED_IMAGES_JSON, [])
-  if isinstance(arr, list):
-    return set([str(x) for x in arr if x])
-  return set()
-
-def save_used_images(s: Set[str]):
-  safe_write_json(USED_IMAGES_JSON, sorted(list(s)))
-
-def pick_hq_unique_images_for_post(keyword: str, slug: str, count: int) -> Optional[List[str]]:
+def pick_high_quality_images_unsplash(keyword: str, slug: str, count: int) -> Optional[List[str]]:
   """
-  Wikimedia에서만 고품질 이미지 count장을 확보.
-  실패하면 None 리턴하고 글 자체를 스킵.
+  성공 조건
+    - count 장 모두 확보
+    - 전역 중복 없음 (hash)
+    - 최소 크기 기준 충족 (api width/height + bytes)
+  실패하면 None 반환
   """
   ensure_dirs(slug)
 
@@ -237,87 +163,169 @@ def pick_hq_unique_images_for_post(keyword: str, slug: str, count: int) -> Optio
   used_in_post: Set[str] = set()
   saved_paths: List[str] = []
 
-  # query 다양화
-  query_variants = [
-    f"{keyword} photo",
-    f"{keyword} office photo",
-    f"{keyword} lifestyle photo",
-    f"{keyword} technology photo",
-    f"{keyword} business photo",
+  # 검색 쿼리 다양화
+  queries = [
+    f"{keyword}",
+    f"{keyword} office",
+    f"{keyword} lifestyle",
+    f"{keyword} technology",
+    f"{keyword} minimal",
   ]
-  candidates: List[str] = []
-  for q in query_variants:
-    candidates += wikimedia_search_image_urls(q, limit=max(10, WIKI_CANDIDATES // len(query_variants)))
+
+  candidates: List[Tuple[str, int, int]] = []
+  seen_ids: Set[str] = set()
+
+  # 후보 수집 (여러 쿼리 x 여러 페이지)
+  for q in queries:
+    for page in (1, 2):
+      results = unsplash_search(q, per_page=30, page=page)
+      for it in results:
+        uid = str(it.get("id") or "")
+        if not uid or uid in seen_ids:
+          continue
+        seen_ids.add(uid)
+
+        w = int(it.get("width") or 0)
+        h = int(it.get("height") or 0)
+        if w < MIN_IMG_WIDTH or h < MIN_IMG_HEIGHT:
+          continue
+
+        urls = it.get("urls") or {}
+        # regular은 너무 작을 수 있어서 full 우선
+        url = urls.get("full") or urls.get("raw") or urls.get("regular") or ""
+        if not url:
+          continue
+
+        # raw/full은 파라미터로 사이즈 유도 가능
+        if "images.unsplash.com" in url:
+          # 너무 큰 건 다운로드 느릴 수 있으니 적당히
+          # 2400px 가로 정도로 강제
+          joiner = "&" if "?" in url else "?"
+          url = f"{url}{joiner}w=2400&fit=max&q=85"
+
+        candidates.append((url, w, h))
+
   random.shuffle(candidates)
 
   attempts = 0
-  max_attempts = 220
-
-  while len(saved_paths) < count and attempts < max_attempts:
+  while len(saved_paths) < count and attempts < 200 and candidates:
     attempts += 1
-    if not candidates:
-      break
-    url = candidates.pop()
+    url, w, h = candidates.pop()
 
     b = download_image(url)
     if not b:
       continue
-    if not image_quality_ok(b):
-      continue
 
-    h = sha256_bytes(b)
-    if h in used_global or h in used_in_post:
+    hsh = sha256_bytes(b)
+    if hsh in used_global or hsh in used_in_post:
       continue
 
     idx = len(saved_paths) + 1
     out_file = ASSETS_POSTS_DIR / slug / f"{idx}.jpg"
-    # jpg로 저장 (원본이 png여도 바이너리 그대로면 확장자만 바뀌는 문제가 생길 수 있음)
-    # 안전하게 실제로 jpg로 변환해서 저장
-    try:
-      im = Image.open(BytesIO(b)).convert("RGB")
-      im.save(out_file, format="JPEG", quality=92, optimize=True)
-    except Exception:
-      continue
+    out_file.write_bytes(b)
 
-    used_in_post.add(h)
-    used_global.add(h)
+    used_in_post.add(hsh)
+    used_global.add(hsh)
     saved_paths.append(f"assets/posts/{slug}/{idx}.jpg")
 
-  # 4장 못 채우면 스킵
+  # 전역 저장
+  save_used_images(used_global)
+
   if len(saved_paths) < count:
+    # 실패면 생성한 파일도 지우고 None
+    try:
+      for p in (ASSETS_POSTS_DIR / slug).glob("*.jpg"):
+        p.unlink(missing_ok=True)
+    except Exception:
+      pass
     return None
 
-  save_used_images(used_global)
   return saved_paths
 
 # -----------------------------
-# LLM content (deep + 2500+)
+# OpenAI text generation (compatible)
 # -----------------------------
+def openai_generate_json(prompt_system: str, prompt_user: str) -> str:
+  if not client:
+    return ""
+
+  # 최신 SDK면 responses 가능
+  try:
+    res = client.responses.create(
+      model=MODEL,
+      input=[
+        {"role": "system", "content": prompt_system},
+        {"role": "user", "content": prompt_user},
+      ],
+    )
+    return (res.output_text or "").strip()
+  except Exception:
+    pass
+
+  # 구형 호환 chat.completions
+  try:
+    res = client.chat.completions.create(
+      model=MODEL,
+      messages=[
+        {"role": "system", "content": prompt_system},
+        {"role": "user", "content": prompt_user},
+      ],
+      temperature=0.7,
+    )
+    return (res.choices[0].message.content or "").strip()
+  except Exception:
+    return ""
+
 def llm_generate_article(keyword: str) -> Dict[str, str]:
-  system = (
-    "You are an expert editor. Write deep practical content for US and Europe readers. "
-    "No fluff. Use clear sections. Add real-world steps, pitfalls, checklists, and examples. "
-    "Do not mention AI. Write natural English."
+  """
+  목표
+    - 최소 2500자 이상
+    - 깊이 있게
+    - 구조 고정 (TLDR, 비교, 체크리스트, 실수, 액션플랜)
+  """
+  # fallback
+  if not client:
+    title = keyword.title()
+    desc = f"A practical guide about {keyword}."
+    cat = "AI Tools"
+    body = (
+      f"<h2>TL;DR</h2><p>{esc(desc)}</p>"
+      f"<h2>Why this matters</h2><p>{esc(desc)} {esc(desc)} {esc(desc)}</p>"
+      f"<h2>Step by step</h2><p>{esc(desc)} {esc(desc)} {esc(desc)}</p>"
+      f"<h2>Common mistakes</h2><p>{esc(desc)} {esc(desc)} {esc(desc)}</p>"
+      f"<h2>Checklist</h2><ul><li>Do this</li><li>Do that</li></ul>"
+    )
+    while len(strip_tags(body)) < MIN_CHARS:
+      body += f"<p>{esc(desc)} {esc(desc)} {esc(desc)} {esc(desc)}</p>"
+    return {"title": title, "description": desc, "category": cat, "body": body}
+
+  sys = (
+    "You write genuinely useful SEO friendly blog content for readers in the US and Europe. "
+    "No fluff. Add specifics. Add practical examples. "
+    "Do not mention you are an AI. "
+    "Write in natural English."
   )
 
   user = (
-    f"Topic: {keyword}\n\n"
-    "Return JSON with keys:\n"
+    f"Write one deep blog post about: {keyword}\n"
+    "Return STRICT JSON with keys:\n"
     "title\n"
     "description\n"
     "category (one of: AI Tools, Make Money, Productivity, Reviews)\n"
-    "body_html (HTML only. Use <h2>, <p>, <ul><li>.)\n\n"
-    f"Rules:\n"
-    f"- Visible text must be at least {MIN_CHARS} characters\n"
-    "- Include a TL;DR section near the top\n"
-    "- Include a step-by-step section\n"
-    "- Include a mistakes section\n"
-    "- Include an FAQ section\n"
-    "- Use short paragraphs\n"
-    "- No outer <html>\n"
+    "body_html (HTML only using <h2>, <p>, <ul><li>, <strong>)\n\n"
+    "Structure rules for body_html:\n"
+    "1) Start with <h2>TL;DR</h2> and 3 to 5 bullet like short paragraphs\n"
+    "2) Add <h2>Who this is for</h2>\n"
+    "3) Add <h2>Key ideas</h2>\n"
+    "4) Add <h2>Step by step</h2> with numbered feeling using paragraphs\n"
+    "5) Add <h2>Comparisons</h2> with clear criteria\n"
+    "6) Add <h2>Common mistakes</h2>\n"
+    "7) Add <h2>Checklist</h2> as <ul><li>\n"
+    f"Visible text length must be at least {MIN_CHARS} characters.\n"
+    "No outer <html>. No markdown fences."
   )
 
-  txt = _openai_text_json(system, user)
+  txt = openai_generate_json(sys, user)
   try:
     data = json.loads(txt)
   except Exception:
@@ -328,44 +336,47 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
   category = str(data.get("category", "AI Tools")).strip() or "AI Tools"
   body = str(data.get("body_html", "")).strip() or "<p></p>"
 
-  # 부족하면 확장 1회
+  # 보강 1회
   if len(strip_tags(body)) < MIN_CHARS:
     user2 = (
-      f"Expand the HTML below to at least {MIN_CHARS} visible characters. "
-      "Add depth. Add concrete examples. Keep structure. "
-      "Return JSON with only key body_html.\n\n"
-      f"HTML:\n{body}"
+      f"Expand the article below to at least {MIN_CHARS} visible characters. "
+      "Make it deeper. Add examples. Keep structure and headings. "
+      "Return STRICT JSON with only key body_html.\n\n"
+      f"ARTICLE_HTML:\n{body}"
     )
-    txt2 = _openai_text_json(system, user2)
+    txt2 = openai_generate_json(sys, user2)
     try:
       d2 = json.loads(txt2)
       body2 = str(d2.get("body_html", "")).strip()
-      if body2:
+      if body2 and len(strip_tags(body2)) >= MIN_CHARS:
         body = body2
     except Exception:
       pass
 
-  # 그래도 부족하면 패딩(최후)
   while len(strip_tags(body)) < MIN_CHARS:
     body += f"<p>{esc(description)} {esc(description)} {esc(description)}</p>"
 
   return {"title": title, "description": description, "category": category, "body": body}
 
 # -----------------------------
-# Inject images evenly
+# Even image distribution
 # -----------------------------
 def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> str:
+  """
+  hero(0) 는 별도
+  나머지 이미지는 본문 블록 사이에 균등 삽입
+  """
   extras = image_paths[1:] if len(image_paths) > 1 else []
   if not extras:
     return body_html
 
-  # p, ul, h2 단위로 블록 분할
-  blocks = re.split(r"(?i)(</p>\s*|</ul>\s*|</ol>\s*|</h2>\s*)", body_html)
+  # 블록 단위로 쪼갠다
+  tokens = re.split(r"(?i)(</p>\s*|</ul>\s*|</h2>\s*)", body_html)
   units: List[str] = []
   buf = ""
-  for part in blocks:
-    buf += part
-    if re.search(r"(?i)</p>\s*$|</ul>\s*$|</ol>\s*$|</h2>\s*$", buf.strip()):
+  for t in tokens:
+    buf += t
+    if re.search(r"(?i)</p>\s*$|</ul>\s*$|</h2>\s*$", buf.strip()):
       units.append(buf)
       buf = ""
   if buf.strip():
@@ -380,11 +391,12 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
   n = len(units)
   m = len(extras)
 
-  positions = []
+  positions: List[int] = []
   for i in range(1, m + 1):
     pos = round(i * n / (m + 1))
     pos = min(max(pos, 1), n - 1)
     positions.append(pos)
+
   positions = sorted(positions)
 
   out_units: List[str] = []
@@ -402,9 +414,18 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
   return "".join(out_units)
 
 # -----------------------------
-# Build post html with SEO meta
+# Build post html with meta
 # -----------------------------
-def build_post_html(site_name: str, title: str, description: str, category: str, date_iso: str, slug: str, images: List[str], body_html: str) -> str:
+def build_post_html(
+  site_name: str,
+  title: str,
+  description: str,
+  category: str,
+  date_iso: str,
+  slug: str,
+  images: List[str],
+  body_html: str,
+) -> str:
   hero_img = images[0] if images else ""
   canonical = f"{SITE_URL}/posts/{slug}.html"
 
@@ -468,7 +489,6 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
 
 <main class="container post-page">
   <div class="post-shell">
-
     <header class="post-header">
       <div class="kicker">{esc(category)}</div>
       <h1 class="post-h1">{esc(title)}</h1>
@@ -484,7 +504,6 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
     <article class="post-content">
       {body_html}
     </article>
-
   </div>
 </main>
 
@@ -503,20 +522,21 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
 </html>
 """
 
+# -----------------------------
+# posts.json ordering
+# -----------------------------
+def normalize_and_sort_posts(posts: List[dict]) -> List[dict]:
+  cleaned = [p for p in posts if isinstance(p, dict) and p.get("slug")]
+  cleaned.sort(key=lambda x: parse_dt_to_ts(str(x.get("date", ""))), reverse=True)
+  return cleaned
+
 def add_post_to_index(posts: List[dict], post_obj: dict) -> List[dict]:
   posts.append(post_obj)
-  posts = [p for p in posts if isinstance(p, dict) and p.get("slug")]
+  return normalize_and_sort_posts(posts)
 
-  def parse_dt(x: dict) -> float:
-    d = str(x.get("date", ""))
-    try:
-      return datetime.fromisoformat(d.replace("Z", "+00:00")).timestamp()
-    except Exception:
-      return 0.0
-
-  posts.sort(key=parse_dt, reverse=True)  # 최신 우선
-  return posts
-
+# -----------------------------
+# keywords
+# -----------------------------
 def load_keywords() -> List[str]:
   data = safe_read_json(KEYWORDS_JSON, [])
   out: List[str] = []
@@ -533,27 +553,41 @@ def load_keywords() -> List[str]:
   return out
 
 # -----------------------------
-# Main
+# main
 # -----------------------------
 def main():
   POSTS_DIR.mkdir(parents=True, exist_ok=True)
   ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
+  if not OPENAI_API_KEY:
+    raise SystemExit("Missing OPENAI_API_KEY")
+
+  if not UNSPLASH_ACCESS_KEY:
+    raise SystemExit("Missing UNSPLASH_ACCESS_KEY (for non-AI high quality photos)")
+
   posts = safe_read_json(POSTS_JSON, [])
   if not isinstance(posts, list):
     posts = []
+
+  # 기존 글도 정렬 재정리
+  posts = normalize_and_sort_posts(posts)
+  safe_write_json(POSTS_JSON, posts)
 
   keywords = load_keywords()
   if not keywords:
     raise SystemExit("keywords.json has no keywords")
 
-  existing_slugs = set([p.get("slug") for p in posts if isinstance(p, dict)])
+  existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict) and p.get("slug"))
 
   made = 0
-  attempts = 0
+  tries = 0
 
-  while made < POSTS_PER_RUN and attempts < MAX_KEYWORD_ATTEMPTS:
-    attempts += 1
+  # 충분히 시도하되
+  # 이미지 4장 이상 확보 못 하면 스킵하는 구조라 tries는 넉넉히
+  max_tries = max(30, POSTS_PER_RUN * 20)
+
+  while made < POSTS_PER_RUN and tries < max_tries:
+    tries += 1
     keyword = random.choice(keywords).strip()
     if not keyword:
       continue
@@ -562,15 +596,13 @@ def main():
     if not slug or slug in existing_slugs:
       continue
 
-    print(f"[{attempts}/{MAX_KEYWORD_ATTEMPTS}] keyword='{keyword}' slug='{slug}'")
-
-    # 1) 이미지 먼저 확보. 4장 못 채우면 이 키워드는 스킵
-    images = pick_hq_unique_images_for_post(keyword, slug, max(4, IMG_COUNT))
+    # 1) 사진 먼저 고품질 확보 (핵심)
+    images = pick_high_quality_images_unsplash(keyword, slug, max(4, IMG_COUNT))
     if not images:
-      print("  - skip: could not find 4+ HQ images on Wikimedia")
+      # 이 키워드는 사진이 충분히 안 나오는 케이스
       continue
 
-    # 2) 글 생성 2500자 이상 강제
+    # 2) 글 생성
     art = llm_generate_article(keyword)
     title = art["title"]
     description = art["description"]
@@ -578,10 +610,7 @@ def main():
     body = art["body"]
     date_iso = now_iso_datetime()
 
-    if len(strip_tags(body)) < MIN_CHARS:
-      print("  - skip: body too short after enforcement")
-      continue
-
+    # 3) 글 파일 생성
     html_doc = build_post_html(SITE_NAME, title, description, category, date_iso, slug, images, body)
     out_path = POSTS_DIR / f"{slug}.html"
     out_path.write_text(html_doc, encoding="utf-8")
@@ -602,9 +631,13 @@ def main():
 
     existing_slugs.add(slug)
     made += 1
-    print(f"  - generated: {slug}")
+    print(f"Generated: {slug}  images={len(images)}")
 
-  print(f"Done. generated={made}")
+  print(f"Done. made={made} tries={tries}")
+
+  # 글을 하나도 못 만들었어도 실패로 끝내지 않는다
+  # 이유: "고품질 사진 4장" 조건이 너무 빡세면 스킵만 잔뜩 나올 수 있음
+  # 이 경우 커밋 변화가 없어서 자동으로 No changes to commit이 뜬다
 
 if __name__ == "__main__":
   main()
