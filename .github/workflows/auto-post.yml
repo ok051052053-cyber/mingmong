@@ -83,3 +83,7 @@ jobs:
 
           git pull --rebase origin main
           git push
+
+      - name: Fix posts index
+        run: |
+          python tools/fix_posts_index.py
