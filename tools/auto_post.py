@@ -23,14 +23,14 @@ KEYWORDS_JSON = ROOT / "keywords.json"
 USED_UNSPLASH_JSON = ROOT / "used_unsplash.json"
 
 # -----------------------------
-# Config
+# Config (ENV)
 # -----------------------------
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))          # 최소 4장 권장
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))       # 본문 가시 텍스트 최소 길이
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))          # 최소 4장
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))
 
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -38,20 +38,16 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "30"))
-MAX_IMAGE_ATTEMPTS = int(os.environ.get("MAX_IMAGE_ATTEMPTS", "80"))
+MAX_IMAGE_ATTEMPTS = int(os.environ.get("MAX_IMAGE_ATTEMPTS", "200"))
 
-# 고품질 사진만
-MIN_IMAGE_BYTES = int(os.environ.get("MIN_IMAGE_BYTES", "120000"))  # 120KB 미만은 탈락
-# 검색 키워드 보정
+# 너무 빡세면 0/4가 자주 나옴
+# 80KB 이상이면 충분히 “빈약한 썸네일”은 걸러짐
+MIN_IMAGE_BYTES = int(os.environ.get("MIN_IMAGE_BYTES", "80000"))
+
+# Unsplash 검색 보정
 UNSPLASH_QUERY_SUFFIX = os.environ.get(
   "UNSPLASH_QUERY_SUFFIX",
-  "high quality photo, realistic, professional, minimal, editorial"
-).strip()
-
-# 글 품질 강화
-WRITING_STYLE = os.environ.get(
-  "WRITING_STYLE",
-  "deep, specific, step-by-step, practical, with comparisons, with pitfalls, with checklists"
+  "photo, realistic, professional, minimal, editorial"
 ).strip()
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -98,8 +94,19 @@ def load_used_unsplash_ids() -> Set[str]:
 def save_used_unsplash_ids(s: Set[str]):
   safe_write_json(USED_UNSPLASH_JSON, sorted(list(s)))
 
+def compact_keywords(keyword: str) -> List[str]:
+  """
+  주제 키워드가 너무 길거나 디테일하면 Unsplash에서 0개가 뜸
+  그래서 핵심 토큰만 뽑아 범용 쿼리 후보를 만든다
+  """
+  k = (keyword or "").lower()
+  k = re.sub(r"[^a-z0-9\s-]", " ", k)
+  toks = [t for t in re.split(r"\s+", k) if t and len(t) >= 3]
+  toks = toks[:6]
+  return toks
+
 # -----------------------------
-# Unsplash (NO AI images)
+# Unsplash (NO AI)
 # -----------------------------
 UNSPLASH_SEARCH = "https://api.unsplash.com/search/photos"
 UNSPLASH_DOWNLOAD = "https://api.unsplash.com/photos/{id}/download"
@@ -128,9 +135,17 @@ def unsplash_search(query: str, per_page: int = 30, page: int = 1) -> List[dict]
       headers=_unsplash_headers(),
       timeout=HTTP_TIMEOUT,
     )
+    if r.status_code == 401:
+      raise SystemExit("UNSPLASH_ACCESS_KEY invalid (401). Check your secret value.")
+    if r.status_code == 403:
+      raise SystemExit("Unsplash blocked the request (403). Key permissions or rate limit.")
+    if r.status_code == 429:
+      raise SystemExit("Unsplash rate limited (429). Reduce POSTS_PER_RUN or retry later.")
     r.raise_for_status()
     data = r.json()
     return (data.get("results") or [])
+  except SystemExit:
+    raise
   except Exception:
     return []
 
@@ -141,17 +156,21 @@ def unsplash_get_download_url(photo_id: str) -> Optional[str]:
       headers=_unsplash_headers(),
       timeout=HTTP_TIMEOUT,
     )
+    if r.status_code == 401:
+      raise SystemExit("UNSPLASH_ACCESS_KEY invalid (401). Check your secret value.")
+    if r.status_code == 429:
+      raise SystemExit("Unsplash rate limited (429). Reduce volume.")
     r.raise_for_status()
     j = r.json()
     url = (j.get("url") or "").strip()
     return url or None
+  except SystemExit:
+    raise
   except Exception:
     return None
 
 def unsplash_download_bytes(download_url: str) -> Optional[bytes]:
-  # Unsplash가 준 download endpoint url은 redirect를 타고 실제 이미지로 감
-  # 여기서는 인증 없이 받아도 됨
-  for _ in range(3):
+  for _ in range(4):
     try:
       r = requests.get(download_url, timeout=HTTP_TIMEOUT, allow_redirects=True)
       if r.status_code in (403, 429, 503):
@@ -164,22 +183,64 @@ def unsplash_download_bytes(download_url: str) -> Optional[bytes]:
         return None
 
       b = r.content
-      if not b or len(b) < MIN_IMAGE_BYTES:
+      if not b:
+        return None
+      if len(b) < MIN_IMAGE_BYTES:
         return None
       return b
     except Exception:
       time.sleep(1)
   return None
 
+def build_query_candidates(keyword: str) -> List[str]:
+  """
+  Unsplash는 “주제 문장” 검색이 약함
+  그래서 범용 후보 쿼리를 같이 돌린다
+  """
+  toks = compact_keywords(keyword)
+
+  base = " ".join(toks).strip()
+  candidates = []
+
+  if base:
+    candidates.append(base)
+
+  # 너무 협소한 주제 대비 안전한 범용 사진 키워드들
+  generic = [
+    "office desk",
+    "laptop work",
+    "team meeting",
+    "productivity",
+    "freelancer",
+    "business paperwork",
+    "contract signing",
+    "finance planning",
+    "remote work",
+    "startup",
+    "minimal workspace",
+  ]
+
+  # 토큰이 있으면 섞어서 더 넓게
+  if toks:
+    candidates.append(f"{toks[0]} {toks[-1]}")
+    candidates.append(f"{toks[0]} office")
+    candidates.append(f"{toks[0]} business")
+
+  candidates.extend(generic)
+
+  # suffix 붙인 버전도 추가
+  out = []
+  seen = set()
+  for c in candidates:
+    q = f"{c} {UNSPLASH_QUERY_SUFFIX}".strip()
+    q = re.sub(r"\s+", " ", q)
+    if q and q not in seen:
+      out.append(q)
+      seen.add(q)
+
+  return out
+
 def pick_high_quality_unsplash_photos(keyword: str, slug: str, count: int) -> Tuple[List[str], List[dict]]:
-  """
-  Returns:
-    - local relative image paths: assets/posts/<slug>/1.jpg ...
-    - credits list: [{id, user_name, user_url, photo_url}]
-  Hard rules:
-    - NO AI images
-    - Must collect exactly `count` or fail
-  """
   ensure_dirs(slug)
 
   used_global = load_used_unsplash_ids()
@@ -188,24 +249,28 @@ def pick_high_quality_unsplash_photos(keyword: str, slug: str, count: int) -> Tu
   saved_paths: List[str] = []
   credits: List[dict] = []
 
-  q = f"{keyword} {UNSPLASH_QUERY_SUFFIX}".strip()
+  queries = build_query_candidates(keyword)
+  random.shuffle(queries)
 
   attempts = 0
-  page = 1
-  pool: List[dict] = []
+  page_by_query: Dict[str, int] = {q: 1 for q in queries}
+  pool_by_query: Dict[str, List[dict]] = {q: [] for q in queries}
 
   while len(saved_paths) < count and attempts < MAX_IMAGE_ATTEMPTS:
     attempts += 1
 
-    if not pool:
-      pool = unsplash_search(q, per_page=30, page=page)
-      page += 1
-      random.shuffle(pool)
+    # 쿼리 순환
+    q = queries[attempts % len(queries)]
+    if not pool_by_query[q]:
+      page = page_by_query[q]
+      pool_by_query[q] = unsplash_search(q, per_page=30, page=page)
+      page_by_query[q] = page + 1
+      random.shuffle(pool_by_query[q])
 
-    if not pool:
-      break
+    if not pool_by_query[q]:
+      continue
 
-    item = pool.pop()
+    item = pool_by_query[q].pop()
     pid = str(item.get("id") or "").strip()
     if not pid:
       continue
@@ -250,24 +315,17 @@ def pick_high_quality_unsplash_photos(keyword: str, slug: str, count: int) -> Tu
 # LLM content generation (TEXT ONLY)
 # -----------------------------
 def llm_generate_article(keyword: str) -> Dict[str, str]:
-  """
-  Returns dict with:
-    title, description, category, body_html
-  body_html: HTML only, no outer html
-  """
   if not client:
     raise SystemExit("Missing OPENAI_API_KEY")
 
   sys = (
     "You write SEO-friendly blog posts for young professionals in the US and Europe. "
-    "Write natural English. No fluff. No generic filler. "
-    "Use concrete examples, practical steps, tradeoffs, and common mistakes. "
-    "Do not mention that you are an AI."
+    "Write natural English. Avoid fluff. Add specific examples. Add pitfalls. Add checklists. "
+    "Do not mention you are an AI."
   )
 
   user = (
     f"Topic: {keyword}\n\n"
-    f"Write ONE deep, useful article. Style: {WRITING_STYLE}.\n"
     "Output JSON only with keys:\n"
     "title\n"
     "description\n"
@@ -276,10 +334,9 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
     f"Constraints:\n"
     f"- Visible text length must be at least {MIN_CHARS} characters\n"
     "- No outer <html>\n"
-    "- Avoid repeating the same sentence\n"
+    "- No generic filler\n"
   )
 
-  # 가장 호환 좋은 chat.completions 사용
   res = client.chat.completions.create(
     model=MODEL,
     messages=[
@@ -300,11 +357,8 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
   category = str(data.get("category", "AI Tools")).strip() or "AI Tools"
   body = str(data.get("body_html", "")).strip()
 
-  if not body:
-    body = "<h2>TL;DR</h2><ul><li>Key takeaways</li></ul><h2>Guide</h2><p>...</p>"
-
-  # 최소 글자 보장: 부족하면 한 번 확장
   if len(strip_tags(body)) < MIN_CHARS:
+    # 한 번만 확장
     user2 = (
       f"Expand the article HTML below to at least {MIN_CHARS} visible characters. "
       "Keep it specific and actionable. "
@@ -323,34 +377,32 @@ def llm_generate_article(keyword: str) -> Dict[str, str]:
     try:
       d2 = json.loads(t2)
       body2 = str(d2.get("body_html", "")).strip()
-      if body2 and len(strip_tags(body2)) >= MIN_CHARS:
+      if len(strip_tags(body2)) >= MIN_CHARS:
         body = body2
     except Exception:
       pass
 
-  # 그래도 부족하면 최소한의 패딩(남발 방지)
-  while len(strip_tags(body)) < MIN_CHARS:
-    body += f"<p>{esc(description)} This section adds more practical detail and context.</p>"
+  if len(strip_tags(body)) < MIN_CHARS:
+    raise SystemExit("Article too short after expansion. Try again.")
 
   return {"title": title, "description": description, "category": category, "body": body}
 
 # -----------------------------
-# Image injection + credits
+# HTML helpers
 # -----------------------------
 def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> str:
   if not image_paths:
     return body_html
 
-  # hero는 별도, 나머지 3장 이상을 본문에 분산
-  extras = image_paths[1:] if len(image_paths) > 1 else []
+  extras = image_paths[1:]
   if not extras:
     return body_html
 
-  blocks = re.split(r"(?i)(</p>\s*|</ul>\s*|</ol>\s*|</h2>\s*)", body_html)
-  units: List[str] = []
+  parts = re.split(r"(?i)(</p>\s*|</ul>\s*|</ol>\s*|</h2>\s*)", body_html)
+  units = []
   buf = ""
-  for part in blocks:
-    buf += part
+  for p in parts:
+    buf += p
     if re.search(r"(?i)</p>\s*$|</ul>\s*$|</ol>\s*$|</h2>\s*$", buf.strip()):
       units.append(buf)
       buf = ""
@@ -365,14 +417,13 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
 
   n = len(units)
   m = len(extras)
-
   positions = []
   for i in range(1, m + 1):
     pos = round(i * n / (m + 1))
     pos = min(max(pos, 1), n - 1)
     positions.append(pos)
 
-  out_units: List[str] = []
+  out_units = []
   img_i = 0
   for idx, u in enumerate(units):
     out_units.append(u)
@@ -389,7 +440,6 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
 def build_credits_html(credits: List[dict]) -> str:
   if not credits:
     return ""
-  # 너무 길지 않게
   items = credits[:6]
   lis = []
   for c in items:
@@ -397,16 +447,15 @@ def build_credits_html(credits: List[dict]) -> str:
     uurl = esc(c.get("user_url") or "")
     purl = esc(c.get("photo_url") or "")
     if uurl and purl:
-      lis.append(f'<li>Photo by <a href="{uurl}" rel="nofollow noopener" target="_blank">{name}</a> on <a href="{purl}" rel="nofollow noopener" target="_blank">Unsplash</a></li>')
+      lis.append(
+        f'<li>Photo by <a href="{uurl}" rel="nofollow noopener" target="_blank">{name}</a> '
+        f'on <a href="{purl}" rel="nofollow noopener" target="_blank">Unsplash</a></li>'
+      )
     else:
       lis.append(f"<li>Photo credit: {name} (Unsplash)</li>")
   return "<h2>Photo credits</h2><ul>" + "".join(lis) + "</ul>"
 
-# -----------------------------
-# Build post HTML
-# -----------------------------
 def build_post_html(
-  site_name: str,
   title: str,
   description: str,
   category: str,
@@ -429,8 +478,8 @@ def build_post_html(
     "description": description,
     "datePublished": date_iso,
     "dateModified": date_iso,
-    "author": {"@type": "Organization", "name": site_name},
-    "publisher": {"@type": "Organization", "name": site_name},
+    "author": {"@type": "Organization", "name": SITE_NAME},
+    "publisher": {"@type": "Organization", "name": SITE_NAME},
     "mainEntityOfPage": canonical,
   }
   if hero_img:
@@ -443,12 +492,12 @@ def build_post_html(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{esc(title)} | {esc(site_name)}</title>
+  <title>{esc(title)} | {esc(SITE_NAME)}</title>
   <meta name="description" content="{esc(description)}" />
   <link rel="canonical" href="{esc(canonical)}" />
 
   <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="{esc(site_name)}" />
+  <meta property="og:site_name" content="{esc(SITE_NAME)}" />
   <meta property="og:title" content="{esc(title)}" />
   <meta property="og:description" content="{esc(description)}" />
   <meta property="og:url" content="{esc(canonical)}" />
@@ -459,16 +508,16 @@ def build_post_html(
   <meta name="twitter:description" content="{esc(description)}" />
   <meta name="twitter:image" content="{esc(og_image)}" />
 
-  <link rel="stylesheet" href="../style.css?v=1001" />
+  <link rel="stylesheet" href="../style.css?v=1002" />
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
 
 <header class="topbar">
   <div class="container topbar-inner">
-    <a class="brand" href="../index.html" aria-label="{esc(site_name)} Home">
+    <a class="brand" href="../index.html" aria-label="{esc(SITE_NAME)} Home">
       <span class="mark" aria-hidden="true"></span>
-      <span>{esc(site_name)}</span>
+      <span>{esc(SITE_NAME)}</span>
     </a>
     <nav class="nav" aria-label="Primary">
       <a href="../index.html">Home</a>
@@ -500,7 +549,7 @@ def build_post_html(
 
 <footer class="footer">
   <div class="container">
-    <div>© 2026 {esc(site_name)}</div>
+    <div>© 2026 {esc(SITE_NAME)}</div>
     <div class="footer-links">
       <a href="../privacy.html">Privacy</a>
       <a href="../about.html">About</a>
@@ -513,9 +562,6 @@ def build_post_html(
 </html>
 """
 
-# -----------------------------
-# posts.json index sorting
-# -----------------------------
 def add_post_to_index(posts: List[dict], post_obj: dict) -> List[dict]:
   posts.append(post_obj)
   posts = [p for p in posts if isinstance(p, dict) and p.get("slug")]
@@ -565,7 +611,7 @@ def main():
   made = 0
   tries = 0
 
-  while made < POSTS_PER_RUN and tries < POSTS_PER_RUN * 20:
+  while made < POSTS_PER_RUN and tries < POSTS_PER_RUN * 30:
     tries += 1
     keyword = random.choice(keywords).strip()
     if not keyword:
@@ -577,18 +623,19 @@ def main():
 
     date_iso = now_iso_datetime()
 
-    # 1) 글 생성 (고품질 텍스트)
+    # 1) 글 생성
     art = llm_generate_article(keyword)
     title = art["title"]
     description = art["description"]
     category = art["category"]
     body = art["body"]
 
-    # 2) 사진 수급 (Unsplash only, 실패하면 즉시 종료)
-    images, credits = pick_high_quality_unsplash_photos(keyword, slug, max(4, IMG_COUNT))
+    # 2) 사진 먼저 확정 (실패하면 글도 저장 안 함)
+    need = max(4, IMG_COUNT)
+    images, credits = pick_high_quality_unsplash_photos(keyword, slug, need)
 
-    # 3) HTML 생성
-    html_doc = build_post_html(SITE_NAME, title, description, category, date_iso, slug, images, credits, body)
+    # 3) 여기까지 왔으면 성공이니 파일 저장
+    html_doc = build_post_html(title, description, category, date_iso, slug, images, credits, body)
 
     out_path = POSTS_DIR / f"{slug}.html"
     out_path.write_text(html_doc, encoding="utf-8")
@@ -599,8 +646,8 @@ def main():
       "category": category,
       "date": date_iso,
       "slug": slug,
-      "thumbnail": images[0] if images else f"assets/posts/{slug}/1.jpg",
-      "image": images[0] if images else f"assets/posts/{slug}/1.jpg",
+      "thumbnail": images[0],
+      "image": images[0],
       "url": f"posts/{slug}.html",
     }
 
