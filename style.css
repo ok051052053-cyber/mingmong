@@ -556,41 +556,37 @@ a:hover{text-decoration:underline}
   .post-aside{display:none !important;}
 }
 
-/* 모바일 좌우 여백 확보 */
+/* 기본 container */
 .container{
   max-width:var(--max);
   margin:0 auto;
-  padding:0 20px;
+  padding:0 24px;
 }
 
-@media (max-width: 640px){
+/* 모바일 */
+@media (max-width:640px){
 
   .container{
-    padding-left:18px;
-    padding-right:18px;
+    padding-left:26px;
+    padding-right:26px;
   }
 
-  /* 포스트 본문 여백 */
+  /* 포스트 전체 여백 */
   .post-page{
+    padding-left:6px;
+    padding-right:6px;
+  }
+
+  /* 제목 영역 */
+  .post-header{
     padding-left:4px;
     padding-right:4px;
   }
 
+  /* 본문 */
   .post-content{
-    padding-left:2px;
-    padding-right:2px;
-  }
-
-  /* 제목 여백 */
-  .post-header{
-    padding-left:2px;
-    padding-right:2px;
-  }
-
-  /* 이미지도 살짝 여백 */
-  .post-content img{
-    margin-left:0;
-    margin-right:0;
+    padding-left:4px;
+    padding-right:4px;
   }
 
 }
