@@ -3,7 +3,7 @@ name: Auto Post
 on:
   workflow_dispatch:
   schedule:
-    - cron: "20 1 * * *" # 매일 01:20 UTC (KST 10:20)
+    - cron: "20 1 * * *"
 
 permissions:
   contents: write
@@ -34,9 +34,9 @@ jobs:
           SITE_NAME: MingMong
           SITE_URL: https://mingmonglife.com
           POSTS_PER_RUN: 3
-          IMG_COUNT: 4
-          MIN_CHARS: 3000
-          IMAGE_PROVIDER: auto
+          IMG_COUNT: 5
+          MIN_CHARS: 3200
+          IMAGE_PROVIDER: unsplash
           MODEL: gpt-4o-mini
         run: |
           python tools/auto_post.py
