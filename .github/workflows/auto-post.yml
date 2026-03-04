@@ -35,14 +35,17 @@ jobs:
           SITE_URL: https://mingmonglife.com
           POSTS_PER_RUN: 1
           IMG_COUNT: 4
-          MIN_CHARS: 2500
+          MIN_CHARS: 2800
           MODEL: gpt-4o-mini
-          HTTP_TIMEOUT: 30
-          UNSPLASH_MIN_WIDTH: 1800
-          UNSPLASH_MIN_LIKES: 50
-          UNSPLASH_SEARCH_PAGES: 3
-          UNSPLASH_TRIES_PER_IMAGE: 4
-          MAX_EXPAND: 4
+
+          # Unsplash quality
+          UNSPLASH_MIN_WIDTH: 2000
+          UNSPLASH_MIN_HEIGHT: 1200
+          UNSPLASH_MIN_LIKES: 60
+          UNSPLASH_PER_PAGE: 30
+
+          # 안정성
+          MAX_KEYWORD_TRIES: 12
         run: |
           python tools/auto_post.py
 
