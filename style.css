@@ -376,7 +376,7 @@ a:hover{text-decoration:underline}
   padding:24px 0 56px;
 }
 .post-shell{
-  max-width:860px;
+  max-width: none;
   margin:0 auto;
   width:100%;
 }
@@ -431,7 +431,7 @@ a:hover{text-decoration:underline}
 /* ---------------------------------
    Mobile post page spacing fix
    --------------------------------- */
-@media (max-width: 820px){
+@media (max-width: none){
   /* 상단 메뉴바처럼 좌우 여백 확보 */
   .post-page.container{
     padding-left: 20px !important;
@@ -558,7 +558,7 @@ a:hover{text-decoration:underline}
 }
 
 /* 모바일에서는 사이드바 숨김 */
-@media (max-width: 979px){
+@media (max-width: none){
   .post-aside{ display:none !important; }
 }
 
@@ -614,3 +614,4 @@ a:hover{text-decoration:underline}
 .post-hero{
   max-width: none;
 }
+
