@@ -482,21 +482,63 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
 <main class="container post-page">
   <div class="post-shell">
 
-    <header class="post-header">
-      <div class="kicker">{esc(category)}</div>
-      <h1 class="post-h1">{esc(title)}</h1>
-      <div class="post-meta">
-        <span>{esc(category)}</span>
-        <span>•</span>
-        <span>Updated: {esc(date_iso[:10])}</span>
+    <div class="post-main">
+      <header class="post-header">
+        <div class="kicker">{esc(category)}</div>
+        <h1 class="post-h1">{esc(title)}</h1>
+        <div class="post-meta">
+          <span>{esc(category)}</span>
+          <span>•</span>
+          <span>Updated: {esc(date_iso[:10])}</span>
+        </div>
+      </header>
+
+      {"<div class='post-hero'><img src='../"+esc(hero_img)+"' alt='"+esc(title)+"' loading='eager'></div>" if hero_img else ""}
+
+      <article class="post-content">
+        {body_html}
+      </article>
+    </div>
+
+    <aside class="post-aside" aria-label="Sidebar">
+      <div class="sidecard">
+        <h3>Browse by focus</h3>
+
+        <div class="catlist">
+          <a class="catitem" href="../category.html?cat=AI%20Tools">
+            <span class="caticon">🤖</span>
+            <span class="cattext">
+              <span class="catname">AI Tools</span>
+              <span class="catsub">ChatGPT, Claude, Notion AI, automation</span>
+            </span>
+          </a>
+
+          <a class="catitem" href="../category.html?cat=Make%20Money">
+            <span class="caticon">💸</span>
+            <span class="cattext">
+              <span class="catname">Make Money</span>
+              <span class="catsub">Side hustles, freelancing, remote income</span>
+            </span>
+          </a>
+
+          <a class="catitem" href="../category.html?cat=Productivity">
+            <span class="caticon">⚡</span>
+            <span class="cattext">
+              <span class="catname">Productivity</span>
+              <span class="catsub">Workflows, systems, checklists</span>
+            </span>
+          </a>
+
+          <a class="catitem" href="../category.html?cat=Reviews">
+            <span class="caticon">🧾</span>
+            <span class="cattext">
+              <span class="catname">Reviews</span>
+              <span class="catsub">Pricing, comparisons, alternatives</span>
+            </span>
+          </a>
+        </div>
       </div>
-    </header>
-
-    {"<div class='post-hero'><img src='../"+esc(hero_img)+"' alt='"+esc(title)+"' loading='eager'></div>" if hero_img else ""}
-
-    <article class="post-content">
-      {body_html}
-    </article>
+    </aside>
 
   </div>
 </main>
