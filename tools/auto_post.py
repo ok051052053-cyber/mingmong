@@ -6,7 +6,7 @@ import html
 import random
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 from slugify import slugify
@@ -34,34 +34,29 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-# Content quality
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))  # 최소 4장
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
 
-# Unsplash only (no AI)
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 
 HTTP_TIMEOUT = 35
 
-# Image quality filters
 UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "2000"))
 UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1200"))
 UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "50"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
 
 # -----------------------------
-# OpenAI (works with openai>=1.x OR old openai 0.x)
+# OpenAI
 # -----------------------------
 def _openai_generate_text(prompt: str) -> str:
     if not OPENAI_API_KEY:
         raise RuntimeError("Missing OPENAI_API_KEY")
 
-    # Try openai>=1.x style
     try:
         from openai import OpenAI  # type: ignore
         client = OpenAI(api_key=OPENAI_API_KEY)
-        # Responses API
         res = client.responses.create(
             model=MODEL,
             input=prompt,
@@ -70,7 +65,6 @@ def _openai_generate_text(prompt: str) -> str:
     except Exception:
         pass
 
-    # Fallback old openai 0.x style
     try:
         import openai  # type: ignore
         openai.api_key = OPENAI_API_KEY
@@ -103,33 +97,29 @@ def load_json(path: Path, default):
 def save_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
+def safe_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
 def ensure_used_schema(used_raw):
-    """
-    used_images.json 가
-    - dict {"unsplash_ids":[...]} 일 수도
-    - list ["id1","id2"] 일 수도
-    - 이상한 값일 수도
-    어떤 경우든 dict 스키마로 정규화
-    """
     if isinstance(used_raw, dict):
         if "unsplash_ids" not in used_raw or not isinstance(used_raw.get("unsplash_ids"), list):
             used_raw["unsplash_ids"] = []
         return used_raw
 
     if isinstance(used_raw, list):
-        # 과거 버전 호환: list면 unsplash_ids로 감싸기
         return {"unsplash_ids": [x for x in used_raw if isinstance(x, str)]}
 
     return {"unsplash_ids": []}
 
-def pick_category(keyword: str) -> str:
+def pick_category_from_keyword_text(keyword: str) -> str:
     k = keyword.lower()
     if any(x in k for x in ["adhd", "focus", "productivity", "pomodoro", "time"]):
         return "Productivity"
     if any(x in k for x in ["review", "best", "vs", "compare", "comparison"]):
         return "Reviews"
     if any(x in k for x in ["money", "side hustle", "freelance", "invoice", "tax"]):
-        return "Make Money"
+        return "Make Money Online"
     if any(x in k for x in ["ai", "chatgpt", "automation", "notion", "claude"]):
         return "AI Tools"
     return "Productivity"
@@ -139,10 +129,6 @@ def short_desc(title: str) -> str:
     if len(t) > 140:
         t = t[:137].rstrip() + "..."
     return t
-
-def safe_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
 
 # -----------------------------
 # Unsplash
@@ -181,7 +167,6 @@ def pick_high_quality_unsplash(results: List[dict], used_ids: set) -> List[dict]
             if likes < UNSPLASH_MIN_LIKES:
                 continue
 
-            # 너무 세로로 길거나 너무 납작한 사진 제외
             ratio = w / max(h, 1)
             if ratio < 1.2 or ratio > 2.2:
                 continue
@@ -203,7 +188,6 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     urls = item.get("urls") or {}
     raw = urls.get("raw") or urls.get("full") or urls.get("regular")
 
-    # raw에 파라미터 붙여 고화질 jpg로 받기
     if "?" in raw:
         dl = raw + "&fm=jpg&q=80&w=1800&fit=max"
     else:
@@ -214,7 +198,7 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(r.content)
 
-def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str]]:
+def get_high_quality_photos(slug: str, title: str, count: int) -> Tuple[List[str], List[str]]:
     if not UNSPLASH_ACCESS_KEY:
         raise RuntimeError("Missing UNSPLASH_ACCESS_KEY")
 
@@ -222,12 +206,10 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
     used = ensure_used_schema(used_raw)
     used_ids = set(used.get("unsplash_ids") or [])
 
-    # 검색어 후보들
     base = re.sub(r"[^a-zA-Z0-9\s\-]", " ", title).strip()
     q1 = base if base else title
     q2 = " ".join([w for w in base.split()[:5]]) if base else title
-    queries = [q1, q2]
-    queries = [q for q in queries if q]
+    queries = [q for q in [q1, q2] if q]
 
     chosen_items: List[dict] = []
     for q in queries:
@@ -254,11 +236,9 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
     if len(chosen_items) < count:
         return [], []
 
-    # 저장 + credits
     image_paths: List[str] = []
     credits: List[str] = []
 
-    slug = slugify(title)[:80] or f"post-{int(time.time())}"
     folder = ASSETS_POSTS_DIR / slug
     folder.mkdir(parents=True, exist_ok=True)
 
@@ -272,10 +252,8 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
         link = (user.get("links") or {}).get("html")
         photo_link = (it.get("links") or {}).get("html")
 
-        # Unsplash credit (간단하지만 명시적으로)
         credits.append(f"- Photo {i}: {name} on Unsplash ({link}) ({photo_link})")
 
-    # used_images.json 저장 (dict 스키마로)
     used["unsplash_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
@@ -284,18 +262,21 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
 # -----------------------------
 # Writing
 # -----------------------------
-def build_prompt(keyword: str) -> str:
+def build_prompt(keyword: str, region: str) -> str:
+    region_line = ""
+    if region and region.upper() != "GLOBAL":
+        region_line = f"Audience region: {region}\n"
+
     return f"""
 Write a deep, practical, non-fluffy blog post in English for US and EU readers.
 
-Topic keyword: "{keyword}"
+{region_line}Topic keyword: "{keyword}"
 
 Hard requirements:
-- Total length must be at least {MIN_CHARS} characters (not words).
+- Total length must be at least {MIN_CHARS} characters.
 - Must include: TL;DR section, Who this is for, Key ideas, Step-by-step guide, Common mistakes, Checklist, and FAQ.
-- Use concrete examples, mini case studies, and actionable steps.
-- No generic filler. No repeating the same idea.
-- Avoid medical or legal claims unless clearly labeled as general info.
+- Use concrete examples and actionable steps.
+- No generic filler.
 - Output format: Markdown.
 - Start with a strong title on the first line (H1).
 """.strip()
@@ -304,7 +285,6 @@ def extract_title(md: str) -> str:
     for line in md.splitlines():
         if line.strip().startswith("# "):
             return line.strip()[2:].strip()
-    # fallback
     first = md.strip().splitlines()[0].strip()
     return first[:80] if first else f"Post {now_utc_date()}"
 
@@ -318,7 +298,7 @@ Expand the article below to be at least {MIN_CHARS} characters.
 
 Rules:
 - Keep the same structure.
-- Add depth, examples, details, and practical steps.
+- Add depth and practical details.
 - Do not add fluff.
 
 Article:
@@ -333,7 +313,6 @@ Article:
     return md
 
 def write_post_markdown(md: str, credits: List[str]) -> str:
-    # credits를 맨 아래에 넣기
     credit_block = "\n\n---\n\n## Photo credits\n" + "\n".join(credits) + "\n"
     if "## Photo credits" in md:
         return md
@@ -343,7 +322,12 @@ def write_post_markdown(md: str, credits: List[str]) -> str:
 # Posts index
 # -----------------------------
 def load_posts_index() -> List[dict]:
-    return load_json(POSTS_JSON, [])
+    raw = load_json(POSTS_JSON, [])
+    if isinstance(raw, list):
+        return [x for x in raw if isinstance(x, dict)]
+    if isinstance(raw, dict) and isinstance(raw.get("posts"), list):
+        return [x for x in raw["posts"] if isinstance(x, dict)]
+    return []
 
 def save_posts_index(posts: List[dict]) -> None:
     save_json(POSTS_JSON, posts)
@@ -363,20 +347,36 @@ def add_post_to_index(posts: List[dict], title: str, slug: str, category: str, i
         "image": thumb,
     })
 
-def load_keywords() -> List[str]:
+# -----------------------------
+# Keywords
+# -----------------------------
+def load_keywords_entries() -> List[dict]:
     data = load_json(KEYWORDS_JSON, [])
+    out: List[dict] = []
+
     if isinstance(data, list):
-        return [x for x in data if isinstance(x, str) and x.strip()]
+        for item in data:
+            if isinstance(item, str) and item.strip():
+                out.append({"keyword": item.strip()})
+            elif isinstance(item, dict) and isinstance(item.get("keyword"), str) and item["keyword"].strip():
+                out.append(item)
+        return out
+
     if isinstance(data, dict):
-        # 혹시 {"keywords":[...]} 형태면
-        ks = data.get("keywords") or []
+        ks = data.get("keywords")
         if isinstance(ks, list):
-            return [x for x in ks if isinstance(x, str) and x.strip()]
-    return []
+            for item in ks:
+                if isinstance(item, str) and item.strip():
+                    out.append({"keyword": item.strip()})
+                elif isinstance(item, dict) and isinstance(item.get("keyword"), str) and item["keyword"].strip():
+                    out.append(item)
+        return out
+
+    return out
 
 def main() -> int:
-    keywords = load_keywords()
-    if not keywords:
+    keyword_entries = load_keywords_entries()
+    if not keyword_entries:
         print("No keywords.json or empty keywords.")
         return 0
 
@@ -388,11 +388,20 @@ def main() -> int:
 
     while made < POSTS_PER_RUN and tries < MAX_KEYWORD_TRIES:
         tries += 1
-        keyword = random.choice(keywords).strip()
+        entry = random.choice(keyword_entries)
+        keyword = (entry.get("keyword") or "").strip()
         if not keyword:
             continue
 
-        prompt = build_prompt(keyword)
+        region = (entry.get("region") or "GLOBAL").strip()
+        category = (entry.get("category") or "").strip()
+        if not category:
+            category = pick_category_from_keyword_text(keyword)
+
+        title_hint = slugify(keyword)[:80] or f"post-{int(time.time())}"
+        slug = title_hint
+
+        prompt = build_prompt(keyword, region)
         md = _openai_generate_text(prompt)
         md = ensure_min_chars(md)
 
@@ -405,26 +414,21 @@ def main() -> int:
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
-        # 1) 고품질 사진 먼저 확보
-        image_paths, credits = get_high_quality_photos(title, IMG_COUNT)
+        image_paths, credits = get_high_quality_photos(slug, title, IMG_COUNT)
         if len(image_paths) < IMG_COUNT:
             print(f"Could not source enough high quality non-AI photos. Got {len(image_paths)}/{IMG_COUNT}")
             continue
 
-        # 2) md 저장
-        category = pick_category(keyword)
         md_final = write_post_markdown(md, credits)
         md_path = POSTS_DIR / f"{slug}.md"
         safe_write(md_path, md_final)
 
-        # 3) index 업데이트
         add_post_to_index(posts, title=title, slug=slug, category=category, image_paths=image_paths)
         existing_slugs.add(slug)
 
         print(f"Generated: {slug}")
         made += 1
 
-    # 만든 글이 0개면 실패로 치지 말고 정상 종료
     if made == 0:
         print("No posts generated this run. Exiting 0 so workflow stays green.")
         return 0
