@@ -490,3 +490,24 @@ a:hover{text-decoration:underline}
 @media (max-width:979px){
   .post-aside{display:none !important}
 }
+
+
+/* =========================
+   FORCE MOBILE SIDE PADDING ON POST PAGES
+   ========================= */
+@media (max-width: 979px){
+  /* main이 container post-page라서 여기서 강제로 좌우 여백 확정 */
+  main.container.post-page{
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+
+  /* post 내부가 또 풀폭으로 잡히는 경우 방지 */
+  .post-shell,
+  .post-header,
+  .post-content,
+  .post-hero{
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
