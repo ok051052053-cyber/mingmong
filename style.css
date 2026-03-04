@@ -8,9 +8,11 @@
   --shadow:0 12px 32px rgba(15,23,42,.08);
   --accent:#2563eb;
   --accent2:#06b6d4;
-  --max:1120px;
-  --radius:16px;
 
+  /* ✅ 사이트 전체 폭 (메뉴바 끝까지 시원하게) */
+  --max:1280px;
+
+  --radius:16px;
   --gradA: rgba(37,99,235,.14);
   --gradB: rgba(6,182,212,.12);
 }
@@ -42,7 +44,9 @@ a:hover{text-decoration:underline}
   .container{padding:0 32px;}
 }
 
-/* HEADER */
+/* =========================
+   HEADER
+   ========================= */
 .topbar{
   position:sticky;
   top:0;
@@ -64,7 +68,9 @@ a:hover{text-decoration:underline}
   font-weight:900;
   letter-spacing:-.02em;
   color:var(--text);
-  padding-left:8px; /* ✅ 아이콘이 벽에 붙지 않게 */
+
+  /* ✅ 아이콘이 벽에 붙지 않게 */
+  padding-left:6px;
 }
 .mark{
   width:36px;
@@ -90,7 +96,15 @@ a:hover{text-decoration:underline}
   text-decoration:none;
 }
 
-/* BUTTON */
+/* ✅ 모바일에서 메뉴가 화면 끝에 붙는 느낌 완화 */
+@media(max-width:520px){
+  .brand{padding-left:2px;}
+  .nav a{padding:10px 10px;}
+}
+
+/* =========================
+   BUTTON
+   ========================= */
 .btn{
   display:inline-flex;
   align-items:center;
@@ -111,7 +125,9 @@ a:hover{text-decoration:underline}
 }
 .btn:hover{opacity:.95;text-decoration:none}
 
-/* HERO */
+/* =========================
+   HERO
+   ========================= */
 .hero{padding:48px 0 18px}
 .breadcrumb{
   color:var(--muted);
@@ -149,13 +165,17 @@ a:hover{text-decoration:underline}
   margin-top:16px;
 }
 
-/* HOME BLOCK */
+/* =========================
+   HOME BLOCK
+   ========================= */
 .home-block{padding:8px 0 8px}
 .home-block-head{margin:6px 0 12px}
 .home-h2{margin:0;font-size:20px}
 .home-sub{margin:6px 0 0;color:var(--muted);font-size:13px}
 
-/* GRID */
+/* =========================
+   GRID LAYOUT
+   ========================= */
 .layout{
   display:grid;
   grid-template-columns:1fr;
@@ -166,7 +186,9 @@ a:hover{text-decoration:underline}
   .layout{grid-template-columns:1fr 340px;}
 }
 
-/* CARD */
+/* =========================
+   CARD
+   ========================= */
 .card{
   border:1px solid var(--border);
   border-radius:var(--radius);
@@ -174,7 +196,9 @@ a:hover{text-decoration:underline}
   box-shadow:var(--shadow);
 }
 
-/* ARTICLE */
+/* =========================
+   ARTICLE BLOCK
+   ========================= */
 .article{padding:20px}
 .article h2{margin:0 0 6px;font-size:20px}
 .hr{height:1px;background:var(--border);border:0;margin:18px 0}
@@ -184,7 +208,9 @@ a:hover{text-decoration:underline}
   font-size:12px;
 }
 
-/* TOPIC GRID */
+/* =========================
+   TOPIC GRID
+   ========================= */
 .topic-grid{
   display:grid;
   grid-template-columns:1fr;
@@ -226,9 +252,7 @@ a:hover{text-decoration:underline}
   font-size:18px;
   color:#111;
 }
-.topic-item:hover .topic-ico{
-  background:rgba(255,255,255,.9);
-}
+.topic-item:hover .topic-ico{background:rgba(255,255,255,.9)}
 .topic-text{
   display:flex;
   flex-direction:column;
@@ -246,11 +270,11 @@ a:hover{text-decoration:underline}
   font-size:12px;
   opacity:.9;
 }
-.topic-item:hover .topic-desc{
-  color:rgba(255,255,255,.9);
-}
+.topic-item:hover .topic-desc{color:rgba(255,255,255,.9)}
 
-/* LATEST GRID */
+/* =========================
+   LATEST GRID
+   ========================= */
 .latest-grid{
   display:grid;
   grid-template-columns:1fr;
@@ -260,7 +284,9 @@ a:hover{text-decoration:underline}
   .latest-grid{grid-template-columns:1fr 1fr;}
 }
 
-/* POST CARD */
+/* =========================
+   POST CARD
+   ========================= */
 .post-card{
   display:flex;
   gap:14px;
@@ -319,7 +345,9 @@ a:hover{text-decoration:underline}
   .post-card--v .thumb{height:170px;}
 }
 
-/* SIDEBAR */
+/* =========================
+   SIDEBAR (HOME)
+   ========================= */
 .sidebar{display:flex;flex-direction:column;gap:14px}
 .related{padding:16px}
 .related h4{margin:0 0 10px;font-size:14px}
@@ -344,7 +372,9 @@ a:hover{text-decoration:underline}
   text-decoration:none;
 }
 
-/* FOOTER */
+/* =========================
+   FOOTER
+   ========================= */
 .footer{
   border-top:1px solid var(--border);
   padding:24px 0;
@@ -370,15 +400,15 @@ a:hover{text-decoration:underline}
 }
 
 /* =========================
-   POST PAGE (모바일 폭 정렬)
+   POST PAGE (공통)
    ========================= */
 .post-page{
   padding:24px 0 56px;
 }
 .post-shell{
-  max-width: none;
-  margin:0 auto;
   width:100%;
+  max-width:none;
+  margin:0 auto;
 }
 .post-header{
   padding:0;
@@ -388,6 +418,7 @@ a:hover{text-decoration:underline}
   line-height:1.12;
   letter-spacing:-.03em;
   margin:10px 0 10px;
+  overflow-wrap:anywhere;
 }
 .post-meta{
   display:flex;
@@ -397,9 +428,7 @@ a:hover{text-decoration:underline}
   font-size:13px;
   margin-top:6px;
 }
-.post-hero{
-  margin:18px 0 18px;
-}
+.post-hero{margin:18px 0 18px}
 .post-hero img{
   width:100%;
   border-radius:18px;
@@ -417,9 +446,7 @@ a:hover{text-decoration:underline}
   margin:10px 0;
   color:#1f2937;
 }
-.post-content ul{
-  margin:10px 0 10px 18px;
-}
+.post-content ul{margin:10px 0 10px 18px}
 .post-content img{
   width:100%;
   border-radius:18px;
@@ -428,190 +455,103 @@ a:hover{text-decoration:underline}
   margin:18px 0;
 }
 
-/* ---------------------------------
-   Mobile post page spacing fix
-   --------------------------------- */
-@media (max-width: none){
-  /* 상단 메뉴바처럼 좌우 여백 확보 */
-  .post-page.container{
-    padding-left: 20px !important;
-    padding-right: 20px !important;
-  }
-
-  /* post 카드(쉘)가 화면 끝에 붙지 않게 */
-  .post-shell{
-    width: 100% !important;
-    margin: 0 auto !important;
-  }
-
-  /* 제목, 본문, 메타 라인 모두 동일한 좌우 여백 유지 */
-  .post-header,
-  .post-content{
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  /* 이미지가 컨테이너 밖으로 튀는 경우 방지 */
-  .post-hero img,
-  .post-content img{
-    max-width: 100% !important;
-    height: auto !important;
-    display: block !important;
-  }
-
-  /* 긴 제목 줄바꿈 자연스럽게 */
-  .post-h1{
-    word-break: keep-all;
-    overflow-wrap: anywhere;
+/* ✅ 모바일에서 제목/본문/이미지가 "화면 끝에 붙는" 느낌 해결
+   (네 CSS에 있던 @media (max-width: none) 는 무효라서 이걸로 교체) */
+@media(max-width:979px){
+  .post-page .container{
+    padding-left:18px;
+    padding-right:18px;
   }
 }
 
 /* =========================
-   Post page sidebar (PC)
+   POST PAGE SIDEBAR (PC)
+   ⚠️ 이 CSS는 "글 페이지 HTML"에
+   post-main 과 post-aside 구조가 있을 때만 제대로 적용됨
    ========================= */
-
-@media (min-width: 980px){
-  /* 글 페이지: 2컬럼 */
+@media(min-width:980px){
   .post-shell{
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 28px;
-    align-items: start;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) 360px;
+    gap:32px;
+    align-items:start;
   }
 
-  /* 기존 구조가 꽉 차던 것 방지 */
-  .post-main{
-    min-width: 0;
-  }
+  .post-main{min-width:0}
 
-  /* 사이드바 */
   .post-aside{
-    position: sticky;
-    top: 96px; /* 상단 메뉴바 아래 */
-    align-self: start;
+    position:sticky;
+    top:96px;
+    align-self:start;
   }
 
   .post-aside .sidecard{
-    background: rgba(255,255,255,.9);
-    border: 1px solid rgba(15,23,42,.10);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    background:rgba(255,255,255,.9);
+    border:1px solid rgba(15,23,42,.10);
+    border-radius:16px;
+    padding:16px;
+    box-shadow:0 10px 24px rgba(15,23,42,.06);
   }
 
   .post-aside .sidecard h3{
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    font-weight: 800;
+    margin:0 0 10px 0;
+    font-size:16px;
+    font-weight:800;
   }
 
-  /* 카테고리 링크를 “홈 카드 느낌”으로 */
   .post-aside .catlist{
-    display: grid;
-    gap: 10px;
+    display:grid;
+    gap:10px;
   }
 
   .post-aside .catitem{
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(15,23,42,.10);
-    background: rgba(248,250,252,.9);
-    text-decoration: none;
-    color: inherit;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    padding:10px 12px;
+    border-radius:14px;
+    border:1px solid rgba(15,23,42,.10);
+    background:rgba(248,250,252,.9);
+    text-decoration:none;
+    color:inherit;
   }
 
   .post-aside .catitem:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 10px 18px rgba(15,23,42,.08);
+    transform:translateY(-1px);
+    box-shadow:0 10px 18px rgba(15,23,42,.08);
+    text-decoration:none;
   }
 
   .post-aside .caticon{
-    width: 34px;
-    height: 34px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    background: rgba(37,99,235,.12);
-    flex: 0 0 34px;
+    width:34px;
+    height:34px;
+    border-radius:12px;
+    display:grid;
+    place-items:center;
+    background:rgba(37,99,235,.12);
+    flex:0 0 34px;
   }
 
   .post-aside .cattext{
-    display: grid;
-    gap: 2px;
-    min-width: 0;
+    display:grid;
+    gap:2px;
+    min-width:0;
   }
 
   .post-aside .catname{
-    font-weight: 800;
-    font-size: 14px;
-    line-height: 1.2;
+    font-weight:800;
+    font-size:14px;
+    line-height:1.2;
   }
 
   .post-aside .catsub{
-    font-size: 12px;
-    color: rgba(15,23,42,.60);
-    line-height: 1.2;
+    font-size:12px;
+    color:rgba(15,23,42,.60);
+    line-height:1.2;
   }
 }
 
-/* 모바일에서는 사이드바 숨김 */
-@media (max-width: none){
-  .post-aside{ display:none !important; }
+/* 모바일에서는 글 페이지 사이드바 숨김 */
+@media(max-width:979px){
+  .post-aside{display:none !important;}
 }
-
-/* =========================
-   Wider post layout (match topbar width)
-   ========================= */
-
-/* 1) 전체 사이트 컨테이너 폭을 조금 넓힘 */
-:root{
-  --max: 1280px;
-}
-
-/* 2) post 페이지에서만 "좁게 제한" 없애고 100% 사용 */
-.post-page{
-  width: 100%;
-}
-
-.post-page .post-shell{
-  width: 100%;
-  max-width: none;
-}
-
-/* 3) PC 2컬럼을 더 시원하게 */
-@media (min-width: 980px){
-  .post-page .post-shell{
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 32px;
-    align-items: start;
-  }
-
-  .post-page .post-main{
-    min-width: 0;
-  }
-
-  .post-page .post-aside{
-    position: sticky;
-    top: 96px;
-  }
-}
-
-/* 4) 모바일에서도 좌우 여백을 메뉴바 느낌으로 */
-@media (max-width: 979px){
-  .container{
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-}
-
-/* 5) 혹시 post-header만 따로 좁혀둔 규칙이 있으면 강제 해제 */
-.post-header,
-.post-content,
-.post-hero{
-  max-width: none;
-}
-
