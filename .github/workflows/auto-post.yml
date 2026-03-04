@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: auto-post
+  cancel-in-progress: true
+
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -16,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -50,9 +56,27 @@ jobs:
           python tools/auto_post.py
 
       - name: Commit and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 원격 최신 반영 (push reject 방지)
+          git fetch origin main
+          git rebase origin/main || (git rebase --abort && git pull --rebase origin main)
+
           git add -A
-          git commit -m "Auto post" || echo "No changes to commit"
-          git push
+
+          # 변경 없으면 종료
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Auto post"
+
+          # 안전 push
+          git push origin HEAD:main
