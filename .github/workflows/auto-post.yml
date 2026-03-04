@@ -43,30 +43,20 @@ jobs:
           IMG_COUNT: 4
           MIN_CHARS: 2800
           MODEL: gpt-4o-mini
-
-          # Unsplash quality
           UNSPLASH_MIN_WIDTH: 2000
           UNSPLASH_MIN_HEIGHT: 1200
           UNSPLASH_MIN_LIKES: 60
           UNSPLASH_PER_PAGE: 30
-
-          # 안정성
           MAX_KEYWORD_TRIES: 12
         run: |
           python tools/auto_post.py
 
-      - name: Commit and push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push (safe)
         run: |
           set -e
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 원격 최신 반영 (push reject 방지)
-          git fetch origin main
-          git rebase origin/main || (git rebase --abort && git pull --rebase origin main)
 
           git add -A
 
@@ -76,7 +66,9 @@ jobs:
             exit 0
           fi
 
+          # 먼저 로컬에 커밋을 만들어 둬야 rebase 가능
           git commit -m "Auto post"
 
-          # 안전 push
+          # 원격 최신 반영 후 push
+          git pull --rebase origin main
           git push origin HEAD:main
