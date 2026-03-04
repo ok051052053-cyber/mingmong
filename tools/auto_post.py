@@ -7,7 +7,7 @@ import random
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import requests
 from slugify import slugify
@@ -43,11 +43,12 @@ IMAGE_MODEL = os.environ.get("IMAGE_MODEL", "gpt-image-1").strip()
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-# -----------------------------------
+ALLOWED_CATEGORIES = {"AI Tools", "Make Money", "Productivity", "Reviews"}
+
+# -----------------------------
 # Utils
-# -----------------------------------
+# -----------------------------
 def now_iso_datetime() -> str:
-  # ✅ time 포함 ISO (정렬 안정)
   return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def safe_read_json(path: Path, default):
@@ -89,9 +90,132 @@ def normalize_img_path(pth: str) -> str:
     return s[:-4] + ".jpg"
   return s
 
-# -----------------------------------
+def clamp_category(cat: str) -> str:
+  c = (cat or "").strip()
+  if c in ALLOWED_CATEGORIES:
+    return c
+  # fallback mapping
+  low = c.lower()
+  if "money" in low or "income" in low or "side" in low:
+    return "Make Money"
+  if "review" in low or "price" in low or "alternat" in low:
+    return "Reviews"
+  if "productiv" in low or "workflow" in low:
+    return "Productivity"
+  return "AI Tools"
+
+def extract_json_object(s: str) -> Optional[dict]:
+  """
+  Try strict parse.
+  If fails, extract first {...} block and parse.
+  """
+  s = (s or "").strip()
+  if not s:
+    return None
+  try:
+    return json.loads(s)
+  except Exception:
+    pass
+
+  # Extract first JSON object
+  m = re.search(r"\{.*\}", s, flags=re.S)
+  if not m:
+    return None
+  blob = m.group(0).strip()
+  try:
+    return json.loads(blob)
+  except Exception:
+    return None
+
+def has_section(body_html: str, needle: str) -> bool:
+  return needle.lower() in strip_tags(body_html).lower()
+
+def ensure_core_sections(body_html: str) -> str:
+  """
+  Ensure the post is not "generic".
+  Force these minimum parts by appending if missing:
+    TL;DR
+    Workflow
+    Mistakes
+    Templates
+    Comparison table
+  """
+  add = []
+
+  if not has_section(body_html, "TL;DR"):
+    add.append(
+      "<h2>TL;DR</h2>"
+      "<ul>"
+      "<li>Pick one tool stack for the job</li>"
+      "<li>Run a 30 minute setup then reuse weekly</li>"
+      "<li>Track time saved and cost per outcome</li>"
+      "</ul>"
+    )
+
+  if not has_section(body_html, "Workflow"):
+    add.append(
+      "<h2>Workflow you can copy</h2>"
+      "<p>Define the input. Define the output. Run a repeatable checklist. Save the template.</p>"
+      "<ul>"
+      "<li>Step 1: Collect examples and constraints</li>"
+      "<li>Step 2: Use a structured prompt with role, goal, format</li>"
+      "<li>Step 3: Add a quality gate then revise once</li>"
+      "<li>Step 4: Store the template and reuse</li>"
+      "</ul>"
+    )
+
+  if not has_section(body_html, "Mistakes"):
+    add.append(
+      "<h2>Common mistakes</h2>"
+      "<ul>"
+      "<li>Picking tools before defining the outcome</li>"
+      "<li>Asking for vague output with no format</li>"
+      "<li>Skipping examples and constraints</li>"
+      "<li>Not verifying facts or links</li>"
+      "<li>Not measuring time saved</li>"
+      "</ul>"
+    )
+
+  if not has_section(body_html, "Templates"):
+    add.append(
+      "<h2>Templates</h2>"
+      "<p><strong>Prompt template</strong></p>"
+      "<p>Role: [expert role]</p>"
+      "<p>Goal: [one sentence outcome]</p>"
+      "<p>Context: [inputs and constraints]</p>"
+      "<p>Output format: [bullets table steps]</p>"
+      "<p>Quality rules: [no fluff include examples]</p>"
+      "<p><strong>Checklist</strong></p>"
+      "<ul>"
+      "<li>Input quality checked</li>"
+      "<li>Constraints listed</li>"
+      "<li>Output format fixed</li>"
+      "<li>One revision pass</li>"
+      "</ul>"
+    )
+
+  # table check
+  if "<table" not in body_html.lower():
+    add.append(
+      "<h2>Quick comparison</h2>"
+      "<table>"
+      "<thead><tr><th>Option</th><th>Best for</th><th>Cost</th><th>Gotcha</th></tr></thead>"
+      "<tbody>"
+      "<tr><td>Free plan</td><td>Testing the workflow</td><td>$0</td><td>Limits and caps</td></tr>"
+      "<tr><td>Paid plan</td><td>Daily use at work</td><td>$10 to $30</td><td>Vendor lock in</td></tr>"
+      "<tr><td>Stack</td><td>Automation and scale</td><td>$20 to $80</td><td>Setup time</td></tr>"
+      "</tbody>"
+      "</table>"
+    )
+
+  if add:
+    body_html = body_html.strip() + "".join(add)
+
+  return body_html
+
+# -----------------------------
 # Wikimedia image fetch (bitmap)
-# -----------------------------------
+# -----------------------------
 WIKI_API = "https://commons.wikimedia.org/w/api.php"
 
 def wikimedia_search_image_urls(query: str, limit: int = 24) -> List[str]:
@@ -134,9 +258,9 @@ def download_image(url: str) -> Optional[bytes]:
   except Exception:
     return None
 
-# -----------------------------------
+# -----------------------------
 # OpenAI image
-# -----------------------------------
+# -----------------------------
 def openai_generate_image_bytes(prompt: str) -> Optional[bytes]:
   if not client:
     return None
@@ -152,9 +276,9 @@ def openai_generate_image_bytes(prompt: str) -> Optional[bytes]:
   except Exception:
     return None
 
-# -----------------------------------
+# -----------------------------
 # Global image de-dup
-# -----------------------------------
+# -----------------------------
 def load_used_images() -> Set[str]:
   arr = safe_read_json(USED_IMAGES_JSON, [])
   if isinstance(arr, list):
@@ -256,99 +380,138 @@ def pick_unique_images_for_post(keyword: str, slug: str, count: int) -> List[str
 
   return saved_paths
 
-# -----------------------------------
+# -----------------------------
 # LLM content generation
-# -----------------------------------
+# -----------------------------
 def llm_generate_article(keyword: str) -> Dict[str, str]:
   """
   Return title, description, category, body_html (NO outer html).
   Enforce MIN_CHARS on text content.
+  Make the content "deep" by forcing:
+    - TL;DR
+    - scenario
+    - step by step workflow
+    - comparison table
+    - mistakes
+    - templates
+    - FAQ
+    - numbers and tradeoffs
   """
-  # fallback
   if not client:
     title = keyword.title()
     desc = f"A practical guide about {keyword}."
     cat = "AI Tools"
     body = (
-      f"<h2>Overview</h2>"
-      f"<p>{esc(desc)}</p>"
-      f"<h2>Steps</h2>"
-      f"<p>{esc(desc)} {esc(desc)} {esc(desc)} {esc(desc)} {esc(desc)}</p>"
-      f"<h2>Checklist</h2>"
-      f"<ul><li>Pick a tool</li><li>Try a workflow</li><li>Measure results</li></ul>"
+      "<h2>TL;DR</h2>"
+      "<ul><li>Pick one workflow and reuse it weekly</li><li>Measure time saved</li><li>Upgrade only if ROI is clear</li></ul>"
+      "<h2>Scenario</h2>"
+      "<p>You work 9 to 6 and need results fast with low budget.</p>"
+      "<h2>Workflow</h2>"
+      "<ul><li>Define outcome</li><li>Pick tools</li><li>Run checklist</li><li>Store template</li></ul>"
+      "<h2>Quick comparison</h2>"
+      "<table><thead><tr><th>Option</th><th>Best for</th><th>Cost</th><th>Gotcha</th></tr></thead>"
+      "<tbody><tr><td>Free</td><td>Testing</td><td>$0</td><td>Limits</td></tr>"
+      "<tr><td>Paid</td><td>Daily</td><td>$10 to $30</td><td>Lock in</td></tr></tbody></table>"
+      "<h2>Mistakes</h2>"
+      "<ul><li>Vague prompts</li><li>No examples</li><li>No measurement</li></ul>"
+      "<h2>Templates</h2>"
+      "<p>Role Goal Context Output Quality rules</p>"
+      "<h2>FAQ</h2>"
+      "<p>Start small then scale.</p>"
     )
-    # pad
     while len(strip_tags(body)) < MIN_CHARS:
       body += f"<p>{esc(desc)} {esc(desc)} {esc(desc)}</p>"
+    body = ensure_core_sections(body)
     return {"title": title, "description": desc, "category": cat, "body": body}
 
   sys = (
-    "You write SEO-friendly helpful blog content for young professionals in the US and Europe. "
-    "No fluff. Clear structure. Short paragraphs. Useful steps and comparisons. "
-    "Do not mention that you are an AI. "
-    "Write in natural English."
+    "You are a senior editor for a practical blog for young professionals in the US and Europe. "
+    "Write content that is specific and actionable. "
+    "No fluff. No generic definitions. "
+    "Use concrete numbers, tradeoffs, and realistic constraints. "
+    "Do not mention being an AI. "
+    "Write in natural American English. "
+    "Short paragraphs. "
+    "Use only these HTML tags inside body_html: <h2>, <p>, <ul>, <li>, <table>, <thead>, <tbody>, <tr>, <th>, <td>, <strong>. "
+    "Do not include outer <html>."
   )
 
   user = (
-    f"Write one blog post about: {keyword}\n"
-    "Output JSON with keys: title, description, category(one of: AI Tools, Make Money, Productivity, Reviews), "
-    "body_html (HTML only, use <h2>, <p>, <ul><li>). "
-    f"Constraints: the visible text length must be at least {MIN_CHARS} characters. "
-    "Do not include outer <html>."
+    f"Topic keyword: {keyword}\n\n"
+    "Return ONLY valid JSON with keys:\n"
+    "title\n"
+    "description\n"
+    "category (one of: AI Tools, Make Money, Productivity, Reviews)\n"
+    "body_html\n\n"
+    f"Rules for body_html:\n"
+    f"- Visible text length at least {MIN_CHARS} characters\n"
+    "- Start with <h2>TL;DR</h2> then a <ul> with 3 to 5 bullets\n"
+    "- Include <h2>Scenario</h2> with a specific persona and constraints\n"
+    "- Include <h2>Workflow</h2> with step by step bullets and time estimates\n"
+    "- Include <h2>Tool options</h2> with 3 options and when to choose each\n"
+    "- Include <h2>Quick comparison</h2> and a HTML table with at least 3 rows and columns: Option, Best for, Cost, Gotcha\n"
+    "- Include <h2>Common mistakes</h2> with 5 to 8 bullets\n"
+    "- Include <h2>Templates</h2> with at least 2 copy ready templates or checklists\n"
+    "- Include <h2>FAQ</h2> with 4 questions and answers\n"
+    "- Use numbers where reasonable. Example: time, cost, limits, ROI\n"
+    "- Avoid vague claims. Avoid filler.\n\n"
+    "Important:\n"
+    "- Do not include markdown fences\n"
+    "- Do not include any keys besides the four keys\n"
+    "- body_html must be HTML only\n"
   )
 
   res = client.responses.create(
     model=MODEL,
     input=[
-      {"role":"system","content":sys},
-      {"role":"user","content":user},
+      {"role": "system", "content": sys},
+      {"role": "user", "content": user},
     ],
   )
 
-  txt = res.output_text.strip()
-  try:
-    data = json.loads(txt)
-  except Exception:
-    data = {}
+  txt = (res.output_text or "").strip()
+  data = extract_json_object(txt) or {}
 
-  title = str(data.get("title","")).strip() or keyword.title()
-  description = str(data.get("description","")).strip() or f"A practical guide about {keyword}."
-  category = str(data.get("category","AI Tools")).strip() or "AI Tools"
-  body = str(data.get("body_html","")).strip() or "<p></p>"
+  title = str(data.get("title", "")).strip() or keyword.title()
+  description = str(data.get("description", "")).strip() or f"A practical guide about {keyword}."
+  category = clamp_category(str(data.get("category", "AI Tools")))
+  body = str(data.get("body_html", "")).strip() or "<p></p>"
 
-  # enforce min chars by retry once with expand
+  # If short, do an "upgrade pass" that adds depth, not padding
   if len(strip_tags(body)) < MIN_CHARS:
     user2 = (
-      f"Expand the article below to at least {MIN_CHARS} visible characters. "
-      "Keep the same structure and improve usefulness. "
-      "Return JSON with only one key: body_html.\n\n"
+      f"Improve and expand the article HTML below to reach at least {MIN_CHARS} visible characters. "
+      "Make it more specific and more actionable. "
+      "Add numbers, examples, and checklists. "
+      "Keep all required sections. "
+      "Return ONLY valid JSON with one key: body_html.\n\n"
       f"ARTICLE_HTML:\n{body}"
     )
     res2 = client.responses.create(
       model=MODEL,
       input=[
-        {"role":"system","content":sys},
-        {"role":"user","content":user2},
+        {"role": "system", "content": sys},
+        {"role": "user", "content": user2},
       ],
     )
-    t2 = res2.output_text.strip()
-    try:
-      d2 = json.loads(t2)
-      body2 = str(d2.get("body_html","")).strip()
-      if body2 and len(strip_tags(body2)) >= MIN_CHARS:
-        body = body2
-    except Exception:
-      pass
+    t2 = (res2.output_text or "").strip()
+    d2 = extract_json_object(t2) or {}
+    body2 = str(d2.get("body_html", "")).strip()
+    if body2:
+      body = body2
 
-  # final pad if still short
+  # Ensure sections exist even if the model missed them
+  body = ensure_core_sections(body)
+
+  # Final guarantee for length
   while len(strip_tags(body)) < MIN_CHARS:
     body += f"<p>{esc(description)} {esc(description)} {esc(description)}</p>"
 
   return {"title": title, "description": description, "category": category, "body": body}
 
-# -----------------------------------
+# -----------------------------
 # Evenly distribute images in body
-# -----------------------------------
+# -----------------------------
 def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> str:
   """
   Keep hero image separate.
@@ -358,32 +521,26 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
   if not extras:
     return body_html
 
-  # split by block-ish tags so we insert between chunks
-  blocks = re.split(r"(?i)(</p>\s*|</ul>\s*|</ol>\s*|</h2>\s*)", body_html)
-  # rebuild into list of "units"
+  blocks = re.split(r"(?i)(</p>\s*|</ul>\s*|</ol>\s*|</h2>\s*|</table>\s*)", body_html)
   units: List[str] = []
   buf = ""
   for part in blocks:
     buf += part
-    # end markers
-    if re.search(r"(?i)</p>\s*$|</ul>\s*$|</ol>\s*$|</h2>\s*$", buf.strip()):
+    if re.search(r"(?i)</p>\s*$|</ul>\s*$|</ol>\s*$|</h2>\s*$|</table>\s*$", buf.strip()):
       units.append(buf)
       buf = ""
   if buf.strip():
     units.append(buf)
 
   if len(units) <= 1:
-    # fallback insert after some length
     out = body_html
-    for i, img in enumerate(extras):
+    for img in extras:
       out += f'<img src="../{esc(img)}" alt="{esc(title)}" loading="lazy">'
     return out
 
-  # distribute: we want (len(extras)) insert positions across units
   n = len(units)
   m = len(extras)
 
-  # positions as rounded spread
   positions = []
   for i in range(1, m + 1):
     pos = round(i * n / (m + 1))
@@ -391,7 +548,6 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
     positions.append(pos)
 
   positions = sorted(set(positions))
-  # if dedup reduced, append more positions
   p = 1
   while len(positions) < m and p < n:
     if p not in positions and p != 0 and p != n:
@@ -407,17 +563,25 @@ def inject_images_evenly(body_html: str, image_paths: List[str], title: str) -> 
       out_units.append(f'<img src="../{esc(extras[img_i])}" alt="{esc(title)}" loading="lazy">')
       img_i += 1
 
-  # if any left
   while img_i < m:
     out_units.append(f'<img src="../{esc(extras[img_i])}" alt="{esc(title)}" loading="lazy">')
     img_i += 1
 
   return "".join(out_units)
 
-# -----------------------------------
+# -----------------------------
 # Build post html with SEO meta
-# -----------------------------------
-def build_post_html(site_name: str, title: str, description: str, category: str, date_iso: str, slug: str, images: List[str], body_html: str) -> str:
+# -----------------------------
+def build_post_html(
+  site_name: str,
+  title: str,
+  description: str,
+  category: str,
+  date_iso: str,
+  slug: str,
+  images: List[str],
+  body_html: str
+) -> str:
   hero_img = images[0] if images else ""
   canonical = f"{SITE_URL}/posts/{slug}.html"
 
@@ -449,7 +613,7 @@ def build_post_html(site_name: str, title: str, description: str, category: str,
   <link rel="canonical" href="{esc(canonical)}" />
 
   <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="{esc(site_name)}" />
+  <meta property="og:site_name" content="{esc(site_name)}</meta>
   <meta property="og:title" content="{esc(title)}" />
   <meta property="og:description" content="{esc(description)}" />
   <meta property="og:url" content="{esc(canonical)}" />
@@ -563,13 +727,13 @@ def add_post_to_index(posts: List[dict], post_obj: dict) -> List[dict]:
   posts = [p for p in posts if isinstance(p, dict) and p.get("slug")]
 
   def parse_dt(x: dict) -> float:
-    d = str(x.get("date",""))
+    d = str(x.get("date", ""))
     try:
-      return datetime.fromisoformat(d.replace("Z","+00:00")).timestamp()
+      return datetime.fromisoformat(d.replace("Z", "+00:00")).timestamp()
     except Exception:
       return 0.0
 
-  posts.sort(key=parse_dt, reverse=True)  # ✅ newest first
+  posts.sort(key=parse_dt, reverse=True)
   return posts
 
 def load_keywords() -> List[str]:
@@ -616,7 +780,7 @@ def main():
     art = llm_generate_article(keyword)
     title = art["title"]
     description = art["description"]
-    category = art["category"]
+    category = clamp_category(art["category"])
     body = art["body"]
     date_iso = now_iso_datetime()
 
@@ -626,14 +790,16 @@ def main():
     out_path = POSTS_DIR / f"{slug}.html"
     out_path.write_text(html_doc, encoding="utf-8")
 
+    thumb = normalize_img_path(images[0]) if images else f"assets/posts/{slug}/1.jpg"
+
     post_obj = {
       "title": title,
       "description": description,
       "category": category,
-      "date": date_iso,  # ✅ ISO datetime
+      "date": date_iso,
       "slug": slug,
-      "thumbnail": normalize_img_path(images[0]) if images else f"assets/posts/{slug}/1.jpg",
-      "image": normalize_img_path(images[0]) if images else f"assets/posts/{slug}/1.jpg",
+      "thumbnail": thumb,
+      "image": thumb,
       "url": f"posts/{slug}.html",
     }
 
