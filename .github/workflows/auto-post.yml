@@ -11,7 +11,7 @@ permissions:
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -30,17 +30,12 @@ jobs:
       - name: Generate posts
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           SITE_NAME: MingMong
           SITE_URL: https://mingmonglife.com
-          POSTS_PER_RUN: "1"
-          IMG_COUNT: "4"
-          MIN_CHARS: "2500"
-          HTTP_TIMEOUT: "25"
-          MIN_IMG_LONG_EDGE: "1400"
-          MIN_IMG_BYTES: "120000"
-          MAX_IMG_ASPECT: "2.2"
-          WIKI_CANDIDATES: "70"
-          MAX_KEYWORD_ATTEMPTS: "18"
+          POSTS_PER_RUN: 3
+          IMG_COUNT: 4
+          MIN_CHARS: 2500
           MODEL: gpt-4o-mini
         run: |
           python tools/auto_post.py
