@@ -3,6 +3,8 @@ import re
 import json
 import time
 import random
+import hashlib
+from difflib import SequenceMatcher
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
@@ -20,6 +22,7 @@ ASSETS_POSTS_DIR = ROOT / "assets" / "posts"
 POSTS_JSON = ROOT / "posts.json"
 KEYWORDS_JSON = ROOT / "keywords.json"
 USED_IMAGES_JSON = ROOT / "used_images.json"
+USED_TEXTS_JSON = ROOT / "used_texts.json"  # ✅ 중복 방지용 (신규)
 
 POSTS_DIR.mkdir(parents=True, exist_ok=True)
 ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,7 +37,7 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-# ✅ 기본 3000자로 상향
+# ✅ 분량 3000자 이상
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "3000"))
 
 # ✅ 무조건 7장 고정
@@ -50,6 +53,10 @@ UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "2000"))
 UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1200"))
 UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "60"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
+
+# ✅ 중복 방지 파라미터
+TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.88"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "3"))
 
 
 # -----------------------------
@@ -126,6 +133,16 @@ def ensure_used_schema(used_raw):
     return {"unsplash_ids": []}
 
 
+def ensure_used_texts_schema(raw):
+    if isinstance(raw, dict):
+        if "fingerprints" not in raw or not isinstance(raw.get("fingerprints"), list):
+            raw["fingerprints"] = []
+        return raw
+    if isinstance(raw, list):
+        return {"fingerprints": [x for x in raw if isinstance(x, str)]}
+    return {"fingerprints": []}
+
+
 def pick_category(keyword: str) -> str:
     k = keyword.lower()
     if any(x in k for x in ["adhd", "focus", "productivity", "pomodoro", "time"]):
@@ -159,11 +176,9 @@ def _json_extract(s: str) -> str:
     if not s:
         return s
 
-    # code fence 제거
     s = re.sub(r"^```(json)?\s*", "", s, flags=re.IGNORECASE)
     s = re.sub(r"\s*```$", "", s)
 
-    # 첫 { 부터 마지막 } 까지
     i = s.find("{")
     j = s.rfind("}")
     if i >= 0 and j > i:
@@ -175,6 +190,46 @@ def _clean_text(s: str) -> str:
     s = (s or "").strip()
     s = re.sub(r"\s+\n", "\n", s)
     return s
+
+
+def _norm_title(s: str) -> str:
+    s = (s or "").lower().strip()
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def title_too_similar(new_title: str, existing_titles: List[str], threshold: float) -> bool:
+    nt = _norm_title(new_title)
+    if not nt:
+        return True
+
+    # 최근 것 위주로만 비교해도 충분
+    pool = existing_titles[:500] if len(existing_titles) > 500 else existing_titles
+    for t in pool:
+        tt = _norm_title(t)
+        if not tt:
+            continue
+        if tt == nt:
+            return True
+        r = SequenceMatcher(a=nt, b=tt).ratio()
+        if r >= threshold:
+            return True
+    return False
+
+
+def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq: List[Dict[str, str]]) -> str:
+    # 너무 무겁게 전체 비교 말고, 대표만 뽑아서 안정적으로 해시
+    parts = [title.strip(), (tldr or "").strip()[:400]]
+    for s in sections[:IMG_COUNT]:
+        parts.append((s.get("heading") or "").strip())
+        parts.append((s.get("body") or "").strip()[:400])
+    for item in (faq or [])[:5]:
+        parts.append((item.get("q") or "").strip()[:200])
+        parts.append((item.get("a") or "").strip()[:200])
+
+    joined = "\n".join([p for p in parts if p])
+    return hashlib.sha1(joined.encode("utf-8")).hexdigest()
 
 
 # -----------------------------
@@ -239,7 +294,6 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     if not raw:
         raise RuntimeError("Unsplash photo url missing")
 
-    # jpg 고정
     if "?" in raw:
         dl = raw + "&fm=jpg&q=80&w=1800&fit=max"
     else:
@@ -270,6 +324,12 @@ def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[
     chosen: List[dict] = []
     credits: List[str] = []
 
+    # IMG_COUNT 보장
+    if len(queries) != IMG_COUNT:
+        queries = (queries or [])[:IMG_COUNT]
+        while len(queries) < IMG_COUNT:
+            queries.append(slug.replace("-", " "))
+
     for qi in queries:
         qi = (qi or "").strip()
         if not qi:
@@ -285,7 +345,6 @@ def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[
                 break
 
         if not found:
-            # 한 장이라도 못 구하면 전체 실패
             return [], []
 
         pid = found.get("id")
@@ -314,18 +373,24 @@ def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[
 # -----------------------------
 # Writing (JSON output)
 # -----------------------------
-def build_prompt(keyword: str) -> str:
+def build_prompt(keyword: str, avoid_titles: List[str]) -> str:
     """
     ✅ 7개 섹션
     ✅ 섹션 분량 비슷
     ✅ 각 섹션마다 이미지 검색 키워드 제공
-    ✅ 섹션 내용이 이미지랑 연결
+    ✅ 중복 제목 피하기
     """
+    avoid_block = ""
+    if avoid_titles:
+        # 너무 길면 모델이 무시하니, 최근 30개 정도만
+        recent = avoid_titles[:30]
+        avoid_block = "\nAvoid titles that are the same as or very similar to these:\n- " + "\n- ".join(recent) + "\n"
+
     return f"""
 You are writing for US and EU readers.
 
 Topic keyword: "{keyword}"
-
+{avoid_block}
 Output MUST be valid JSON only.
 No markdown.
 No extra text.
@@ -340,18 +405,16 @@ JSON schema:
       "heading": "string",
       "image_query": "string (2-6 words, concrete photo idea)",
       "body": "string (plain text, multiple paragraphs with blank lines)"
-    }},
-    ... total 7 sections
+    }}
   ],
   "faq": [
-    {{"q":"string","a":"string"}},
-    ... 3 to 5 items
+    {{"q":"string","a":"string"}}
   ],
   "tldr": "string (2-3 sentences)"
 }}
 
 Hard rules:
-- Exactly 7 sections.
+- Exactly {IMG_COUNT} sections.
 - Make section body lengths roughly equal.
 - Total combined text length (tldr + sections + faq answers) must be at least {MIN_CHARS} characters.
 - Avoid fluff.
@@ -403,9 +466,9 @@ def parse_post_json(text: str) -> Dict[str, Any]:
         cat = pick_category(title or "")
 
     total_text = (
-        (tldr or "")
-        + "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections])
-        + "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
+        (tldr or "") +
+        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
+        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
     )
     if len(total_text) < MIN_CHARS:
         raise ValueError("Generated text too short")
@@ -431,9 +494,6 @@ def html_escape(s: str) -> str:
 
 
 def paragraphs_to_html(text: str) -> str:
-    """
-    빈 줄 기준 문단 처리
-    """
     text = (text or "").strip()
     if not text:
         return ""
@@ -460,21 +520,13 @@ def render_post_html(
     faq: List[Dict[str, str]],
     photo_credits_li: List[str],
 ) -> str:
-    """
-    ✅ posts/<slug>.html 생성
-    ✅ style.css 경로 ../style.css
-    ✅ 이미지 경로 ../assets/posts/slug/i.jpg
-    ✅ post-shell has-aside 적용
-    """
     canonical = f"{SITE_URL}/posts/{slug}.html"
     og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
 
     blocks = []
-
     blocks.append("<h2>TL;DR</h2>")
     blocks.append(paragraphs_to_html(tldr))
 
-    # ✅ 7개 이미지 + 7개 섹션
     for i in range(IMG_COUNT):
         img_rel = f"../{image_paths[i]}"
         blocks.append(f"<img src=\"{img_rel}\" alt=\"{html_escape(title)}\" loading=\"lazy\">")
@@ -638,6 +690,11 @@ def main() -> int:
 
     posts = load_posts_index()
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
+    existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
+
+    used_texts_raw = load_json(USED_TEXTS_JSON, {})
+    used_texts = ensure_used_texts_schema(used_texts_raw)
+    used_fps = set(used_texts.get("fingerprints") or [])
 
     made = 0
     tries = 0
@@ -648,14 +705,36 @@ def main() -> int:
         if not keyword:
             continue
 
-        # 1) 글 JSON 생성
-        prompt = build_prompt(keyword)
-        raw = openai_generate_text(prompt)
+        created_iso = now_utc_iso()
 
-        try:
-            data = parse_post_json(raw)
-        except Exception as e:
-            print("JSON parse failed:", e)
+        # ✅ 글 생성 + 중복 방지 재시도
+        data = None
+        for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
+            prompt = build_prompt(keyword, avoid_titles=existing_titles)
+            raw = openai_generate_text(prompt)
+
+            try:
+                cand = parse_post_json(raw)
+            except Exception as e:
+                print("JSON parse failed:", e)
+                continue
+
+            cand_title = cand["title"]
+            if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
+                print(f"Title too similar (attempt {attempt}). Regenerating.")
+                continue
+
+            fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
+            if fp in used_fps:
+                print(f"Content fingerprint duplicate (attempt {attempt}). Regenerating.")
+                continue
+
+            data = cand
+            used_fps.add(fp)
+            break
+
+        if not data:
+            print("Failed to generate a unique post. Skipping keyword.")
             continue
 
         title = data["title"]
@@ -665,24 +744,21 @@ def main() -> int:
         tldr = data["tldr"]
         faq = data["faq"]
 
-        created_iso = now_utc_iso()
-
         slug = slugify(title)[:80] or slugify(keyword)[:80] or f"post-{int(time.time())}"
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
-        # 2) 이미지 7장 (섹션 image_query 기반)
+        # ✅ 이미지 7장 (섹션 이미지쿼리 기반)
         queries = [s.get("image_query") for s in sections]
-
         if len(queries) != IMG_COUNT:
             queries = [title] * IMG_COUNT
 
         image_paths, credits_li = get_high_quality_photos_for_queries(slug, queries)
         if len(image_paths) < IMG_COUNT:
-            print(f"Could not source {IMG_COUNT} high quality photos. Skipping.")
+            print("Could not source 7 high quality photos. Skipping.")
             continue
 
-        # 3) HTML 생성
+        # ✅ HTML 생성
         html_out = render_post_html(
             title=title,
             description=description,
@@ -699,7 +775,7 @@ def main() -> int:
         html_path = POSTS_DIR / f"{slug}.html"
         safe_write(html_path, html_out)
 
-        # 4) posts.json 갱신
+        # ✅ posts.json 갱신
         add_post_to_index(
             posts,
             title=title,
@@ -710,6 +786,11 @@ def main() -> int:
             created_iso=created_iso,
         )
         existing_slugs.add(slug)
+        existing_titles.insert(0, title)
+
+        # ✅ fingerprints 저장
+        used_texts["fingerprints"] = sorted(list(used_fps))
+        save_json(USED_TEXTS_JSON, used_texts)
 
         print(f"Generated HTML: posts/{slug}.html")
         made += 1
