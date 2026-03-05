@@ -130,37 +130,7 @@ Earn more with clear steps.
 
 <aside class="sidebar">
 
-<div class="card sidebox">
-
-<h4>Start here</h4>
-
-<div class="side-links">
-
-<a href="category.html?cat=AI%20Tools">
-<span>AI Tools</span>
-<small>Tools that save time</small>
-</a>
-
-<a href="category.html?cat=Make%20Money">
-<span>Make Money</span>
-<small>High intent guides</small>
-</a>
-
-<a href="category.html?cat=Productivity">
-<span>Productivity</span>
-<small>Workflows that stick</small>
-</a>
-
-<a href="category.html?cat=Reviews">
-<span>Reviews</span>
-<small>Pricing and alternatives</small>
-</a>
-
-</div>
-
-</div>
-
-
+<!-- ✅ Start here 카드 제거됨 -->
 
 <div class="card related">
 
@@ -326,8 +296,9 @@ const latestWrap=document.getElementById("latest-list");
 
 if(latestWrap){
 
+/* ✅ 12개 제한 제거: 모든 글 표시 */
 latestWrap.innerHTML=
-posts.slice(0,12).map(postCardVertical).join("");
+posts.map(postCardVertical).join("");
 
 }
 
