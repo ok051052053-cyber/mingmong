@@ -2,11 +2,10 @@ import os
 import re
 import json
 import time
-import html
 import random
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 
 import requests
 from slugify import slugify
@@ -16,7 +15,7 @@ from slugify import slugify
 # Paths
 # -----------------------------
 ROOT = Path(__file__).resolve().parents[1]
-POSTS_DIR = ROOT / "posts"
+POSTS_DIR = ROOT / "posts"                 # ✅ HTML 생성 폴더
 ASSETS_POSTS_DIR = ROOT / "assets" / "posts"
 POSTS_JSON = ROOT / "posts.json"
 KEYWORDS_JSON = ROOT / "keywords.json"
@@ -35,8 +34,11 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "2500"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "2800"))
+
+# ✅ 무조건 5장 고정 (환경변수로 바꿔도 5로 강제)
+IMG_COUNT = 5
+
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
 
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
@@ -45,7 +47,7 @@ HTTP_TIMEOUT = 35
 
 UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "2000"))
 UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1200"))
-UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "50"))
+UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "60"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
 
 
@@ -63,30 +65,26 @@ def openai_generate_text(prompt: str) -> str:
 
     client = OpenAI(api_key=OPENAI_API_KEY)
 
-    # 1) Responses API first
+    # Responses API
     try:
-        res = client.responses.create(
-            model=MODEL,
-            input=prompt,
-        )
+        res = client.responses.create(model=MODEL, input=prompt)
         text = (res.output_text or "").strip()
         if text:
             return text
     except Exception:
         pass
 
-    # 2) Chat Completions fallback (still 1.x style)
+    # Chat Completions fallback
     try:
         res = client.chat.completions.create(
             model=MODEL,
             messages=[
-                {"role": "system", "content": "You write helpful, detailed, accurate blog posts."},
+                {"role": "system", "content": "You write helpful detailed accurate blog posts."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
         )
-        text = (res.choices[0].message.content or "").strip()
-        return text
+        return (res.choices[0].message.content or "").strip()
     except Exception as e:
         raise RuntimeError(f"OpenAI call failed: {e}")
 
@@ -94,6 +92,10 @@ def openai_generate_text(prompt: str) -> str:
 # -----------------------------
 # Helpers
 # -----------------------------
+def now_utc_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def now_utc_date() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -136,16 +138,42 @@ def pick_category(keyword: str) -> str:
     return "Productivity"
 
 
-def short_desc(title: str) -> str:
-    t = title.strip()
-    if len(t) > 140:
-        t = t[:137].rstrip() + "..."
+def short_desc(text: str) -> str:
+    t = (text or "").strip()
+    if len(t) > 160:
+        t = t[:157].rstrip() + "..."
     return t
 
 
 def safe_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _json_extract(s: str) -> str:
+    """
+    모델이 앞뒤로 잡담 붙여도 JSON만 뽑아내기
+    """
+    s = (s or "").strip()
+    if not s:
+        return s
+
+    # code fence 제거
+    s = re.sub(r"^```(json)?\s*", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s*```$", "", s)
+
+    # 첫 { 부터 마지막 } 까지
+    i = s.find("{")
+    j = s.rfind("}")
+    if i >= 0 and j > i:
+        return s[i:j + 1]
+    return s
+
+
+def _clean_text(s: str) -> str:
+    s = (s or "").strip()
+    s = re.sub(r"\s+\n", "\n", s)
+    return s
 
 
 # -----------------------------
@@ -210,6 +238,7 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     if not raw:
         raise RuntimeError("Unsplash photo url missing")
 
+    # jpg 고정
     if "?" in raw:
         dl = raw + "&fm=jpg&q=80&w=1800&fit=max"
     else:
@@ -221,7 +250,12 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     out_path.write_bytes(r.content)
 
 
-def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str]]:
+def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[List[str], List[str]]:
+    """
+    ✅ 이미지 5장
+    ✅ 각 이미지마다 query를 따로 사용해서 관련성 올림
+    ✅ AI 이미지 절대 없음
+    """
     if not UNSPLASH_ACCESS_KEY:
         raise RuntimeError("Missing UNSPLASH_ACCESS_KEY")
 
@@ -229,44 +263,37 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
     used = ensure_used_schema(used_raw)
     used_ids = set(used.get("unsplash_ids") or [])
 
-    base = re.sub(r"[^a-zA-Z0-9\s\-]", " ", title).strip()
-    q1 = base if base else title
-    q2 = " ".join([w for w in base.split()[:5]]) if base else title
-    queries = [q for q in [q1, q2] if q]
-
-    chosen_items: List[dict] = []
-    for q in queries:
-        if len(chosen_items) >= count:
-            break
-
-        for page in [1, 2, 3]:
-            data = unsplash_search(q, page=page)
-            results = data.get("results") or []
-            candidates = pick_high_quality_unsplash(results, used_ids)
-
-            for it in candidates:
-                if len(chosen_items) >= count:
-                    break
-                pid = it.get("id")
-                if pid in used_ids:
-                    continue
-                chosen_items.append(it)
-                used_ids.add(pid)
-
-            if len(chosen_items) >= count:
-                break
-
-    if len(chosen_items) < count:
-        return [], []
-
-    image_paths: List[str] = []
-    credits: List[str] = []
-
-    slug = slugify(title)[:80] or f"post-{int(time.time())}"
     folder = ASSETS_POSTS_DIR / slug
     folder.mkdir(parents=True, exist_ok=True)
 
-    for i, it in enumerate(chosen_items, start=1):
+    chosen: List[dict] = []
+    credits: List[str] = []
+
+    for qi in queries:
+        qi = (qi or "").strip()
+        if not qi:
+            qi = slug.replace("-", " ")
+
+        found = None
+        for page in [1, 2, 3]:
+            data = unsplash_search(qi, page=page)
+            results = data.get("results") or []
+            candidates = pick_high_quality_unsplash(results, used_ids)
+            if candidates:
+                found = candidates[0]
+                break
+
+        if not found:
+            # 한 장이라도 못 구하면 전체 실패
+            return [], []
+
+        pid = found.get("id")
+        used_ids.add(pid)
+        chosen.append(found)
+
+    image_paths: List[str] = []
+
+    for i, it in enumerate(chosen, start=1):
         out = folder / f"{i}.jpg"
         download_unsplash_photo(it, out)
         image_paths.append(f"assets/posts/{slug}/{i}.jpg")
@@ -275,7 +302,7 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
         name = user.get("name")
         link = (user.get("links") or {}).get("html")
         photo_link = (it.get("links") or {}).get("html")
-        credits.append(f"- Photo {i}: {name} on Unsplash ({link}) ({photo_link})")
+        credits.append(f"<li>Photo {i}: {name} on Unsplash ({link}) ({photo_link})</li>")
 
     used["unsplash_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
@@ -284,89 +311,313 @@ def get_high_quality_photos(title: str, count: int) -> Tuple[List[str], List[str
 
 
 # -----------------------------
-# Writing
+# Writing (JSON output)
 # -----------------------------
 def build_prompt(keyword: str) -> str:
+    """
+    ✅ 5개 청크 분량 비슷
+    ✅ 각 청크마다 이미지 검색 키워드 제공
+    ✅ 섹션 내용이 이미지랑 연결되게
+    """
     return f"""
-Write a deep, practical, non-fluffy blog post in English for US and EU readers.
+You are writing for US and EU readers.
 
 Topic keyword: "{keyword}"
 
-Hard requirements:
-- Total length must be at least {MIN_CHARS} characters (not words).
-- Must include: TL;DR section, Who this is for, Key ideas, Step-by-step guide, Common mistakes, Checklist, and FAQ.
-- Use concrete examples, mini case studies, and actionable steps.
-- No generic filler. No repeating the same idea.
-- Avoid medical or legal claims unless clearly labeled as general info.
-- Output format: Markdown.
-- Start with a strong title on the first line (H1).
+Output MUST be valid JSON only.
+No markdown.
+No extra text.
+
+JSON schema:
+{{
+  "title": "string",
+  "description": "string (155-170 chars, not the title)",
+  "category": "AI Tools|Make Money|Productivity|Reviews",
+  "sections": [
+    {{
+      "heading": "string",
+      "image_query": "string (2-6 words, concrete photo idea)",
+      "body": "string (plain text, multiple paragraphs with blank lines)"
+    }},
+    ... total 5 sections
+  ],
+  "faq": [
+    {{"q":"string","a":"string"}},
+    ... 3 to 5 items
+  ],
+  "tldr": "string (2-3 sentences)"
+}}
+
+Hard rules:
+- Exactly 5 sections.
+- Make section body lengths roughly equal.
+- Total combined text length (tldr + sections + faq answers) must be at least {MIN_CHARS} characters.
+- Avoid fluff.
+- Give concrete steps.
+- Each section must match its image_query.
+- Use simple plain English.
 """.strip()
 
 
-def extract_title(md: str) -> str:
-    for line in md.splitlines():
-        if line.strip().startswith("# "):
-            return line.strip()[2:].strip()
-    first = md.strip().splitlines()[0].strip() if md.strip() else ""
-    return first[:80] if first else f"Post {now_utc_date()}"
+def parse_post_json(text: str) -> Dict[str, Any]:
+    raw = _json_extract(text)
+    data = json.loads(raw)
+
+    if not isinstance(data, dict):
+        raise ValueError("JSON root is not object")
+
+    title = _clean_text(data.get("title", ""))
+    desc = _clean_text(data.get("description", ""))
+    cat = _clean_text(data.get("category", ""))
+
+    sections = data.get("sections")
+    if not isinstance(sections, list) or len(sections) != 5:
+        raise ValueError("sections must be list of 5")
+
+    clean_sections = []
+    for s in sections:
+        if not isinstance(s, dict):
+            raise ValueError("section must be object")
+        heading = _clean_text(s.get("heading", ""))
+        iq = _clean_text(s.get("image_query", ""))
+        body = _clean_text(s.get("body", ""))
+        if not heading or not body:
+            raise ValueError("section heading/body required")
+        clean_sections.append({"heading": heading, "image_query": iq, "body": body})
+
+    faq = data.get("faq") or []
+    clean_faq = []
+    if isinstance(faq, list):
+        for item in faq[:5]:
+            if isinstance(item, dict):
+                q = _clean_text(item.get("q", ""))
+                a = _clean_text(item.get("a", ""))
+                if q and a:
+                    clean_faq.append({"q": q, "a": a})
+
+    tldr = _clean_text(data.get("tldr", ""))
+
+    if cat not in {"AI Tools", "Make Money", "Productivity", "Reviews"}:
+        # fallback to keyword-based category
+        cat = pick_category(title or "")
+
+    # 최소 길이 체크
+    total_text = (tldr + "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
+                  "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq]))
+    if len(total_text) < MIN_CHARS:
+        raise ValueError("Generated text too short")
+
+    if not title:
+        title = f"Post {now_utc_date()}"
+
+    if not desc:
+        desc = short_desc(title)
+
+    return {
+        "title": title,
+        "description": desc,
+        "category": cat,
+        "sections": clean_sections,
+        "faq": clean_faq,
+        "tldr": tldr or short_desc(desc),
+    }
 
 
-def ensure_min_chars(md: str) -> str:
-    if len(md) >= MIN_CHARS:
-        return md
+def html_escape(s: str) -> str:
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
-    for _ in range(3):
-        add_prompt = f"""
-Expand the article below to be at least {MIN_CHARS} characters.
 
-Rules:
-- Keep the same structure.
-- Add depth, examples, details, and practical steps.
-- Do not add fluff.
+def paragraphs_to_html(text: str) -> str:
+    """
+    빈 줄 기준 문단 처리
+    """
+    text = (text or "").strip()
+    if not text:
+        return ""
+    parts = re.split(r"\n\s*\n+", text)
+    out = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        out.append(f"<p>{html_escape(p)}</p>")
+    return "\n".join(out)
 
-Article:
-{md}
+
+def render_post_html(
+    *,
+    title: str,
+    description: str,
+    category: str,
+    updated_iso: str,
+    slug: str,
+    image_paths: List[str],
+    sections: List[Dict[str, str]],
+    tldr: str,
+    faq: List[Dict[str, str]],
+    photo_credits_li: List[str],
+) -> str:
+    """
+    ✅ posts/<slug>.html 생성
+    ✅ style.css 경로 ../style.css
+    ✅ 이미지 경로 ../assets/posts/slug/i.jpg
+    ✅ post-shell has-aside 적용
+    """
+    canonical = f"{SITE_URL}/posts/{slug}.html"
+    og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
+
+    # content 구성
+    blocks = []
+
+    # TLDR
+    blocks.append("<h2>TL;DR</h2>")
+    blocks.append(paragraphs_to_html(tldr))
+
+    # 5개 이미지 + 5개 섹션
+    # 이미지 1도 본문에 넣고 싶으면 아래 루프가 해결
+    for i in range(5):
+        img_rel = f"../{image_paths[i]}"  # image_paths = assets/posts/slug/i.jpg
+        blocks.append(f"<img src=\"{img_rel}\" alt=\"{html_escape(title)}\" loading=\"lazy\">")
+        blocks.append(f"<h2>{html_escape(sections[i]['heading'])}</h2>")
+        blocks.append(paragraphs_to_html(sections[i]["body"]))
+
+    # FAQ
+    if faq:
+        blocks.append("<h2>FAQ</h2>")
+        for item in faq:
+            blocks.append(f"<p><strong>{html_escape(item['q'])}</strong><br>{html_escape(item['a'])}</p>")
+
+    # credits
+    if photo_credits_li:
+        blocks.append("<h2>Photo credits</h2>")
+        blocks.append("<ul>" + "\n".join(photo_credits_li) + "</ul>")
+
+    article_html = "\n".join([b for b in blocks if b])
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{html_escape(title)} | {html_escape(SITE_NAME)}</title>
+  <meta name="description" content="{html_escape(description)}">
+  <link rel="canonical" href="{html_escape(canonical)}">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="{html_escape(SITE_NAME)}">
+  <meta property="og:title" content="{html_escape(title)}">
+  <meta property="og:description" content="{html_escape(description)}">
+  <meta property="og:url" content="{html_escape(canonical)}">
+  <meta property="og:image" content="{html_escape(og_image)}">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{html_escape(title)}">
+  <meta name="twitter:description" content="{html_escape(description)}">
+  <meta name="twitter:image" content="{html_escape(og_image)}">
+
+  <link rel="stylesheet" href="../style.css?v=4">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="../index.html" aria-label="{html_escape(SITE_NAME)} Home">
+      <span class="mark" aria-hidden="true"></span>
+      <span>{html_escape(SITE_NAME)}</span>
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="../index.html">Home</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container post-page">
+  <div class="post-shell has-aside">
+
+    <div class="post-main">
+      <header class="post-header">
+        <div class="kicker">{html_escape(category)}</div>
+        <h1 class="post-h1">{html_escape(title)}</h1>
+        <div class="post-meta">
+          <span>{html_escape(category)}</span>
+          <span>•</span>
+          <span>Updated: {html_escape(updated_iso)}</span>
+        </div>
+      </header>
+
+      <article class="post-content">
+        {article_html}
+      </article>
+    </div>
+
+    <aside class="post-aside">
+      <div class="sidecard">
+        <h3>Categories</h3>
+        <div class="catlist">
+          <a class="catitem" href="../category.html?cat=AI%20Tools"><span class="caticon">🤖</span><span class="cattext"><span class="catname">AI Tools</span><span class="catsub">Tools and workflows</span></span></a>
+          <a class="catitem" href="../category.html?cat=Productivity"><span class="caticon">⚡</span><span class="cattext"><span class="catname">Productivity</span><span class="catsub">Time and focus</span></span></a>
+          <a class="catitem" href="../category.html?cat=Make%20Money"><span class="caticon">💰</span><span class="cattext"><span class="catname">Make Money</span><span class="catsub">Freelance and digital</span></span></a>
+          <a class="catitem" href="../category.html?cat=Reviews"><span class="caticon">🧾</span><span class="cattext"><span class="catname">Reviews</span><span class="catsub">Comparisons and pricing</span></span></a>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div>© 2026 {html_escape(SITE_NAME)}</div>
+    <div class="footer-links">
+      <a href="../privacy.html">Privacy</a>
+      <a href="../about.html">About</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
 """.strip()
-        md2 = openai_generate_text(add_prompt)
-        if len(md2) > len(md):
-            md = md2
-        if len(md) >= MIN_CHARS:
-            return md
-
-    return md
-
-
-def write_post_markdown(md: str, credits: List[str]) -> str:
-    credit_block = "\n\n---\n\n## Photo credits\n" + "\n".join(credits) + "\n"
-    if "## Photo credits" in md:
-        return md
-    return md.rstrip() + credit_block
 
 
 # -----------------------------
 # Posts index
 # -----------------------------
 def load_posts_index() -> List[dict]:
-    return load_json(POSTS_JSON, [])
+    data = load_json(POSTS_JSON, [])
+    return data if isinstance(data, list) else []
 
 
 def save_posts_index(posts: List[dict]) -> None:
     save_json(POSTS_JSON, posts)
 
 
-def add_post_to_index(posts: List[dict], title: str, slug: str, category: str, image_paths: List[str]) -> None:
-    today = now_utc_date()
+def add_post_to_index(
+    posts: List[dict],
+    *,
+    title: str,
+    slug: str,
+    category: str,
+    description: str,
+    image_paths: List[str],
+    created_iso: str,
+) -> None:
     thumb = image_paths[0] if image_paths else ""
 
     posts.insert(0, {
         "title": title,
         "slug": slug,
         "category": category,
-        "description": short_desc(title),
-        "date": today,
-        "updated": today,
+        "description": description,
+        "date": created_iso,       # ✅ 시간 포함
+        "updated": created_iso,    # ✅ 시간 포함
         "thumbnail": thumb,
         "image": thumb,
+        "url": f"posts/{slug}.html",
+        "views": 0
     })
 
 
@@ -399,34 +650,70 @@ def main() -> int:
         if not keyword:
             continue
 
+        # 1) 글 JSON 생성
         prompt = build_prompt(keyword)
-        md = openai_generate_text(prompt)
-        md = ensure_min_chars(md)
+        raw = openai_generate_text(prompt)
 
-        if len(md) < MIN_CHARS:
-            print("Article too short after expansion. Skipping keyword.")
+        try:
+            data = parse_post_json(raw)
+        except Exception as e:
+            print("JSON parse failed:", e)
             continue
 
-        title = extract_title(md)
+        title = data["title"]
+        description = data["description"]
+        category = data["category"]
+        sections = data["sections"]
+        tldr = data["tldr"]
+        faq = data["faq"]
+
+        created_iso = now_utc_iso()
+
         slug = slugify(title)[:80] or slugify(keyword)[:80] or f"post-{int(time.time())}"
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
-        image_paths, credits = get_high_quality_photos(title, IMG_COUNT)
-        if len(image_paths) < IMG_COUNT:
-            print(f"Could not source enough high quality photos. Got {len(image_paths)}/{IMG_COUNT}")
+        # 2) 이미지 5장 (섹션 이미지쿼리 기반)
+        queries = [s.get("image_query") for s in sections]
+        # 5개 보장
+        if len(queries) != 5:
+            queries = [title] * 5
+
+        image_paths, credits_li = get_high_quality_photos_for_queries(slug, queries)
+        if len(image_paths) < 5:
+            print("Could not source 5 high quality photos. Skipping.")
             continue
 
-        category = pick_category(keyword)
-        md_final = write_post_markdown(md, credits)
+        # 3) HTML 생성
+        html_out = render_post_html(
+            title=title,
+            description=description,
+            category=category,
+            updated_iso=created_iso[:19].replace("T", " "),
+            slug=slug,
+            image_paths=image_paths,
+            sections=sections,
+            tldr=tldr,
+            faq=faq,
+            photo_credits_li=credits_li,
+        )
 
-        md_path = POSTS_DIR / f"{slug}.md"
-        safe_write(md_path, md_final)
+        html_path = POSTS_DIR / f"{slug}.html"
+        safe_write(html_path, html_out)
 
-        add_post_to_index(posts, title=title, slug=slug, category=category, image_paths=image_paths)
+        # 4) posts.json 갱신
+        add_post_to_index(
+            posts,
+            title=title,
+            slug=slug,
+            category=category,
+            description=description,
+            image_paths=image_paths,
+            created_iso=created_iso,
+        )
         existing_slugs.add(slug)
 
-        print(f"Generated: {slug}")
+        print(f"Generated HTML: posts/{slug}.html")
         made += 1
 
     if made == 0:
