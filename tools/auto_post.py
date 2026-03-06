@@ -58,6 +58,10 @@ UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
 TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.88"))
 MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "3"))
 
+# ✅✅ (추가) AdSense client id
+# 예: ca-pub-1234567890123456
+ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
+
 
 # -----------------------------
 # OpenAI (openai>=1.x only)
@@ -204,7 +208,6 @@ def title_too_similar(new_title: str, existing_titles: List[str], threshold: flo
     if not nt:
         return True
 
-    # 최근 것 위주로만 비교해도 충분
     pool = existing_titles[:500] if len(existing_titles) > 500 else existing_titles
     for t in pool:
         tt = _norm_title(t)
@@ -219,7 +222,6 @@ def title_too_similar(new_title: str, existing_titles: List[str], threshold: flo
 
 
 def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq: List[Dict[str, str]]) -> str:
-    # 너무 무겁게 전체 비교 말고, 대표만 뽑아서 안정적으로 해시
     parts = [title.strip(), (tldr or "").strip()[:400]]
     for s in sections[:IMG_COUNT]:
         parts.append((s.get("heading") or "").strip())
@@ -324,7 +326,6 @@ def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[
     chosen: List[dict] = []
     credits: List[str] = []
 
-    # IMG_COUNT 보장
     if len(queries) != IMG_COUNT:
         queries = (queries or [])[:IMG_COUNT]
         while len(queries) < IMG_COUNT:
@@ -382,7 +383,6 @@ def build_prompt(keyword: str, avoid_titles: List[str]) -> str:
     """
     avoid_block = ""
     if avoid_titles:
-        # 너무 길면 모델이 무시하니, 최근 30개 정도만
         recent = avoid_titles[:30]
         avoid_block = "\nAvoid titles that are the same as or very similar to these:\n- " + "\n- ".join(recent) + "\n"
 
@@ -544,6 +544,16 @@ def render_post_html(
 
     article_html = "\n".join([b for b in blocks if b])
 
+    # ✅✅ (추가) AdSense 스크립트는 head에 들어가야 함
+    adsense_tag = ""
+    if ADSENSE_CLIENT:
+        adsense_tag = f"""
+  <!-- Google AdSense -->
+  <script async
+  src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={html_escape(ADSENSE_CLIENT)}"
+  crossorigin="anonymous"></script>
+""".rstrip()
+
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -566,6 +576,7 @@ def render_post_html(
   <meta name="twitter:image" content="{html_escape(og_image)}">
 
   <link rel="stylesheet" href="../style.css?v=4">
+{adsense_tag}
 </head>
 <body>
 
@@ -707,7 +718,6 @@ def main() -> int:
 
         created_iso = now_utc_iso()
 
-        # ✅ 글 생성 + 중복 방지 재시도
         data = None
         for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
             prompt = build_prompt(keyword, avoid_titles=existing_titles)
@@ -748,7 +758,6 @@ def main() -> int:
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
-        # ✅ 이미지 7장 (섹션 이미지쿼리 기반)
         queries = [s.get("image_query") for s in sections]
         if len(queries) != IMG_COUNT:
             queries = [title] * IMG_COUNT
@@ -758,7 +767,6 @@ def main() -> int:
             print("Could not source 7 high quality photos. Skipping.")
             continue
 
-        # ✅ HTML 생성
         html_out = render_post_html(
             title=title,
             description=description,
@@ -775,7 +783,6 @@ def main() -> int:
         html_path = POSTS_DIR / f"{slug}.html"
         safe_write(html_path, html_out)
 
-        # ✅ posts.json 갱신
         add_post_to_index(
             posts,
             title=title,
@@ -788,7 +795,6 @@ def main() -> int:
         existing_slugs.add(slug)
         existing_titles.insert(0, title)
 
-        # ✅ fingerprints 저장
         used_texts["fingerprints"] = sorted(list(used_fps))
         save_json(USED_TEXTS_JSON, used_texts)
 
