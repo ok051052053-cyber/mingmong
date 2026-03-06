@@ -66,18 +66,31 @@ line-height:1.6;
 margin:0;
 }
 
+.hero-shell{
+display:grid;
+grid-template-columns:1fr;
+gap:24px;
+align-items:start;
+}
+@media(min-width:1100px){
+.hero-shell{
+grid-template-columns:minmax(0,1fr) 340px;
+gap:28px;
+}
+}
+
 .hero-stats{
 display:grid;
 grid-template-columns:repeat(3,minmax(0,1fr));
 gap:14px;
-margin-top:24px;
+margin-top:22px;
 max-width:760px;
 }
 .hero-stat{
 padding:14px 16px;
 border:1px solid var(--border);
 border-radius:16px;
-background:rgba(255,255,255,.78);
+background:rgba(255,255,255,.82);
 box-shadow:var(--shadow);
 }
 .hero-stat-num{
@@ -93,6 +106,104 @@ font-size:13px;
 color:var(--muted);
 }
 
+.hero-side{
+display:block;
+}
+.hero-side-card{
+border:1px solid var(--border);
+border-radius:18px;
+background:#fff;
+box-shadow:var(--shadow);
+padding:18px;
+}
+.hero-side-kicker{
+font-size:12px;
+font-weight:800;
+color:var(--accent);
+margin-bottom:8px;
+}
+.hero-side-title{
+font-size:22px;
+font-weight:900;
+line-height:1.2;
+letter-spacing:-.02em;
+margin:0 0 10px;
+}
+.hero-side-desc{
+margin:0 0 16px;
+font-size:14px;
+line-height:1.6;
+color:var(--muted);
+}
+.hero-side-stats{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+margin-bottom:16px;
+}
+.hero-mini{
+padding:12px 12px;
+border:1px solid var(--border);
+border-radius:14px;
+background:#f8fafc;
+}
+.hero-mini-num{
+display:block;
+font-size:18px;
+font-weight:900;
+line-height:1.1;
+}
+.hero-mini-label{
+display:block;
+margin-top:4px;
+font-size:12px;
+color:var(--muted);
+}
+.hero-side-links{
+display:grid;
+gap:10px;
+margin-bottom:16px;
+}
+.hero-side-link{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+padding:12px 12px;
+border:1px solid var(--border);
+border-radius:14px;
+background:#fff;
+color:var(--text);
+font-weight:800;
+text-decoration:none;
+}
+.hero-side-link:hover{
+background:#f9fafb;
+text-decoration:none;
+}
+.hero-side-guide{
+display:block;
+padding:14px;
+border:1px solid var(--border);
+border-radius:14px;
+background:#f8fafc;
+text-decoration:none;
+color:inherit;
+}
+.hero-side-guide:hover{
+text-decoration:none;
+background:#f1f5f9;
+}
+.hero-side-guide-title{
+display:block;
+font-weight:800;
+line-height:1.45;
+margin-bottom:6px;
+}
+.hero-side-guide-meta{
+font-size:12px;
+color:var(--muted);
+}
 .section-row{
 display:flex;
 align-items:center;
@@ -104,7 +215,6 @@ font-size:13px;
 color:var(--muted);
 white-space:nowrap;
 }
-
 .empty-soft{
 padding:18px;
 border:1px dashed var(--border);
@@ -113,9 +223,12 @@ color:var(--muted);
 background:#fff;
 }
 
-@media (max-width: 760px){
+@media (max-width:760px){
 .hero-stats{
 grid-template-columns:1fr;
+}
+.hero-side-stats{
+grid-template-columns:1fr 1fr;
 }
 .section-row{
 align-items:flex-start;
@@ -150,6 +263,10 @@ flex-direction:column;
 
 <section class="hero">
 
+<div class="hero-shell">
+
+<div class="hero-main">
+
 <p class="breadcrumb">AI + Productivity + Real Income</p>
 
 <h1 class="hero-title">
@@ -182,6 +299,54 @@ Earn more with clear steps.
 <span class="hero-stat-num" id="stat-cats">4</span>
 <span class="hero-stat-label">Core categories</span>
 </div>
+</div>
+
+</div>
+
+<aside class="hero-side">
+<div class="hero-side-card">
+<div class="hero-side-kicker">START HERE</div>
+<h2 class="hero-side-title">Pick a path</h2>
+<p class="hero-side-desc">
+Start with tools and workflows.
+Then move into freelance systems and income focused guides.
+</p>
+
+<div class="hero-side-stats">
+<div class="hero-mini">
+<span class="hero-mini-num" id="side-posts">0</span>
+<span class="hero-mini-label">Posts</span>
+</div>
+<div class="hero-mini">
+<span class="hero-mini-num" id="side-guides">0</span>
+<span class="hero-mini-label">Guides</span>
+</div>
+</div>
+
+<div class="hero-side-links">
+<a class="hero-side-link" href="category.html?cat=AI%20Tools">
+<span>AI Tools</span>
+<span>→</span>
+</a>
+<a class="hero-side-link" href="category.html?cat=Productivity">
+<span>Productivity</span>
+<span>→</span>
+</a>
+<a class="hero-side-link" href="category.html?cat=Make%20Money">
+<span>Make Money</span>
+<span>→</span>
+</a>
+</div>
+
+<div id="hero-guide-wrap">
+<a id="hero-guide" class="hero-side-guide" href="category.html?cat=AI%20Tools">
+<span class="hero-side-guide-title">Latest guide will appear here</span>
+<span class="hero-side-guide-meta">Featured guide</span>
+</a>
+</div>
+</div>
+</aside>
+
 </div>
 
 </section>
@@ -443,14 +608,36 @@ const latestWrap=document.getElementById("latest-list");
 const featuredMeta=document.getElementById("featured-meta");
 const latestMeta=document.getElementById("latest-meta");
 
+const statPosts=document.getElementById("stat-posts");
+const statGuides=document.getElementById("stat-guides");
+const sidePosts=document.getElementById("side-posts");
+const sideGuides=document.getElementById("side-guides");
+const heroGuide=document.getElementById("hero-guide");
+const heroGuideWrap=document.getElementById("hero-guide-wrap");
+
 const featured = posts.filter(p => p.post_type === "pillar").slice(0,6);
 const latest = posts.filter(p => p.post_type !== "pillar");
 
-const statPosts=document.getElementById("stat-posts");
-const statGuides=document.getElementById("stat-guides");
-
 if(statPosts) statPosts.textContent = String(posts.length);
 if(statGuides) statGuides.textContent = String(featured.length);
+if(sidePosts) sidePosts.textContent = String(posts.length);
+if(sideGuides) sideGuides.textContent = String(featured.length);
+
+if(heroGuide && heroGuideWrap){
+if(featured.length){
+heroGuide.href = postHref(featured[0]);
+heroGuide.innerHTML = `
+<span class="hero-side-guide-title">${esc(featured[0].title || "Untitled")}</span>
+<span class="hero-side-guide-meta">${esc(featured[0].category || "Guide")} · Featured guide</span>
+`;
+}else{
+heroGuide.href = "category.html?cat=AI%20Tools";
+heroGuide.innerHTML = `
+<span class="hero-side-guide-title">Browse the latest AI and productivity posts</span>
+<span class="hero-side-guide-meta">Start with the newest articles</span>
+`;
+}
+}
 
 if(featuredWrap && featuredSection){
 if(featured.length){
