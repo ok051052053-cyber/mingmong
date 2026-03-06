@@ -62,6 +62,11 @@ MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "3"))
 # 예: ca-pub-1234567890123456
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
 
+# ✅ 자동 주제 생성 파라미터
+KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.82"))
+AUTO_KEYWORD_BATCH = int(os.environ.get("AUTO_KEYWORD_BATCH", "24"))
+MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
+
 
 # -----------------------------
 # OpenAI (openai>=1.x only)
@@ -91,7 +96,7 @@ def openai_generate_text(prompt: str) -> str:
         res = client.chat.completions.create(
             model=MODEL,
             messages=[
-                {"role": "system", "content": "You write helpful detailed accurate blog posts."},
+                {"role": "system", "content": "You write helpful detailed accurate blog posts and SEO keyword lists."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
@@ -232,6 +237,227 @@ def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq:
 
     joined = "\n".join([p for p in parts if p])
     return hashlib.sha1(joined.encode("utf-8")).hexdigest()
+
+
+# -----------------------------
+# Keyword automation
+# -----------------------------
+def normalize_keyword(s: str) -> str:
+    s = (s or "").lower().strip()
+    s = s.replace("&", " and ")
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def keyword_too_similar(a: str, b: str, threshold: float = KEYWORD_SIM_THRESHOLD) -> bool:
+    na = normalize_keyword(a)
+    nb = normalize_keyword(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    return SequenceMatcher(a=na, b=nb).ratio() >= threshold
+
+
+def is_search_intent_keyword(keyword: str) -> bool:
+    k = normalize_keyword(keyword)
+    if not k:
+        return False
+
+    # 너무 짧거나 너무 길면 제외
+    words = k.split()
+    if len(words) < 4 or len(words) > 14:
+        return False
+
+    # 정보성/구매의도/비교성/실행성 키워드 우대
+    intent_tokens = [
+        "best", "top", "vs", "versus", "compare", "comparison",
+        "how to", "tool", "tools", "app", "apps",
+        "software", "platform", "template", "templates",
+        "for", "under", "without", "with", "alternative", "alternatives"
+    ]
+    if not any(tok in k for tok in intent_tokens):
+        return False
+
+    # 너무 광범위한 키워드 제거
+    broad_bad = {
+        "ai", "productivity", "freelancing", "remote work", "email",
+        "automation", "marketing", "notion", "chatgpt"
+    }
+    if k in broad_bad:
+        return False
+
+    # 구식 연도 차단
+    if re.search(r"\b(2019|2020|2021|2022|2023|2024)\b", k):
+        return False
+
+    return True
+
+
+def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
+    out: List[str] = []
+    seen_norm = set()
+
+    baseline = []
+    for x in existing_titles[:500]:
+        if isinstance(x, str) and x.strip():
+            baseline.append(x)
+    for x in existing_keywords[:1000]:
+        if isinstance(x, str) and x.strip():
+            baseline.append(x)
+
+    for kw in keywords:
+        kw = _clean_text(kw)
+        if not kw:
+            continue
+        if not is_search_intent_keyword(kw):
+            continue
+
+        n = normalize_keyword(kw)
+        if not n or n in seen_norm:
+            continue
+
+        skip = False
+        for ex in baseline:
+            if keyword_too_similar(kw, ex):
+                skip = True
+                break
+        if skip:
+            continue
+
+        for kept in out:
+            if keyword_too_similar(kw, kept):
+                skip = True
+                break
+        if skip:
+            continue
+
+        seen_norm.add(n)
+        out.append(kw)
+
+    return out
+
+
+def build_keyword_prompt(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> str:
+    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai productivity tools"
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:50]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:80]])
+
+    return f"""
+You generate SEO blog topic keywords for a site targeting US and EU readers.
+
+Site focus:
+1. AI productivity for work
+2. Freelance operations
+3. Creator monetization
+
+Need:
+- exactly {AUTO_KEYWORD_BATCH} keyword ideas
+- long-tail keywords only
+- practical search intent only
+- human sounding
+- suitable for a newer niche blog
+- easier to rank than broad head terms
+- no outdated years
+- no celebrity or news topics
+- no medical, legal, political, or unsafe topics
+- no generic topics like "what is ai"
+
+Good patterns:
+- best X for Y
+- X vs Y for Z
+- how to do X with Y
+- best X under $N
+- alternatives to X for Y
+- templates, workflows, automations, comparisons
+
+Seed keywords:
+{seed_block}
+
+Avoid topics too similar to these existing post titles:
+{title_block if title_block else "- none"}
+
+Avoid topics too similar to these existing keywords:
+{existing_kw_block if existing_kw_block else "- none"}
+
+Return valid JSON only:
+{{
+  "keywords": [
+    "keyword 1",
+    "keyword 2"
+  ]
+}}
+""".strip()
+
+
+def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
+    prompt = build_keyword_prompt(seed_keywords, existing_titles, existing_keywords)
+    raw = openai_generate_text(prompt)
+    data = json.loads(_json_extract(raw))
+
+    kws = data.get("keywords") or []
+    if not isinstance(kws, list):
+        return []
+
+    clean = []
+    for kw in kws:
+        if isinstance(kw, str) and kw.strip():
+            clean.append(_clean_text(kw))
+
+    return dedupe_keywords(clean, existing_titles, existing_keywords)
+
+
+def load_keywords() -> List[str]:
+    data = load_json(KEYWORDS_JSON, [])
+    if isinstance(data, list):
+        return [x for x in data if isinstance(x, str) and x.strip()]
+    if isinstance(data, dict):
+        ks = data.get("keywords") or []
+        if isinstance(ks, list):
+            return [x for x in ks if isinstance(x, str) and x.strip()]
+    return []
+
+
+def save_keywords(keywords: List[str]) -> None:
+    keywords = [k for k in keywords if isinstance(k, str) and k.strip()]
+    unique = []
+    seen = set()
+    for k in keywords:
+        nk = normalize_keyword(k)
+        if not nk or nk in seen:
+            continue
+        seen.add(nk)
+        unique.append(k.strip())
+    save_json(KEYWORDS_JSON, {"keywords": unique})
+
+
+def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> List[str]:
+    existing_keywords = []
+    for p in posts:
+        if not isinstance(p, dict):
+            continue
+        for key in ["keyword", "title", "slug", "description"]:
+            val = p.get(key)
+            if isinstance(val, str) and val.strip():
+                existing_keywords.append(val.strip())
+
+    clean_base = dedupe_keywords(base_keywords, existing_titles, existing_keywords)
+
+    # 풀 크기가 작으면 자동 생성
+    auto_keywords: List[str] = []
+    if len(clean_base) < MIN_KEYWORD_POOL:
+        try:
+            auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
+            if auto_keywords:
+                merged = clean_base + auto_keywords
+                merged = dedupe_keywords(merged, existing_titles, existing_keywords)
+                save_keywords(merged)
+                return merged
+        except Exception as e:
+            print("Auto keyword generation failed:", e)
+
+    return clean_base
 
 
 # -----------------------------
@@ -421,6 +647,8 @@ Hard rules:
 - Give concrete steps.
 - Each section must match its image_query.
 - Use simple plain English.
+- Make this article clearly different from other generic "best tools" posts.
+- Focus on a specific user problem and practical workflows.
 """.strip()
 
 
@@ -665,6 +893,7 @@ def add_post_to_index(
     description: str,
     image_paths: List[str],
     created_iso: str,
+    keyword: str,
 ) -> None:
     thumb = image_paths[0] if image_paths else ""
 
@@ -678,30 +907,22 @@ def add_post_to_index(
         "thumbnail": thumb,
         "image": thumb,
         "url": f"posts/{slug}.html",
-        "views": 0
+        "views": 0,
+        "keyword": keyword
     })
 
 
-def load_keywords() -> List[str]:
-    data = load_json(KEYWORDS_JSON, [])
-    if isinstance(data, list):
-        return [x for x in data if isinstance(x, str) and x.strip()]
-    if isinstance(data, dict):
-        ks = data.get("keywords") or []
-        if isinstance(ks, list):
-            return [x for x in ks if isinstance(x, str) and x.strip()]
-    return []
-
-
 def main() -> int:
-    keywords = load_keywords()
-    if not keywords:
-        print("No keywords.json or empty keywords.")
-        return 0
-
+    base_keywords = load_keywords()
     posts = load_posts_index()
+
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
     existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
+
+    keyword_pool = build_keyword_pool(base_keywords, existing_titles, posts)
+    if not keyword_pool:
+        print("No keyword pool available.")
+        return 0
 
     used_texts_raw = load_json(USED_TEXTS_JSON, {})
     used_texts = ensure_used_texts_schema(used_texts_raw)
@@ -709,10 +930,18 @@ def main() -> int:
 
     made = 0
     tries = 0
+    tried_keywords = set()
 
     while made < POSTS_PER_RUN and tries < MAX_KEYWORD_TRIES:
         tries += 1
-        keyword = random.choice(keywords).strip()
+
+        remaining_keywords = [k for k in keyword_pool if normalize_keyword(k) not in tried_keywords]
+        if not remaining_keywords:
+            print("Keyword pool exhausted for this run.")
+            break
+
+        keyword = random.choice(remaining_keywords).strip()
+        tried_keywords.add(normalize_keyword(keyword))
         if not keyword:
             continue
 
@@ -791,6 +1020,7 @@ def main() -> int:
             description=description,
             image_paths=image_paths,
             created_iso=created_iso,
+            keyword=keyword,
         )
         existing_slugs.add(slug)
         existing_titles.insert(0, title)
@@ -799,6 +1029,7 @@ def main() -> int:
         save_json(USED_TEXTS_JSON, used_texts)
 
         print(f"Generated HTML: posts/{slug}.html")
+        print(f"Source keyword: {keyword}")
         made += 1
 
     if made == 0:
