@@ -1148,13 +1148,22 @@ def paragraphs_to_html(text: str) -> str:
     text = (text or "").strip()
     if not text:
         return ""
+
+    # **bold 제거
+    text = text.replace("**", "")
+
+    # 번호 리스트 앞에 줄바꿈 강제
+    text = re.sub(r"\s*(\d+\.\s)", r"\n\n\1", text)
+
     parts = re.split(r"\n\s*\n+", text)
+
     out = []
     for p in parts:
         p = p.strip()
         if not p:
             continue
         out.append(f"<p>{html_escape(p)}</p>")
+
     return "\n".join(out)
 
 
