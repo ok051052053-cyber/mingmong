@@ -1195,7 +1195,7 @@ def paragraphs_to_html(text: str) -> str:
 
         out.append(f"<p>{html_escape(p)}</p>")
 
-    return "\n".join(out)줄바꿈 강제
+    return "\n".join(out)
     text = re.sub(r"\s*(\d+\.\s)", r"\n\n\1", text)
 
     parts = re.split(r"\n\s*\n+", text)
