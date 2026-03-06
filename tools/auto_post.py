@@ -1152,7 +1152,50 @@ def paragraphs_to_html(text: str) -> str:
     # markdown bold 제거
     text = text.replace("**", "")
 
-    # 번호 리스트 줄바꿈 강제
+    # 번호 리스트 앞 줄바꿈
+    text = re.sub(r"\s*(\d+\.\s)", r"\n\n\1", text)
+
+    # 불릿 리스트 앞 줄바꿈
+    text = re.sub(r"\s*(-\s)", r"\n\n\1", text)
+
+    # 문장 끝난 뒤 너무 긴 문단은 적당히 분리
+    text = re.sub(r'([.!?])\s+([A-Z])', r'\1\n\n\2', text)
+
+    parts = re.split(r"\n\s*\n+", text)
+
+    out = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+
+        # 번호 리스트 처리
+        if re.match(r"^\d+\.\s", p):
+            lines = [x.strip() for x in p.split("\n") if x.strip()]
+            items = []
+            for line in lines:
+                m = re.match(r"^\d+\.\s+(.*)$", line)
+                if m:
+                    items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
+            if items:
+                out.append("<ol>" + "".join(items) + "</ol>")
+                continue
+
+        # 불릿 리스트 처리
+        if re.match(r"^-\s", p):
+            lines = [x.strip() for x in p.split("\n") if x.strip()]
+            items = []
+            for line in lines:
+                m = re.match(r"^-\s+(.*)$", line)
+                if m:
+                    items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
+            if items:
+                out.append("<ul>" + "".join(items) + "</ul>")
+                continue
+
+        out.append(f"<p>{html_escape(p)}</p>")
+
+    return "\n".join(out)줄바꿈 강제
     text = re.sub(r"\s*(\d+\.\s)", r"\n\n\1", text)
 
     parts = re.split(r"\n\s*\n+", text)
