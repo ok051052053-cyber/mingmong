@@ -40,8 +40,9 @@ jobs:
           ADSENSE_CLIENT: ${{ secrets.ADSENSE_CLIENT }}
           SITE_NAME: MingMong
           SITE_URL: https://mingmonglife.com
-          POSTS_PER_RUN: "1"
-          MIN_CHARS: "3000"
+          POSTS_PER_RUN: "2"
+          MIN_CHARS: "3500"
+          CLUSTER_BATCH: "16"
           MODEL: "gpt-4o-mini"
 
           UNSPLASH_MIN_WIDTH: "2000"
