@@ -58,11 +58,16 @@ KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.82"))
 AUTO_KEYWORD_BATCH = int(os.environ.get("AUTO_KEYWORD_BATCH", "24"))
 MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 
-# 클러스터 자동화용
 CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
 CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "12"))
 CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
+
+PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "8"))
+GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
+GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
+GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
+RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "4"))
 
 
 # -----------------------------
@@ -98,6 +103,30 @@ DEFAULT_TOPIC_CLUSTERS = {
         "email list monetization",
         "creator workflow tools",
         "paid newsletter platforms",
+    ],
+}
+
+DEFAULT_PILLAR_TOPICS = {
+    "AI Productivity": [
+        "best ai tools for work",
+        "best ai productivity tools for professionals",
+        "how to automate office work with ai",
+        "complete guide to ai tools for remote work",
+        "ai workflow automation for solo workers",
+    ],
+    "Freelance Operations": [
+        "best tools for freelancers",
+        "ultimate guide to freelance operations",
+        "how to run a freelance business efficiently",
+        "best freelance workflow tools",
+        "freelance systems for solo professionals",
+    ],
+    "Creator Monetization": [
+        "complete guide to creator monetization",
+        "best tools for digital creators",
+        "how to make money with digital products",
+        "creator business tools for beginners",
+        "best platforms for creators to monetize",
     ],
 }
 
@@ -184,19 +213,6 @@ def ensure_used_texts_schema(raw):
     return {"fingerprints": []}
 
 
-def pick_category(keyword: str) -> str:
-    k = keyword.lower()
-    if any(x in k for x in ["adhd", "focus", "productivity", "pomodoro", "time"]):
-        return "Productivity"
-    if any(x in k for x in ["review", "best", "vs", "compare", "comparison"]):
-        return "Reviews"
-    if any(x in k for x in ["money", "side hustle", "freelance", "invoice", "tax"]):
-        return "Make Money"
-    if any(x in k for x in ["ai", "chatgpt", "automation", "notion", "claude"]):
-        return "AI Tools"
-    return "Productivity"
-
-
 def short_desc(text: str) -> str:
     t = (text or "").strip()
     if len(t) > 160:
@@ -268,6 +284,72 @@ def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq:
     return hashlib.sha1(joined.encode("utf-8")).hexdigest()
 
 
+def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "") -> str:
+    c = (cluster_name or "").strip().lower()
+    k = (keyword or "").strip().lower()
+
+    if any(x in k for x in ["vs", "compare", "comparison", "review", "reviews"]):
+        return "Reviews"
+
+    if c == "ai productivity":
+        return "AI Tools"
+    if c == "freelance operations":
+        return "Make Money"
+    if c == "creator monetization":
+        return "Make Money"
+
+    if any(x in k for x in ["adhd", "focus", "productivity", "pomodoro", "time blocking", "time management"]):
+        return "Productivity"
+    if any(x in k for x in ["ai", "chatgpt", "automation", "notion", "claude"]):
+        return "AI Tools"
+    if any(x in k for x in ["money", "side hustle", "freelance", "invoice", "tax", "gumroad", "newsletter", "digital product"]):
+        return "Make Money"
+
+    return "Productivity"
+
+
+def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
+    return cluster_to_category(cluster_name, keyword, post_type)
+
+
+def resolve_post_url_path(p: dict) -> str:
+    if not isinstance(p, dict):
+        return ""
+    url = (p.get("url") or "").strip()
+    slug = (p.get("slug") or "").strip()
+
+    if url:
+        url = url.lstrip("/")
+        if url.endswith(".md"):
+            url = url[:-3] + ".html"
+        if url.startswith("posts/") and "." not in Path(url).name:
+            url = url + ".html"
+        return url
+
+    if slug:
+        return f"posts/{slug}.html"
+
+    return ""
+
+
+def post_href_from_post_page(p: dict) -> str:
+    url = resolve_post_url_path(p)
+    if not url:
+        return "#"
+    if url.startswith("posts/"):
+        return url.split("/", 1)[1]
+    return "../" + url
+
+
+def get_cluster_pillar(posts: List[dict], cluster_name: str) -> dict:
+    for p in posts:
+        if not isinstance(p, dict):
+            continue
+        if p.get("cluster") == cluster_name and p.get("post_type") == "pillar":
+            return p
+    return {}
+
+
 # -----------------------------
 # Keyword automation
 # -----------------------------
@@ -295,14 +377,15 @@ def is_search_intent_keyword(keyword: str) -> bool:
         return False
 
     words = k.split()
-    if len(words) < 4 or len(words) > 14:
+    if len(words) < 4 or len(words) > 16:
         return False
 
     intent_tokens = [
         "best", "top", "vs", "versus", "compare", "comparison",
         "how to", "tool", "tools", "app", "apps",
         "software", "platform", "template", "templates",
-        "for", "under", "without", "with", "alternative", "alternatives"
+        "for", "under", "without", "with", "alternative", "alternatives",
+        "guide", "workflow", "workflows"
     ]
     if not any(tok in k for tok in intent_tokens):
         return False
@@ -410,6 +493,23 @@ def pick_next_cluster(posts: List[dict], topic_clusters: Dict[str, List[str]]) -
     min_count = min(counts.values()) if counts else 0
     candidates = [name for name, c in counts.items() if c == min_count]
     return random.choice(candidates) if candidates else names[0]
+
+
+def should_make_pillar(posts: List[dict], cluster_name: str) -> bool:
+    cluster_posts = [p for p in posts if isinstance(p, dict) and p.get("cluster") == cluster_name]
+    if not cluster_posts:
+        return True
+
+    if not any(p.get("post_type") == "pillar" for p in cluster_posts):
+        return True
+
+    regular_count = sum(1 for p in cluster_posts if p.get("post_type") != "pillar")
+    if regular_count > 0 and regular_count % max(PILLAR_INTERVAL, 1) == 0:
+        recent_cluster = cluster_posts[:5]
+        if not any(p.get("post_type") == "pillar" for p in recent_cluster):
+            return True
+
+    return False
 
 
 def build_cluster_keyword_prompt(
@@ -559,6 +659,56 @@ def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str],
     return dedupe_keywords(clean, existing_titles, existing_keywords)
 
 
+def fetch_google_suggest(query: str) -> List[str]:
+    if not query or not GOOGLE_SUGGEST_ENABLED:
+        return []
+
+    try:
+        url = "https://suggestqueries.google.com/complete/search"
+        params = {"client": "firefox", "q": query}
+        r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+        if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+            out = []
+            for item in data[1][:GOOGLE_SUGGEST_PER_QUERY]:
+                if isinstance(item, str) and item.strip():
+                    out.append(item.strip())
+            return out
+    except Exception:
+        return []
+    return []
+
+
+def expand_keywords_from_google(seeds: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
+    if not GOOGLE_SUGGEST_ENABLED:
+        return []
+
+    pool: List[str] = []
+    base_seeds = [s for s in seeds if isinstance(s, str) and s.strip()][:GOOGLE_SUGGEST_MAX_SEEDS]
+
+    for seed in base_seeds:
+        variants = [
+            seed,
+            f"best {seed}",
+            f"{seed} for",
+            f"{seed} vs",
+            f"how to {seed}",
+        ]
+        for q in variants:
+            pool.extend(fetch_google_suggest(q))
+
+    return dedupe_keywords(pool, existing_titles, existing_keywords)
+
+
+def build_pillar_keyword_pool(cluster_name: str, posts: List[dict], existing_titles: List[str]) -> List[str]:
+    existing_keywords = get_existing_keywords_from_posts(posts)
+    base = DEFAULT_PILLAR_TOPICS.get(cluster_name) or []
+    google_kw = expand_keywords_from_google(base, existing_titles, existing_keywords)
+    merged = dedupe_keywords(base + google_kw, existing_titles, existing_keywords)
+    return merged
+
+
 def load_keywords() -> List[str]:
     data = load_json(KEYWORDS_JSON, [])
     if isinstance(data, list):
@@ -583,13 +733,22 @@ def save_keywords(keywords: List[str]) -> None:
     save_json(KEYWORDS_JSON, {"keywords": unique})
 
 
-def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> Tuple[List[str], str]:
+def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> Tuple[List[str], str, str, str]:
     existing_keywords = get_existing_keywords_from_posts(posts)
     clean_base = dedupe_keywords(base_keywords, existing_titles, existing_keywords)
 
     if CLUSTER_MODE:
         topic_clusters = load_topic_clusters()
         cluster_name = pick_next_cluster(posts, topic_clusters)
+        pillar_mode = should_make_pillar(posts, cluster_name)
+        current_pillar = get_cluster_pillar(posts, cluster_name)
+        current_pillar_slug = (current_pillar.get("slug") or "").strip()
+
+        if pillar_mode:
+            pillar_pool = build_pillar_keyword_pool(cluster_name, posts, existing_titles)
+            if pillar_pool:
+                return pillar_pool, cluster_name, "pillar", current_pillar_slug
+
         seeds = topic_clusters.get(cluster_name) or []
         merged_seed = clean_base + seeds
         merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
@@ -601,31 +760,33 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 existing_titles=existing_titles,
                 existing_keywords=existing_keywords,
             )
-            if cluster_keywords:
-                merged_all = clean_base + cluster_keywords
-                merged_all = dedupe_keywords(merged_all, existing_titles, existing_keywords)
+            google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
+            merged_all = clean_base + cluster_keywords + google_keywords
+            merged_all = dedupe_keywords(merged_all, existing_titles, existing_keywords)
+            if merged_all:
                 save_keywords(merged_all)
                 pool = [kw for kw in merged_all if not title_too_similar(kw, existing_titles, KEYWORD_SIM_THRESHOLD)]
-                return pool, cluster_name
+                return pool, cluster_name, "normal", current_pillar_slug
         except Exception as e:
             print("Cluster keyword generation failed:", e)
 
         fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
-        return fallback, cluster_name
+        return fallback, cluster_name, "normal", current_pillar_slug
 
     auto_keywords: List[str] = []
     if len(clean_base) < MIN_KEYWORD_POOL:
         try:
             auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
-            if auto_keywords:
-                merged = clean_base + auto_keywords
-                merged = dedupe_keywords(merged, existing_titles, existing_keywords)
+            google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
+            merged = clean_base + auto_keywords + google_keywords
+            merged = dedupe_keywords(merged, existing_titles, existing_keywords)
+            if merged:
                 save_keywords(merged)
-                return merged, "General"
+                return merged, "General", "normal", ""
         except Exception as e:
             print("Auto keyword generation failed:", e)
 
-    return clean_base, "General"
+    return clean_base, "General", "normal", ""
 
 
 # -----------------------------
@@ -656,10 +817,6 @@ def pick_high_quality_unsplash(results: List[dict], used_ids: set) -> List[dict]
             pid = item.get("id")
             if not pid or pid in used_ids:
                 continue
-
-                w = int(item.get("width") or 0)
-                h = int(item.get("height") or 0)
-                likes = int(item.get("likes") or 0)
 
             w = int(item.get("width") or 0)
             h = int(item.get("height") or 0)
@@ -765,19 +922,121 @@ def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[
 
 
 # -----------------------------
+# Internal links
+# -----------------------------
+def select_related_posts(
+    posts: List[dict],
+    *,
+    current_slug: str,
+    category: str,
+    cluster: str,
+    pillar_slug: str = "",
+    limit: int = 4,
+) -> List[dict]:
+    scored = []
+
+    for p in posts:
+        if not isinstance(p, dict):
+            continue
+        slug = (p.get("slug") or "").strip()
+        if not slug or slug == current_slug:
+            continue
+
+        score = 0
+        if p.get("cluster") == cluster:
+            score += 50
+        if p.get("category") == category:
+            score += 20
+        if p.get("post_type") == "pillar":
+            score += 15
+        if pillar_slug and slug == pillar_slug:
+            score += 100
+        score += min(int(p.get("views") or 0), 50)
+
+        date_bonus = 0
+        ds = str(p.get("updated") or p.get("date") or "")
+        if ds:
+            date_bonus = 1
+        score += date_bonus
+
+        scored.append((score, p))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    out = []
+    seen = set()
+    for _, p in scored:
+        slug = p.get("slug")
+        if slug in seen:
+            continue
+        seen.add(slug)
+        out.append(p)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def render_related_guides_html(related_posts: List[dict]) -> str:
+    if not related_posts:
+        return ""
+
+    items = []
+    for p in related_posts:
+        href = post_href_from_post_page(p)
+        title = html_escape(p.get("title") or "Untitled")
+        kicker = html_escape(p.get("category") or "Article")
+        badge = ""
+        if p.get("post_type") == "pillar":
+            badge = '<span class="rg-badge">Guide</span>'
+        items.append(
+            f'<a class="related-guide" href="{href}">'
+            f'<span class="rg-kicker">{kicker}</span>'
+            f'<span class="rg-title">{title}</span>'
+            f'{badge}'
+            f'</a>'
+        )
+
+    return (
+        '<section class="related-guides">'
+        '<h2>Related Guides</h2>'
+        '<div class="related-guides-list">'
+        + "".join(items)
+        + "</div></section>"
+    )
+
+
+# -----------------------------
 # Writing (JSON output)
 # -----------------------------
-def build_prompt(keyword: str, avoid_titles: List[str], cluster_name: str) -> str:
+def build_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
     avoid_block = ""
     if avoid_titles:
         recent = avoid_titles[:30]
         avoid_block = "\nAvoid titles that are the same as or very similar to these:\n- " + "\n- ".join(recent) + "\n"
+
+    extra = ""
+    if post_type == "pillar":
+        extra = """
+- This is a pillar guide.
+- Make it broader and more authoritative than a normal post.
+- Cover the landscape clearly for beginners and intermediate readers.
+- Include comparisons, decision frameworks, common mistakes, and practical next steps.
+- The title should feel like a definitive guide, not a tiny subtopic.
+""".strip()
+    else:
+        extra = """
+- This is a cluster article.
+- Focus on one specific problem and solve it clearly.
+- Make it more practical than a generic roundup.
+- Include workflows, decision points, and concrete use cases.
+""".strip()
 
     return f"""
 You are writing for US and EU readers.
 
 Topic cluster: "{cluster_name}"
 Topic keyword: "{keyword}"
+Post type: "{post_type}"
 {avoid_block}
 Output MUST be valid JSON only.
 No markdown.
@@ -809,13 +1068,14 @@ Hard rules:
 - Give concrete steps.
 - Each section must match its image_query.
 - Use simple plain English.
-- Make this article clearly different from other generic "best tools" posts.
-- Focus on one specific user problem and practical workflows.
 - Align the article with the cluster "{cluster_name}".
+- The article must feel original and useful.
+
+{extra}
 """.strip()
 
 
-def parse_post_json(text: str) -> Dict[str, Any]:
+def parse_post_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
     raw = _json_extract(text)
     data = json.loads(raw)
 
@@ -854,7 +1114,7 @@ def parse_post_json(text: str) -> Dict[str, Any]:
     tldr = _clean_text(data.get("tldr", ""))
 
     if cat not in {"AI Tools", "Make Money", "Productivity", "Reviews"}:
-        cat = pick_category(title or "")
+        cat = pick_category(keyword or title or "", cluster_name, post_type)
 
     total_text = (
         (tldr or "") +
@@ -910,6 +1170,8 @@ def render_post_html(
     tldr: str,
     faq: List[Dict[str, str]],
     photo_credits_li: List[str],
+    related_posts: List[dict],
+    post_type: str,
 ) -> str:
     canonical = f"{SITE_URL}/posts/{slug}.html"
     og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
@@ -929,6 +1191,10 @@ def render_post_html(
         for item in faq:
             blocks.append(f"<p><strong>{html_escape(item['q'])}</strong><br>{html_escape(item['a'])}</p>")
 
+    related_html = render_related_guides_html(related_posts)
+    if related_html:
+        blocks.append(related_html)
+
     if photo_credits_li:
         blocks.append("<h2>Photo credits</h2>")
         blocks.append("<ul>" + "\n".join(photo_credits_li) + "</ul>")
@@ -943,6 +1209,10 @@ def render_post_html(
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={html_escape(ADSENSE_CLIENT)}"
   crossorigin="anonymous"></script>
 """.rstrip()
+
+    guide_badge = ""
+    if post_type == "pillar":
+        guide_badge = '<span class="post-type-badge">Featured Guide</span>'
 
     return f"""<!doctype html>
 <html lang="en">
@@ -967,6 +1237,58 @@ def render_post_html(
 
   <link rel="stylesheet" href="../style.css?v=4">
 {adsense_tag}
+  <style>
+    .post-type-badge {{
+      display:inline-block;
+      margin-bottom:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      background:#eef6ff;
+      color:#2563eb;
+    }}
+    .related-guides {{
+      margin-top:40px;
+      padding-top:12px;
+      border-top:1px solid #e5e7eb;
+    }}
+    .related-guides-list {{
+      display:grid;
+      gap:12px;
+      margin-top:14px;
+    }}
+    .related-guide {{
+      display:block;
+      padding:14px 16px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      text-decoration:none;
+      color:inherit;
+      background:#fff;
+    }}
+    .rg-kicker {{
+      display:block;
+      font-size:12px;
+      color:#6b7280;
+      margin-bottom:4px;
+    }}
+    .rg-title {{
+      display:block;
+      font-weight:700;
+      line-height:1.45;
+    }}
+    .rg-badge {{
+      display:inline-block;
+      margin-top:8px;
+      font-size:11px;
+      font-weight:700;
+      color:#2563eb;
+      background:#eef6ff;
+      padding:4px 8px;
+      border-radius:999px;
+    }}
+  </style>
 </head>
 <body>
 
@@ -989,6 +1311,7 @@ def render_post_html(
 
     <div class="post-main">
       <header class="post-header">
+        {guide_badge}
         <div class="kicker">{html_escape(category)}</div>
         <h1 class="post-h1">{html_escape(title)}</h1>
         <div class="post-meta">
@@ -1057,6 +1380,8 @@ def add_post_to_index(
     created_iso: str,
     keyword: str,
     cluster: str,
+    post_type: str,
+    pillar_slug: str,
 ) -> None:
     thumb = image_paths[0] if image_paths else ""
 
@@ -1072,7 +1397,9 @@ def add_post_to_index(
         "url": f"posts/{slug}.html",
         "views": 0,
         "keyword": keyword,
-        "cluster": cluster
+        "cluster": cluster,
+        "post_type": post_type,
+        "pillar_slug": pillar_slug or slug if post_type == "pillar" else pillar_slug
     })
 
 
@@ -1083,7 +1410,7 @@ def main() -> int:
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
     existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
 
-    keyword_pool, cluster_name = build_keyword_pool(base_keywords, existing_titles, posts)
+    keyword_pool, cluster_name, post_type, current_pillar_slug = build_keyword_pool(base_keywords, existing_titles, posts)
     if not keyword_pool:
         print("No keyword pool available.")
         return 0
@@ -1113,11 +1440,11 @@ def main() -> int:
 
         data = None
         for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
-            prompt = build_prompt(keyword, avoid_titles=existing_titles, cluster_name=cluster_name)
+            prompt = build_prompt(keyword, avoid_titles=existing_titles, cluster_name=cluster_name, post_type=post_type)
             raw = openai_generate_text(prompt)
 
             try:
-                cand = parse_post_json(raw)
+                cand = parse_post_json(raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
             except Exception as e:
                 print("JSON parse failed:", e)
                 continue
@@ -1142,7 +1469,7 @@ def main() -> int:
 
         title = data["title"]
         description = data["description"]
-        category = data["category"]
+        category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
         sections = data["sections"]
         tldr = data["tldr"]
         faq = data["faq"]
@@ -1150,6 +1477,10 @@ def main() -> int:
         slug = slugify(title)[:80] or slugify(keyword)[:80] or f"post-{int(time.time())}"
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
+
+        pillar_slug = current_pillar_slug
+        if post_type == "pillar":
+            pillar_slug = slug
 
         queries = [s.get("image_query") for s in sections]
         if len(queries) != IMG_COUNT:
@@ -1159,6 +1490,15 @@ def main() -> int:
         if len(image_paths) < IMG_COUNT:
             print("Could not source 7 high quality photos. Skipping.")
             continue
+
+        related_posts = select_related_posts(
+            posts,
+            current_slug=slug,
+            category=category,
+            cluster=cluster_name,
+            pillar_slug=current_pillar_slug if post_type != "pillar" else "",
+            limit=RELATED_POST_LIMIT,
+        )
 
         html_out = render_post_html(
             title=title,
@@ -1171,6 +1511,8 @@ def main() -> int:
             tldr=tldr,
             faq=faq,
             photo_credits_li=credits_li,
+            related_posts=related_posts,
+            post_type=post_type,
         )
 
         html_path = POSTS_DIR / f"{slug}.html"
@@ -1186,6 +1528,8 @@ def main() -> int:
             created_iso=created_iso,
             keyword=keyword,
             cluster=cluster_name,
+            post_type=post_type,
+            pillar_slug=pillar_slug,
         )
         existing_slugs.add(slug)
         existing_titles.insert(0, title)
@@ -1196,6 +1540,7 @@ def main() -> int:
         print(f"Generated HTML: posts/{slug}.html")
         print(f"Source keyword: {keyword}")
         print(f"Topic cluster: {cluster_name}")
+        print(f"Post type: {post_type}")
         made += 1
 
     if made == 0:
