@@ -50,7 +50,7 @@ UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "60"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
 
 TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.88"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "100"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "6"))
 
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
 
@@ -574,6 +574,73 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
         return False, "title-too-close-to-keyword"
 
     return True, "ok"
+
+
+def build_retry_corrections(reason: str, strategy: Dict[str, str]) -> str:
+    audience = (strategy.get("audience") or "freelancers").strip()
+    problem = (strategy.get("problem") or "reduce admin work").strip()
+
+    if reason == "weak-title-shape":
+        return f"""
+Retry correction:
+- The title must follow exactly one of these shapes:
+  1. A [workflow/system/template/playbook/checklist] for {audience} who want to {problem}
+  2. How {audience} can {problem} with a [workflow/system/template/playbook/checklist]
+- The title must include:
+  - one audience term
+  - one structure term such as workflow, system, template, playbook, or checklist
+  - one concrete problem or outcome term
+- Do not use short abstract titles.
+- Do not use vague titles.
+""".strip()
+
+    if reason == "missing-audience-framing":
+        return f"""
+Retry correction:
+- Section 1 must begin with exactly this prefix:
+  "Who this is for:"
+- In section 1 you must explicitly write at least one of these exact phrases:
+  - "Who this is for:"
+  - "This workflow is for"
+  - "This setup is for"
+- The audience must be named explicitly as: {audience}
+""".strip()
+
+    if reason == "missing-depth-signals":
+        return """
+Retry correction:
+- The article must explicitly include these exact words somewhere in natural sentences:
+  workflow, checklist, mistake, tradeoff, decision, step
+- Do not use only synonyms.
+""".strip()
+
+    if reason == "missing-template-checklist":
+        return """
+Retry correction:
+- Section 7 must explicitly include the word "checklist" or "template"
+- Include a reusable checklist or template the reader can copy
+""".strip()
+
+    if reason == "missing-mistakes":
+        return """
+Retry correction:
+- Section 6 must explicitly include the word "mistake" or the phrase "common pitfall"
+- Include at least two concrete mistakes
+""".strip()
+
+    return """
+Retry correction:
+- Follow the required title shape more strictly
+- Follow the required audience framing more strictly
+- Use the exact required signal words naturally
+""".strip()
+
+
+def merge_corrections(base_prompt: str, correction: str) -> str:
+    correction = (correction or "").strip()
+    if not correction:
+        return base_prompt
+    return base_prompt + "\n\n" + correction
 
 
 # -----------------------------
@@ -1328,11 +1395,12 @@ Hard rules:
 - The title must include a specific audience
 - The title must include a specific situation or operating context
 - The title must imply a concrete problem being solved
-- Prefer titles shaped like:
-  audience + situation + workflow/system/template/playbook/checklist + problem or outcome
+- The title must follow exactly one of these shapes:
+  1. A [workflow/system/template/playbook/checklist/framework/setup] for [specific audience] who want to [specific outcome]
+  2. How [specific audience] can [solve a specific problem] with a [workflow/system/template/playbook/checklist/framework/setup]
 - Bad example: "AI Workflow for Creators"
 - Good example style: "A Client Onboarding Workflow for Freelancers Who Want Fewer Back-and-Forth Emails"
-- Good example style: "A Weekly Content System for Solo Creators Who Need to Repurpose One Article into Five Assets"
+- Good example style: "How Solo Creators Can Repurpose One Article with a Weekly Content System"
 - Avoid vague audiences like everyone, professionals, business owners
 - Use a sharper audience such as solo creator, freelance designer, one person consultancy, remote operator, junior marketer, newsletter writer
 - Focus on one real situation not a generic roundup
@@ -1508,8 +1576,9 @@ def build_article_prompt(
     post_type: str,
     strategy: Dict[str, str],
     outline: Dict[str, Any],
+    corrective_note: str = "",
 ) -> str:
-    return f"""
+    base_prompt = f"""
 You are writing a deep practical blog article for US and EU readers.
 
 Seed keyword:
@@ -1564,6 +1633,13 @@ Hard rules:
   - tradeoffs
   - a checklist or template readers can reuse
   - when not to use this setup
+- Section 1 must begin with exactly one of these:
+  - "Who this is for:"
+  - "This workflow is for"
+  - "This setup is for"
+- Section 1 must explicitly name the audience from the strategy
+- The article must explicitly include these exact words in natural sentences:
+  workflow, checklist, mistake, tradeoff, decision, step
 - Avoid generic intros and fluffy summaries
 - Avoid phrases like "AI is transforming productivity"
 - Avoid generic listicle tone
@@ -1591,6 +1667,8 @@ TLDR rules:
 - 2 to 4 sentences
 - summarize the system and who it suits
 """.strip()
+
+    return merge_corrections(base_prompt, corrective_note)
 
 
 def parse_post_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
@@ -1664,6 +1742,7 @@ def generate_deep_post(
     cluster_name: str,
     post_type: str,
     avoid_titles: List[str],
+    corrective_note: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, str], Dict[str, Any]]:
     strategy_raw = openai_generate_text(build_strategy_prompt(keyword, avoid_titles, cluster_name, post_type))
     strategy = parse_strategy_json(strategy_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
@@ -1671,14 +1750,27 @@ def generate_deep_post(
     outline_raw = openai_generate_text(build_outline_prompt(strategy, keyword, cluster_name, post_type))
     outline = parse_outline_json(outline_raw, strategy)
 
-    article_raw = openai_generate_text(build_article_prompt(keyword, cluster_name, post_type, strategy, outline))
+    article_raw = openai_generate_text(
+        build_article_prompt(
+            keyword,
+            cluster_name,
+            post_type,
+            strategy,
+            outline,
+            corrective_note=corrective_note,
+        )
+    )
     data = parse_post_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
     if not data.get("description"):
         data["description"] = strategy.get("description") or short_desc(data.get("title", ""))
 
     if not data.get("category"):
-        data["category"] = strategy.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+        data["category"] = strategy.get("category") or pick_category(
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
 
     return data, strategy, outline
 
@@ -2015,6 +2107,7 @@ def main() -> int:
         data = None
         strategy = {}
         outline = {}
+        corrective_note = ""
 
         for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
             try:
@@ -2023,25 +2116,41 @@ def main() -> int:
                     cluster_name=cluster_name,
                     post_type=post_type,
                     avoid_titles=existing_titles,
+                    corrective_note=corrective_note,
                 )
             except Exception as e:
                 print("Deep generation failed:", e)
+                corrective_note = "Retry correction: follow the required structure more strictly."
                 continue
 
             cand_title = cand["title"]
 
             if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                 print(f"Title too similar (attempt {attempt}). Regenerating.")
+                corrective_note = """
+Retry correction:
+- Create a more distinct title
+- Keep the required title shape
+- Do not resemble existing titles
+""".strip()
                 continue
 
             ok, reason = quality_check_post(cand, keyword=keyword)
             if not ok:
                 print(f"Quality check failed ({reason}) (attempt {attempt}). Regenerating.")
+                corrective_note = build_retry_corrections(reason, cand_strategy)
                 continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
                 print(f"Content fingerprint duplicate (attempt {attempt}). Regenerating.")
+                corrective_note = """
+Retry correction:
+- Keep the same strategic angle
+- Change the title wording
+- Change section framing
+- Produce a meaningfully different article
+""".strip()
                 continue
 
             data = cand
