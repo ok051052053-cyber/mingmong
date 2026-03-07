@@ -10,12 +10,12 @@ permissions:
 
 concurrency:
   group: auto-post
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -40,7 +40,7 @@ jobs:
           ADSENSE_CLIENT: ${{ secrets.ADSENSE_CLIENT }}
           SITE_NAME: MingMong
           SITE_URL: https://mingmonglife.com
-          POSTS_PER_RUN: "2"
+          POSTS_PER_RUN: "1"
           MIN_CHARS: "3500"
           MODEL: "gpt-4o-mini"
 
