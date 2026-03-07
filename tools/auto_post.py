@@ -405,12 +405,112 @@ def is_generic_title(title: str) -> bool:
     t = _norm_title(title)
     if not t:
         return True
+
     for bad in BANNED_TITLE_PATTERNS:
         if bad.strip().lower() in t:
             return True
-    if len(t.split()) < 6:
+
+    words = t.split()
+    if len(words) < 8:
         return True
+
+    structure_terms = [
+        "workflow",
+        "system",
+        "template",
+        "playbook",
+        "checklist",
+        "framework",
+        "setup",
+        "guide",
+        "operating guide",
+    ]
+    if not any(term in t for term in structure_terms):
+        return True
+
+    situation_terms = [
+        "for",
+        "when",
+        "using",
+        "without",
+        "under",
+        "after",
+        "during",
+        "from",
+        "into",
+        "with",
+    ]
+    if not any(term in t for term in situation_terms):
+        return True
+
+    broad_bad = [
+        "ai workflow",
+        "productivity workflow",
+        "creator system",
+        "freelance system",
+        "ai setup",
+        "work system",
+        "business workflow",
+        "content workflow",
+    ]
+    if t in broad_bad:
+        return True
+
     return False
+
+
+def has_strong_title_shape(title: str) -> bool:
+    t = _norm_title(title)
+
+    audience_terms = [
+        "freelancer", "freelancers",
+        "solo creator", "solo creators",
+        "creator", "creators",
+        "consultant", "consultants",
+        "designer", "designers",
+        "writer", "writers",
+        "marketer", "marketers",
+        "operator", "operators",
+        "one person", "small team",
+        "newsletter writer", "newsletter writers",
+        "remote worker", "remote workers",
+        "contractor", "contractors",
+        "knowledge worker", "knowledge workers",
+        "agency owner", "agency owners",
+    ]
+
+    problem_terms = [
+        "reduce",
+        "cut",
+        "save",
+        "fix",
+        "stop",
+        "avoid",
+        "turn",
+        "organize",
+        "streamline",
+        "simplify",
+        "follow up",
+        "onboarding",
+        "handoff",
+        "admin",
+        "invoice",
+        "proposal",
+        "meeting notes",
+        "task",
+        "planning",
+        "repurposing",
+        "back and forth",
+        "revision",
+        "approvals",
+        "overwhelm",
+        "bottleneck",
+    ]
+
+    has_audience = any(term in t for term in audience_terms)
+    has_problem = any(term in t for term in problem_terms)
+
+    return has_audience and has_problem
 
 
 def opening_too_generic(text: str) -> bool:
@@ -426,6 +526,9 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
 
     if is_generic_title(title):
         return False, "generic-title"
+
+    if not has_strong_title_shape(title):
+        return False, "weak-title-shape"
 
     if not isinstance(sections, list) or len(sections) != IMG_COUNT:
         return False, "bad-sections"
@@ -1222,6 +1325,14 @@ Hard rules:
 - Do not use title patterns like Best, Top, Ultimate Guide, Comprehensive Guide, Essential Guide, Must-Have
 - The title must not simply restate the seed keyword
 - The title must sound like a workflow, system, checklist, playbook, framework, setup, or operating guide
+- The title must include a specific audience
+- The title must include a specific situation or operating context
+- The title must imply a concrete problem being solved
+- Prefer titles shaped like:
+  audience + situation + workflow/system/template/playbook/checklist + problem or outcome
+- Bad example: "AI Workflow for Creators"
+- Good example style: "A Client Onboarding Workflow for Freelancers Who Want Fewer Back-and-Forth Emails"
+- Good example style: "A Weekly Content System for Solo Creators Who Need to Repurpose One Article into Five Assets"
 - Avoid vague audiences like everyone, professionals, business owners
 - Use a sharper audience such as solo creator, freelance designer, one person consultancy, remote operator, junior marketer, newsletter writer
 - Focus on one real situation not a generic roundup
