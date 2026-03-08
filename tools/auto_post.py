@@ -2036,7 +2036,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
             return False, "shallow-advice"
     dense_paragraph_count = 0
     for s in sections:
-        blocks = re.split(r"\n\s*\n+", s.get(" 
+        blocks = re.split(r"\n\s*\n+", s.get("body", ""))
         for b in blocks:
             if len(b.strip()) > 650:
                 dense_paragraph_count += 1
