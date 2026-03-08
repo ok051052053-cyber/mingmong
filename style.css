@@ -1381,3 +1381,15 @@ textarea:focus-visible{
     grid-template-columns:1fr;
   }
 }
+
+.article-img{
+  float:left;
+  width:320px;
+  margin:8px 24px 16px 0;
+  border-radius:14px;
+}
+
+.article-img img{
+  width:100%;
+  display:block;
+}
