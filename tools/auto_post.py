@@ -1453,6 +1453,8 @@ def build_mode_rules(mode: str) -> str:
 - Include tradeoffs
 - Include a reusable checklist or template
 - Include when not to use this setup
+- Do not use markdown bold like **text**
+- When writing numbered steps, put each step on its own block
 """
  
  
