@@ -37,7 +37,7 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "4200"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
 IMG_COUNT = 7
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
 
@@ -49,27 +49,37 @@ UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1200"))
 UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "60"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
 
-TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.88"))
+TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.84"))
 MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "6"))
 
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
 
-KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.82"))
-AUTO_KEYWORD_BATCH = int(os.environ.get("AUTO_KEYWORD_BATCH", "24"))
+KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.76"))
+AUTO_KEYWORD_BATCH = int(os.environ.get("AUTO_KEYWORD_BATCH", "14"))
 MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 
 CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
-CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "12"))
+CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "8"))
 CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
 
-PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "8"))
+PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "14"))
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
 GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
 GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
-RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "4"))
+RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
 
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "420"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "520"))
+
+# -----------------------------
+# Category policy
+# -----------------------------
+ALLOWED_CATEGORIES = {
+    "AI Tools",
+    "Freelance Systems",
+    "Creator Income",
+    "Productivity",
+}
 
 # -----------------------------
 # Generic-content blockers
@@ -117,14 +127,14 @@ REQUIRED_CONTENT_SIGNALS = [
 # -----------------------------
 DEFAULT_TOPIC_CLUSTERS = {
     "AI Productivity": [
-        "ai email automation workflow",
-        "ai meeting notes to task workflow",
-        "ai report writing workflow",
-        "ai document summarization for work",
-        "chatgpt workflow for solo work",
-        "ai tools for office workflows",
+        "ai email automation workflow for solo consultants",
+        "ai meeting notes to task workflow for small teams",
+        "ai report writing workflow for client work",
+        "ai document summarization for knowledge workers",
+        "chatgpt workflow for solo operators",
         "ai stack for repetitive admin work",
         "ai automation for weekly planning",
+        "ai proposal writing workflow for freelancers",
     ],
     "Freelance Operations": [
         "freelance invoicing workflow",
@@ -150,25 +160,22 @@ DEFAULT_TOPIC_CLUSTERS = {
 
 DEFAULT_PILLAR_TOPICS = {
     "AI Productivity": [
-        "ai workflow automation for solo workers",
-        "how to build an ai system for repetitive work",
+        "how to build an ai workflow system for repetitive work",
         "practical ai workflows for knowledge workers",
-        "how to automate weekly office work with ai",
+        "how solo workers can automate weekly office work with ai",
         "ai operating system for one person businesses",
     ],
     "Freelance Operations": [
         "how to run a freelance business with systems",
         "freelance operations system for solo professionals",
-        "how freelancers can reduce admin work",
+        "how freelancers can reduce admin work with repeatable workflows",
         "practical freelance workflows that save time",
-        "freelance business systems for one person businesses",
     ],
     "Creator Monetization": [
         "how creators can build monetization systems",
         "digital product systems for beginner creators",
         "creator operations playbook for small audiences",
-        "how to make money with digital products using systems",
-        "newsletter and digital product monetization workflow",
+        "how to make money with digital products using repeatable systems",
     ],
 }
 
@@ -225,6 +232,10 @@ def now_utc_iso() -> str:
 
 def now_utc_date() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def current_year_utc() -> int:
+    return int(datetime.now(timezone.utc).strftime("%Y"))
 
 
 def load_json(path: Path, default):
@@ -339,22 +350,25 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
     c = (cluster_name or "").strip().lower()
     k = (keyword or "").strip().lower()
 
-    if any(x in k for x in ["vs", "compare", "comparison", "review", "reviews"]):
-        return "Reviews"
+    comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives"]
+    if any(x in k for x in comparison_tokens):
+        return "AI Tools" if any(x in k for x in ["chatgpt", "claude", "notion", "ai"]) else "Productivity"
 
     if c == "ai productivity":
         return "AI Tools"
     if c == "freelance operations":
-        return "Make Money"
+        return "Freelance Systems"
     if c == "creator monetization":
-        return "Make Money"
+        return "Creator Income"
 
-    if any(x in k for x in ["adhd", "focus", "productivity", "pomodoro", "time blocking", "time management"]):
-        return "Productivity"
-    if any(x in k for x in ["ai", "chatgpt", "automation", "notion", "claude"]):
+    if any(x in k for x in ["invoice", "proposal", "client onboarding", "crm", "revision", "deliverable", "scope creep", "follow up", "follow-up", "client feedback"]):
+        return "Freelance Systems"
+
+    if any(x in k for x in ["gumroad", "newsletter", "digital product", "notion template", "monetization", "pricing"]):
+        return "Creator Income"
+
+    if any(x in k for x in ["ai", "chatgpt", "claude", "automation", "meeting notes", "summarization", "email automation"]):
         return "AI Tools"
-    if any(x in k for x in ["money", "side hustle", "freelance", "invoice", "tax", "gumroad", "newsletter", "digital product"]):
-        return "Make Money"
 
     return "Productivity"
 
@@ -406,111 +420,57 @@ def is_generic_title(title: str) -> bool:
     if not t:
         return True
 
-    for bad in BANNED_TITLE_PATTERNS:
-        if bad.strip().lower() in t:
-            return True
-
-    words = t.split()
-    if len(words) < 8:
-        return True
-
-    structure_terms = [
-        "workflow",
-        "system",
-        "template",
-        "playbook",
-        "checklist",
-        "framework",
-        "setup",
-        "guide",
-        "operating guide",
+    banned_starts = [
+        "best ",
+        "top ",
+        "ultimate guide",
+        "comprehensive guide",
+        "essential guide",
+        "complete guide",
+        "must have",
+        "must-have",
     ]
-    if not any(term in t for term in structure_terms):
-        return True
-
-    situation_terms = [
-        "for",
-        "when",
-        "using",
-        "without",
-        "under",
-        "after",
-        "during",
-        "from",
-        "into",
-        "with",
-    ]
-    if not any(term in t for term in situation_terms):
+    if any(t.startswith(x) for x in banned_starts):
         return True
 
     broad_bad = [
-        "ai workflow",
-        "productivity workflow",
-        "creator system",
-        "freelance system",
-        "ai setup",
-        "work system",
-        "business workflow",
-        "content workflow",
+        "ai tools",
+        "productivity tools",
+        "freelance tools",
+        "creator tools",
+        "workplace productivity",
+        "digital productivity",
+        "business productivity",
+        "remote work tools",
     ]
     if t in broad_bad:
         return True
 
-    return False
-
-
-def has_strong_title_shape(title: str) -> bool:
-    t = _norm_title(title)
+    words = t.split()
+    if len(words) < 5:
+        return True
 
     audience_terms = [
-        "freelancer", "freelancers",
-        "solo creator", "solo creators",
+        "freelance", "freelancer", "freelancers",
         "creator", "creators",
         "consultant", "consultants",
-        "designer", "designers",
         "writer", "writers",
+        "designer", "designers",
         "marketer", "marketers",
-        "operator", "operators",
-        "one person", "small team",
-        "newsletter writer", "newsletter writers",
         "remote worker", "remote workers",
-        "contractor", "contractors",
-        "knowledge worker", "knowledge workers",
-        "agency owner", "agency owners",
+        "solo", "small business", "one person",
     ]
-
     problem_terms = [
-        "reduce",
-        "cut",
-        "save",
-        "fix",
-        "stop",
-        "avoid",
-        "turn",
-        "organize",
-        "streamline",
-        "simplify",
-        "follow up",
-        "onboarding",
-        "handoff",
-        "admin",
-        "invoice",
-        "proposal",
-        "meeting notes",
-        "task",
-        "planning",
-        "repurposing",
-        "back and forth",
-        "revision",
-        "approvals",
-        "overwhelm",
-        "bottleneck",
+        "workflow", "checklist", "system", "template", "playbook",
+        "follow up", "follow-up", "onboarding", "invoice", "proposal",
+        "revision", "planning", "task", "email", "automation",
+        "deliverables", "admin", "scope", "meeting notes",
     ]
 
-    has_audience = any(term in t for term in audience_terms)
-    has_problem = any(term in t for term in problem_terms)
+    has_audience = any(x in t for x in audience_terms)
+    has_problem = any(x in t for x in problem_terms)
 
-    return has_audience and has_problem
+    return not (has_audience and has_problem)
 
 
 def opening_too_generic(text: str) -> bool:
@@ -518,81 +478,9 @@ def opening_too_generic(text: str) -> bool:
     return any(p in t for p in BANNED_OPENING_PHRASES)
 
 
-def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
-    title = data.get("title", "")
-    tldr = data.get("tldr", "")
-    sections = data.get("sections", [])
-    faq = data.get("faq", [])
-
-    if is_generic_title(title):
-        return False, "generic-title"
-
-    if not has_strong_title_shape(title):
-        return False, "weak-title-shape"
-
-    if not isinstance(sections, list) or len(sections) != IMG_COUNT:
-        return False, "bad-sections"
-
-    total_text = []
-    total_text.append(title)
-    total_text.append(tldr)
-    for s in sections:
-        total_text.append(s.get("heading", ""))
-        total_text.append(s.get("body", ""))
-    for item in faq:
-        total_text.append(item.get("q", ""))
-        total_text.append(item.get("a", ""))
-
-    joined = "\n".join(total_text).lower()
-
-    if len(joined) < MIN_CHARS:
-        return False, "too-short"
-
-    if opening_too_generic(tldr + "\n" + (sections[0].get("body", "") if sections else "")):
-        return False, "generic-opening"
-
-    section_bodies = [s.get("body", "") for s in sections]
-    if any(len((b or "").strip()) < MIN_SECTION_CHARS for b in section_bodies):
-        return False, "thin-section"
-
-    signal_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
-    if signal_hits < 4:
-        return False, "missing-depth-signals"
-
-    if "who this is for" not in joined and "this workflow is for" not in joined and "this setup is for" not in joined:
-        return False, "missing-audience-framing"
-
-    if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
-        return False, "missing-mistakes"
-
-    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-        return False, "missing-template-checklist"
-
-    nk = normalize_keyword(keyword)
-    nt = normalize_keyword(title)
-    if nk and nt and nk == nt:
-        return False, "title-too-close-to-keyword"
-
-    return True, "ok"
-
-
 def build_retry_corrections(reason: str, strategy: Dict[str, str]) -> str:
     audience = (strategy.get("audience") or "freelancers").strip()
     problem = (strategy.get("problem") or "reduce admin work").strip()
-
-    if reason == "weak-title-shape":
-        return f"""
-Retry correction:
-- The title must follow exactly one of these shapes:
-  1. A [workflow/system/template/playbook/checklist] for {audience} who want to {problem}
-  2. How {audience} can {problem} with a [workflow/system/template/playbook/checklist]
-- The title must include:
-  - one audience term
-  - one structure term such as workflow, system, template, playbook, or checklist
-  - one concrete problem or outcome term
-- Do not use short abstract titles.
-- Do not use vague titles.
-""".strip()
 
     if reason == "missing-audience-framing":
         return f"""
@@ -628,11 +516,26 @@ Retry correction:
 - Include at least two concrete mistakes
 """.strip()
 
+    if reason == "missing-tradeoff":
+        return """
+Retry correction:
+- You must explicitly use the word "tradeoff"
+- Explain at least one tradeoff of this workflow
+""".strip()
+
+    if reason == "missing-limitations":
+        return """
+Retry correction:
+- Section 7 must explicitly include the phrase "when not to use this"
+  or "do not use this setup"
+- Explain at least one limitation
+""".strip()
+
     return """
 Retry correction:
-- Follow the required title shape more strictly
-- Follow the required audience framing more strictly
-- Use the exact required signal words naturally
+- Follow the required structure more strictly
+- Make the article more distinct and less generic
+- Add clearer audience framing and reusable material
 """.strip()
 
 
@@ -824,6 +727,11 @@ def pick_next_cluster(posts: List[dict], topic_clusters: Dict[str, List[str]]) -
     return random.choice(candidates) if candidates else names[0]
 
 
+def cluster_recent_saturation(posts: List[dict], cluster_name: str, window: int = 10) -> int:
+    recent = posts[:window]
+    return sum(1 for p in recent if isinstance(p, dict) and p.get("cluster") == cluster_name)
+
+
 def should_make_pillar(posts: List[dict], cluster_name: str) -> bool:
     cluster_posts = [p for p in posts if isinstance(p, dict) and p.get("cluster") == cluster_name]
     if not cluster_posts:
@@ -834,7 +742,7 @@ def should_make_pillar(posts: List[dict], cluster_name: str) -> bool:
 
     regular_count = sum(1 for p in cluster_posts if p.get("post_type") != "pillar")
     if regular_count > 0 and regular_count % max(PILLAR_INTERVAL, 1) == 0:
-        recent_cluster = cluster_posts[:5]
+        recent_cluster = cluster_posts[:6]
         if not any(p.get("post_type") == "pillar" for p in recent_cluster):
             return True
 
@@ -869,6 +777,7 @@ Need:
 - no broad listicle topics
 - no generic "best tools for X" patterns
 - topics must sound like a real operating problem or workflow
+- do not generate near-duplicates of onboarding, planning, admin, proposal, invoicing, or follow-up topics unless the audience or situation is meaningfully different
 
 Prefer topic patterns like:
 - how to build a workflow for X
@@ -946,6 +855,7 @@ Need:
 - no medical, legal, political, or unsafe topics
 - no generic definitions
 - no broad listicle topics like "best ai tools for students"
+- do not create multiple keywords that only reword the same underlying problem
 
 Good patterns:
 - how to build X workflow
@@ -1075,6 +985,12 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
     if CLUSTER_MODE:
         topic_clusters = load_topic_clusters()
         cluster_name = pick_next_cluster(posts, topic_clusters)
+
+        if cluster_recent_saturation(posts, cluster_name, window=10) >= 3:
+            alternatives = [c for c in topic_clusters.keys() if c != cluster_name]
+            if alternatives:
+                cluster_name = random.choice(alternatives)
+
         pillar_mode = should_make_pillar(posts, cluster_name)
         current_pillar = get_cluster_pillar(posts, cluster_name)
         current_pillar_slug = (current_pillar.get("slug") or "").strip()
@@ -1122,6 +1038,50 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             print("Auto keyword generation failed:", e)
 
     return clean_base, "General", "normal", ""
+
+
+# -----------------------------
+# Semantic overlap checks
+# -----------------------------
+def post_semantically_too_close(
+    keyword: str,
+    strategy: Dict[str, str],
+    posts: List[dict],
+    threshold: float = 0.78,
+) -> bool:
+    new_parts = [
+        normalize_keyword(keyword),
+        normalize_keyword(strategy.get("audience", "")),
+        normalize_keyword(strategy.get("problem", "")),
+        normalize_keyword(strategy.get("outcome", "")),
+        normalize_keyword(strategy.get("angle", "")),
+        normalize_keyword(strategy.get("title", "")),
+    ]
+    new_text = " ".join([x for x in new_parts if x]).strip()
+    if not new_text:
+        return False
+
+    recent_posts = posts[:120]
+
+    for p in recent_posts:
+        if not isinstance(p, dict):
+            continue
+
+        old_parts = [
+            normalize_keyword(p.get("keyword", "")),
+            normalize_keyword(p.get("title", "")),
+            normalize_keyword(p.get("description", "")),
+            normalize_keyword(p.get("cluster", "")),
+            normalize_keyword(p.get("category", "")),
+        ]
+        old_text = " ".join([x for x in old_parts if x]).strip()
+        if not old_text:
+            continue
+
+        if SequenceMatcher(a=new_text, b=old_text).ratio() >= threshold:
+            return True
+
+    return False
 
 
 # -----------------------------
@@ -1350,12 +1310,14 @@ This is a pillar guide.
 It should still be deep and practical.
 It should explain systems and decision logic clearly.
 It must not sound like a generic encyclopedia article.
+It should cover a family of related operating decisions without becoming broad and fluffy.
 """.strip()
     else:
         extra = """
 This is a cluster article.
 It should focus on one sharp operating problem.
 It should solve one real situation in detail.
+It should feel narrower than most search results.
 """.strip()
 
     return f"""
@@ -1383,29 +1345,37 @@ Schema:
   "angle": "specific article angle",
   "title": "specific practical title",
   "description": "155-170 chars meta description not equal to title",
-  "category": "AI Tools|Make Money|Productivity|Reviews",
+  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
   "intent": "pillar|cluster",
   "search_intent_summary": "one sentence"
 }}
 
 Hard rules:
 - Do not use title patterns like Best, Top, Ultimate Guide, Comprehensive Guide, Essential Guide, Must-Have
+- Do not produce repetitive templates
+- Vary title structure naturally
 - The title must not simply restate the seed keyword
-- The title must sound like a workflow, system, checklist, playbook, framework, setup, or operating guide
-- The title must include a specific audience
-- The title must include a specific situation or operating context
-- The title must imply a concrete problem being solved
-- The title must follow exactly one of these shapes:
-  1. A [workflow/system/template/playbook/checklist/framework/setup] for [specific audience] who want to [specific outcome]
-  2. How [specific audience] can [solve a specific problem] with a [workflow/system/template/playbook/checklist/framework/setup]
-- Bad example: "AI Workflow for Creators"
-- Good example style: "A Client Onboarding Workflow for Freelancers Who Want Fewer Back-and-Forth Emails"
-- Good example style: "How Solo Creators Can Repurpose One Article with a Weekly Content System"
+- The title must be specific and practical
+- The title must include:
+  - a clear audience
+  - a concrete operating problem
+  - a real outcome
+- Allowed title shapes include but are not limited to:
+  1. Client Onboarding Checklist for Freelance Consultants
+  2. How Freelance Writers Can Automate Follow-Up Emails
+  3. A Revision Workflow Freelance Designers Can Actually Use
+  4. Weekly Planning System for Freelancers With Multiple Clients
+  5. Proposal and Invoicing Workflow for Solo Consultants
+- Avoid robotic title shapes repeated across posts
+- Avoid "who want to" unless it sounds natural
+- Prefer shorter titles under 72 characters when possible
+- The title must feel like something a human would actually click
 - Avoid vague audiences like everyone, professionals, business owners
 - Use a sharper audience such as solo creator, freelance designer, one person consultancy, remote operator, junior marketer, newsletter writer
 - Focus on one real situation not a generic roundup
 - The angle must feel more specific than common search results
 - The article should promise a process or decision framework not a list of tools
+- Do not create a near-duplicate of existing onboarding, planning, admin, proposal, invoicing, or follow-up articles unless the audience or situation is materially different
 
 {extra}
 """.strip()
@@ -1431,7 +1401,7 @@ def parse_strategy_json(text: str, keyword: str = "", cluster_name: str = "", po
     if not audience or not problem or not outcome or not angle or not title:
         raise ValueError("strategy fields missing")
 
-    if category not in {"AI Tools", "Make Money", "Productivity", "Reviews"}:
+    if category not in ALLOWED_CATEGORIES:
         category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
     if not description:
@@ -1472,7 +1442,7 @@ Schema:
 {{
   "title": "must match strategy title",
   "description": "must match strategy description",
-  "category": "AI Tools|Make Money|Productivity|Reviews",
+  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
   "sections": [
     {{
       "heading": "section heading",
@@ -1557,7 +1527,7 @@ def parse_outline_json(text: str, strategy: Dict[str, str]) -> Dict[str, Any]:
         tldr_focus = []
     tldr_focus = [_clean_text(x) for x in tldr_focus if isinstance(x, str) and _clean_text(x)][:5]
 
-    if category not in {"AI Tools", "Make Money", "Productivity", "Reviews"}:
+    if category not in ALLOWED_CATEGORIES:
         category = strategy.get("category") or "Productivity"
 
     return {
@@ -1604,7 +1574,7 @@ JSON schema:
 {{
   "title": "string",
   "description": "string",
-  "category": "AI Tools|Make Money|Productivity|Reviews",
+  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
   "sections": [
     {{
       "heading": "string",
@@ -1640,6 +1610,9 @@ Hard rules:
 - Section 1 must explicitly name the audience from the strategy
 - The article must explicitly include these exact words in natural sentences:
   workflow, checklist, mistake, tradeoff, decision, step
+- The article must explicitly include either:
+  - "when not to use this"
+  - "do not use this setup"
 - Avoid generic intros and fluffy summaries
 - Avoid phrases like "AI is transforming productivity"
 - Avoid generic listicle tone
@@ -1709,7 +1682,7 @@ def parse_post_json(text: str, keyword: str = "", cluster_name: str = "", post_t
 
     tldr = _clean_text(data.get("tldr", ""))
 
-    if cat not in {"AI Tools", "Make Money", "Productivity", "Reviews"}:
+    if cat not in ALLOWED_CATEGORIES:
         cat = pick_category(keyword or title or "", cluster_name, post_type)
 
     total_text = (
@@ -1775,6 +1748,126 @@ def generate_deep_post(
     return data, strategy, outline
 
 
+# -----------------------------
+# Quality checks
+# -----------------------------
+def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
+    title = data.get("title", "")
+    tldr = data.get("tldr", "")
+    sections = data.get("sections", [])
+    faq = data.get("faq", [])
+
+    if is_generic_title(title):
+        return False, "generic-title"
+
+    if not isinstance(sections, list) or len(sections) != IMG_COUNT:
+        return False, "bad-sections"
+
+    joined = "\n".join(
+        [title, tldr] +
+        [s.get("heading", "") + "\n" + s.get("body", "") for s in sections] +
+        [item.get("q", "") + "\n" + item.get("a", "") for item in faq]
+    ).lower()
+
+    if len(joined) < MIN_CHARS:
+        return False, "too-short"
+
+    if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
+        return False, "generic-opening"
+
+    if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
+        return False, "thin-section"
+
+    section_headings = [_norm_title(s.get("heading", "")) for s in sections]
+    if len(set(section_headings)) < len(section_headings):
+        return False, "duplicate-headings"
+
+    signal_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
+    if signal_hits < 4:
+        return False, "missing-depth-signals"
+
+    if "who this is for" not in joined and "this workflow is for" not in joined and "this setup is for" not in joined:
+        return False, "missing-audience-framing"
+
+    if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
+        return False, "missing-mistakes"
+
+    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
+        return False, "missing-template-checklist"
+
+    if "tradeoff" not in joined and "trade-off" not in joined:
+        return False, "missing-tradeoff"
+
+    if "when not to use this" not in joined and "do not use this setup" not in joined:
+        return False, "missing-limitations"
+
+    nk = normalize_keyword(keyword)
+    nt = normalize_keyword(title)
+    if nk and nt and nk == nt:
+        return False, "title-too-close-to-keyword"
+
+    if nk and SequenceMatcher(a=nk, b=joined[:1200]).ratio() > 0.92:
+        return False, "too-keyword-shaped"
+
+    return True, "ok"
+
+
+# -----------------------------
+# Slug and legacy cleanup
+# -----------------------------
+def build_clean_slug(title: str, keyword: str = "") -> str:
+    raw = slugify(title) or slugify(keyword) or f"post-{int(time.time())}"
+    raw = raw[:72].strip("-")
+    raw = re.sub(r"-{2,}", "-", raw).strip("-")
+    if len(raw) < 12:
+        raw = f"{raw}-{int(time.time())}"
+    return raw
+
+
+def normalize_existing_post(p: dict) -> dict:
+    if not isinstance(p, dict):
+        return p
+
+    slug = (p.get("slug") or "").strip()
+    title = (p.get("title") or "").strip()
+    keyword = (p.get("keyword") or "").strip()
+    cluster = (p.get("cluster") or "").strip()
+    post_type = (p.get("post_type") or "normal").strip()
+
+    if title:
+        title = re.sub(r"\bin (2019|2020|2021|2022|2023|2024)\b", f"in {current_year_utc()}", title, flags=re.IGNORECASE)
+
+    if slug:
+        slug = slug.strip("-")[:72]
+    elif title or keyword:
+        slug = build_clean_slug(title or keyword, keyword)
+
+    url = resolve_post_url_path(p)
+    category = p.get("category") or pick_category(keyword=keyword or title, cluster_name=cluster, post_type=post_type)
+
+    if category not in ALLOWED_CATEGORIES:
+        category = pick_category(keyword=keyword or title, cluster_name=cluster, post_type=post_type)
+
+    p["title"] = title
+    p["slug"] = slug
+    p["url"] = url if url else f"posts/{slug}.html"
+    p["category"] = category
+
+    if not p.get("description"):
+        p["description"] = short_desc(title)
+
+    if p["url"].endswith(".md"):
+        p["url"] = p["url"][:-3] + ".html"
+
+    if "updated" not in p and p.get("date"):
+        p["updated"] = p["date"]
+
+    return p
+
+
+# -----------------------------
+# HTML rendering
+# -----------------------------
 def html_escape(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
@@ -1975,31 +2068,6 @@ def render_post_html(
       border-radius:999px;
     }}
 
-    .nav-search-btn {{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:10px 12px;
-      font-weight:700;
-      font-size:14px;
-      border-radius:10px;
-      color:#0f172a;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      cursor:pointer;
-    }}
-    .nav-search-btn:hover {{
-      background:#f3f4f6;
-      text-decoration:none;
-    }}
-    .nav-search-ico {{
-      line-height:1;
-    }}
-    .nav-search-text {{
-      line-height:1;
-    }}
-
     .post-search-block {{
       margin:28px 0 10px;
       padding:18px;
@@ -2084,15 +2152,6 @@ def render_post_html(
       font-size:14px;
     }}
 
-    @media(max-width:520px){{
-      .nav-search-text {{
-        display:none;
-      }}
-      .nav-search-btn {{
-        padding:10px;
-        min-width:42px;
-      }}
-    }}
     @media(max-width:760px){{
       .site-search-bar {{
         flex-wrap:wrap;
@@ -2143,10 +2202,10 @@ def render_post_html(
       <div class="sidecard">
         <h3>Categories</h3>
         <div class="catlist">
-          <a class="catitem" href="../category.html?cat=AI%20Tools"><span class="caticon">🤖</span><span class="cattext"><span class="catname">AI Tools</span><span class="catsub">Tools and workflows</span></span></a>
-          <a class="catitem" href="../category.html?cat=Productivity"><span class="caticon">⚡</span><span class="cattext"><span class="catname">Productivity</span><span class="catsub">Time and focus</span></span></a>
-          <a class="catitem" href="../category.html?cat=Make%20Money"><span class="caticon">💰</span><span class="cattext"><span class="catname">Make Money</span><span class="catsub">Freelance and digital</span></span></a>
-          <a class="catitem" href="../category.html?cat=Reviews"><span class="caticon">🧾</span><span class="cattext"><span class="catname">Reviews</span><span class="catsub">Comparisons and pricing</span></span></a>
+          <a class="catitem" href="../category.html?cat=AI%20Tools"><span class="caticon">🤖</span><span class="cattext"><span class="catname">AI Tools</span><span class="catsub">Automation and systems</span></span></a>
+          <a class="catitem" href="../category.html?cat=Freelance%20Systems"><span class="caticon">📋</span><span class="cattext"><span class="catname">Freelance Systems</span><span class="catsub">Client ops and admin</span></span></a>
+          <a class="catitem" href="../category.html?cat=Creator%20Income"><span class="caticon">💰</span><span class="cattext"><span class="catname">Creator Income</span><span class="catsub">Templates and monetization</span></span></a>
+          <a class="catitem" href="../category.html?cat=Productivity"><span class="caticon">⚡</span><span class="cattext"><span class="catname">Productivity</span><span class="catsub">Focus and workflow</span></span></a>
         </div>
       </div>
     </aside>
@@ -2177,11 +2236,14 @@ def render_post_html(
 # -----------------------------
 def load_posts_index() -> List[dict]:
     data = load_json(POSTS_JSON, [])
-    return data if isinstance(data, list) else []
+    posts = data if isinstance(data, list) else []
+    normalized = [normalize_existing_post(p) for p in posts if isinstance(p, dict)]
+    return normalized
 
 
 def save_posts_index(posts: List[dict]) -> None:
-    save_json(POSTS_JSON, posts)
+    clean = [normalize_existing_post(p) for p in posts if isinstance(p, dict)]
+    save_json(POSTS_JSON, clean)
 
 
 def add_post_to_index(
@@ -2218,6 +2280,9 @@ def add_post_to_index(
     })
 
 
+# -----------------------------
+# Main
+# -----------------------------
 def main() -> int:
     base_keywords = load_keywords()
     posts = load_posts_index()
@@ -2272,6 +2337,16 @@ def main() -> int:
                 corrective_note = "Retry correction: follow the required structure more strictly."
                 continue
 
+            if post_semantically_too_close(keyword, cand_strategy, posts):
+                print(f"Semantic overlap detected (attempt {attempt}). Regenerating.")
+                corrective_note = """
+Retry correction:
+- Choose a meaningfully different audience or operating problem
+- Do not create another article that overlaps with existing onboarding, planning, admin, proposal, invoicing, or follow-up workflows
+- Make the angle narrower and more distinct
+""".strip()
+                continue
+
             cand_title = cand["title"]
 
             if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
@@ -2279,7 +2354,7 @@ def main() -> int:
                 corrective_note = """
 Retry correction:
 - Create a more distinct title
-- Keep the required title shape
+- Keep the title natural and human
 - Do not resemble existing titles
 """.strip()
                 continue
@@ -2296,8 +2371,8 @@ Retry correction:
                 corrective_note = """
 Retry correction:
 - Keep the same strategic angle
-- Change the title wording
-- Change section framing
+- Change the framing
+- Change the reusable checklist or template
 - Produce a meaningfully different article
 """.strip()
                 continue
@@ -2319,7 +2394,10 @@ Retry correction:
         tldr = data["tldr"]
         faq = data["faq"]
 
-        slug = slugify(title)[:80] or slugify(keyword)[:80] or f"post-{int(time.time())}"
+        if category not in ALLOWED_CATEGORIES:
+            category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+        slug = build_clean_slug(title, keyword)
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
