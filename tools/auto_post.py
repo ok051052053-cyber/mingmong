@@ -43,8 +43,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "8400"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "840"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "9000"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "900"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
 MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "5"))
 
@@ -66,12 +66,12 @@ MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
 GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
 GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
-GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "1.25"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "1.1"))
 
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
 SERP_CHECK_ENABLED = os.environ.get("SERP_CHECK_ENABLED", "1").strip() == "1"
-SERP_CHECK_LIMIT = int(os.environ.get("SERP_CHECK_LIMIT", "8"))
+SERP_CHECK_LIMIT = int(os.environ.get("SERP_CHECK_LIMIT", "10"))
 
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
@@ -104,7 +104,7 @@ CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
 CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "8"))
 CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
-PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "14"))
+PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "10"))
 
 SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "5"))
 SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "8"))
@@ -118,14 +118,14 @@ BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.rando
 # =========================================================
 ALLOWED_CATEGORIES = {
     "AI Tools",
-    "Freelance Systems",
-    "Creator Income",
+    "Investing",
+    "Make Money",
     "Productivity",
+    "Software Reviews",
+    "Side Hustles",
 }
 
 BANNED_TITLE_PATTERNS = [
-    "best ",
-    "top ",
     "ultimate guide",
     "comprehensive guide",
     "essential guide",
@@ -133,10 +133,10 @@ BANNED_TITLE_PATTERNS = [
     "must have",
     "complete guide",
     "top productivity tools",
-    "best ai tools for",
     "top ai tools for",
-    "best apps for",
-    "best tools for",
+    "best tools for everyone",
+    "best apps for everyone",
+    "top tools for everyone",
 ]
 
 BANNED_OPENING_PHRASES = [
@@ -146,106 +146,158 @@ BANNED_OPENING_PHRASES = [
     "in today's digital world",
     "in today’s digital world",
     "productivity is important",
-    "freelancers need the right tools",
-    "small business owners need the right tools",
     "there are many tools available",
     "in the modern workplace",
+    "investing can be intimidating",
+    "making money online has become popular",
 ]
 
 REQUIRED_CONTENT_SIGNALS = [
-    "workflow",
-    "checklist",
     "mistake",
     "tradeoff",
     "decision",
     "step",
 ]
 
+MODE_REQUIRED_SIGNALS = {
+    "workflow": ["workflow", "checklist", "mistake", "tradeoff", "decision", "step"],
+    "review": ["pricing", "pros", "cons", "best for", "not ideal", "decision"],
+    "investing": ["risk", "volatility", "long term", "beginner", "watch", "decision"],
+    "money": ["income", "effort", "time", "mistake", "decision", "step"],
+}
+
 SECTION_BLUEPRINTS = [
     [
-        "who this is for and the exact operating problem",
-        "why usual advice breaks in practice",
-        "the workflow map",
-        "the setup steps",
-        "decision rules and tool choice logic",
+        "who this is for and the exact problem",
+        "why common advice fails",
+        "the practical framework",
+        "the setup or decision process",
+        "examples and edge cases",
         "mistakes and tradeoffs",
-        "copyable checklist or template",
+        "clear recommendation or checklist",
     ],
     [
         "who this is for and the trigger moment",
-        "what makes the problem expensive",
-        "the system design",
-        "implementation steps",
-        "tool choice and process boundaries",
+        "what makes the choice expensive",
+        "the comparison or workflow logic",
+        "implementation steps or evaluation factors",
+        "decision rules",
         "mistakes and failure modes",
         "when not to use this",
-        "copyable operating checklist",
+        "copyable checklist or summary framework",
     ],
     [
         "who this is for",
         "the broken default approach",
-        "the workflow design",
-        "step by step setup",
+        "the practical approach",
+        "step by step setup or evaluation",
         "decision framework",
         "tradeoffs and limitations",
-        "template or checklist",
+        "template checklist or final recommendation",
     ],
 ]
 
 DEFAULT_TOPIC_CLUSTERS = {
-    "AI Productivity": [
-        "ai email automation workflow for solo consultants",
-        "ai meeting notes to task workflow for small teams",
-        "ai report writing workflow for client work",
-        "ai document summarization for knowledge workers",
-        "chatgpt workflow for solo operators",
-        "ai stack for repetitive admin work",
-        "ai automation for weekly planning",
-        "ai proposal writing workflow for freelancers",
+    "AI Tools": [
+        "ai tools to make money online",
+        "best ai tools for remote work",
+        "ai tools for small business automation",
+        "ai tools for creators",
+        "chatgpt workflow for productivity",
+        "best ai writing tools for marketers",
+        "ai tools for side hustle",
+        "ai tools that save time at work",
     ],
-    "Freelance Operations": [
-        "freelance invoicing workflow",
-        "freelance pricing system",
-        "proposal workflow for freelancers",
-        "time tracking system for freelancers",
-        "client onboarding workflow",
-        "freelance crm workflow",
-        "freelance admin automation",
-        "solo freelancer operating system",
+    "Investing": [
+        "best ai stocks for beginners",
+        "best dividend stocks for young investors",
+        "etf vs individual stocks for beginners",
+        "how to start investing in your 20s",
+        "best tech etfs for long term investors",
+        "growth vs dividend investing for beginners",
+        "how to build a simple stock watchlist",
+        "best beginner investing apps",
     ],
-    "Creator Monetization": [
-        "newsletter monetization system",
-        "gumroad digital product workflow",
-        "sell notion templates workflow",
-        "creator monetization system",
-        "digital products for beginners workflow",
-        "email list monetization workflow",
-        "creator operations system",
-        "paid newsletter monetization playbook",
+    "Make Money": [
+        "how to make money with ai tools",
+        "how to make money selling digital products",
+        "best online side hustles for beginners",
+        "passive income ideas for young professionals",
+        "how to make money with a niche blog",
+        "how to earn extra income after work",
+        "how to sell templates online",
+        "small online business ideas with low startup cost",
+    ],
+    "Productivity": [
+        "best note taking system for busy professionals",
+        "weekly planning system for knowledge workers",
+        "how to organize tasks across multiple projects",
+        "email management system for busy workers",
+        "focus system for remote workers",
+        "meeting notes to task workflow",
+        "how to stop context switching at work",
+        "daily work reset checklist",
+    ],
+    "Software Reviews": [
+        "notion vs clickup for solo business",
+        "best email marketing tools for beginners",
+        "best invoicing software for freelancers",
+        "best crm for solo consultants",
+        "best project management software for small teams",
+        "otter ai alternatives for meeting notes",
+        "best budget apps for young professionals",
+        "best ai note taking tools",
+    ],
+    "Side Hustles": [
+        "side hustles with ai tools",
+        "side hustles for engineers",
+        "weekend side hustles for full time workers",
+        "low cost side hustle ideas for beginners",
+        "digital side hustles that can scale",
+        "best side hustles for remote workers",
+        "how to start a side hustle after work",
+        "side hustles that do not require inventory",
     ],
 }
 
 DEFAULT_PILLAR_TOPICS = {
-    "AI Productivity": [
-        "how to build an ai workflow system for repetitive work",
-        "practical ai workflows for knowledge workers",
-        "how solo workers can automate weekly office work with ai",
-        "ai operating system for one person businesses",
+    "AI Tools": [
+        "how to choose ai tools that actually save time",
+        "practical ai tools for work and side income",
+        "how to build a useful ai stack for one person businesses",
+        "ai tool buying guide for beginners",
     ],
-    "Freelance Operations": [
-        "how to run a freelance business with systems",
-        "freelance operations system for solo professionals",
-        "how freelancers can reduce admin work with repeatable workflows",
-        "practical freelance workflows that save time",
+    "Investing": [
+        "beginner investing guide for young professionals",
+        "how to start building a simple long term portfolio",
+        "how to evaluate stocks and etfs as a beginner",
+        "practical investing framework for first time investors",
     ],
-    "Creator Monetization": [
-        "how creators can build monetization systems",
-        "digital product systems for beginner creators",
-        "creator operations playbook for small audiences",
-        "how to make money with digital products using repeatable systems",
+    "Make Money": [
+        "how to build extra income with digital systems",
+        "practical online income ideas for beginners",
+        "how to create repeatable income streams online",
+        "how to start earning extra money after work",
+    ],
+    "Productivity": [
+        "how to build a realistic productivity system for work",
+        "practical productivity systems for busy professionals",
+        "how to organize work without burning out",
+        "productivity framework for people with too many tasks",
+    ],
+    "Software Reviews": [
+        "how to choose software for a small business",
+        "practical software buying guide for solo operators",
+        "how to compare business software without wasting money",
+        "software review framework for beginners",
+    ],
+    "Side Hustles": [
+        "how to choose a side hustle that fits your schedule",
+        "practical side hustle ideas for beginners",
+        "how to start a side hustle while working full time",
+        "side hustle framework for young professionals",
     ],
 }
-
 
 # =========================================================
 # Logging
@@ -528,27 +580,14 @@ def is_search_intent_keyword(keyword: str) -> bool:
     broad_bad = {
         "ai",
         "productivity",
-        "freelancing",
-        "remote work",
-        "email",
-        "automation",
-        "marketing",
-        "notion",
+        "investing",
+        "money",
+        "software",
+        "stocks",
+        "etf",
         "chatgpt",
     }
     if k in broad_bad:
-        return False
-
-    vague_bad = [
-        "best ai tools for",
-        "top ai tools for",
-        "best tools for",
-        "best apps for",
-        "ultimate guide to",
-        "comprehensive guide to",
-        "essential guide to",
-    ]
-    if any(x in k for x in vague_bad):
         return False
 
     intent_tokens = [
@@ -564,26 +603,27 @@ def is_search_intent_keyword(keyword: str) -> bool:
         "how to",
         "reduce",
         "save time",
-        "client onboarding",
-        "invoice",
-        "proposal",
-        "newsletter",
-        "digital product",
-        "meeting notes",
-        "task workflow",
-        "weekly planning",
-        "content repurposing",
-        "one person",
-        "solo",
-        "pricing",
+        "best",
+        "vs",
+        "review",
+        "worth it",
+        "for beginners",
+        "make money",
+        "extra income",
+        "side hustle",
+        "stocks",
+        "etf",
+        "dividend",
+        "software",
         "crm",
-        "admin",
+        "invoicing",
+        "budget app",
+        "alternatives",
     ]
     if not any(tok in k for tok in intent_tokens):
         return False
 
     return True
-
 
 def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     out: List[str] = []
@@ -852,37 +892,53 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
     c = (cluster_name or "").strip().lower()
     k = (keyword or "").strip().lower()
 
-    comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives"]
-    if any(x in k for x in comparison_tokens):
-        return "AI Tools" if any(x in k for x in ["chatgpt", "claude", "notion", "ai"]) else "Productivity"
-
-    if c == "ai productivity":
+    if c == "ai tools":
         return "AI Tools"
-    if c == "freelance operations":
-        return "Freelance Systems"
-    if c == "creator monetization":
-        return "Creator Income"
+    if c == "investing":
+        return "Investing"
+    if c == "make money":
+        return "Make Money"
+    if c == "productivity":
+        return "Productivity"
+    if c == "software reviews":
+        return "Software Reviews"
+    if c == "side hustles":
+        return "Side Hustles"
+
+    comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives", "review", "worth it"]
+    if any(x in k for x in comparison_tokens):
+        return "Software Reviews"
 
     if any(x in k for x in [
-        "task management",
-        "project management",
-        "budget tracking",
-        "expense tracking",
-        "client projects",
-        "multiple client",
-        "freelancer admin",
-        "freelance operations",
+        "stock", "stocks", "etf", "etfs", "dividend", "portfolio", "investing",
+        "watchlist", "long term", "brokerage", "valuation"
     ]):
-        return "Freelance Systems"
+        return "Investing"
 
-    if any(x in k for x in ["gumroad", "newsletter", "digital product", "notion template", "monetization", "pricing"]):
-        return "Creator Income"
+    if any(x in k for x in [
+        "make money", "income", "monetization", "sell templates", "digital products",
+        "extra income", "earn more", "blog income", "passive income"
+    ]):
+        return "Make Money"
 
-    if any(x in k for x in ["ai", "chatgpt", "claude", "automation", "meeting notes", "summarization", "email automation"]):
+    if any(x in k for x in [
+        "side hustle", "side hustles", "weekend hustle", "after work",
+        "part time income", "low cost hustle"
+    ]):
+        return "Side Hustles"
+
+    if any(x in k for x in [
+        "notion", "clickup", "crm", "invoicing software", "email marketing",
+        "project management software", "alternatives", "review", "worth it"
+    ]):
+        return "Software Reviews"
+
+    if any(x in k for x in [
+        "ai", "chatgpt", "automation", "meeting notes", "summarization", "ai writing"
+    ]):
         return "AI Tools"
 
     return "Productivity"
-
 
 def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
     return cluster_to_category(cluster_name, keyword, post_type)
@@ -944,7 +1000,7 @@ def build_cluster_keyword_prompt(
     existing_titles: List[str],
     existing_keywords: List[str],
 ) -> str:
-    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai workflow automation for solo workers"
+    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
     title_block = "\n".join([f"- {x}" for x in existing_titles[:70]])
     existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:100]])
 
@@ -963,11 +1019,11 @@ Need:
 - no news
 - no politics
 - no medical or legal advice
-- no generic listicles
-- no broad "best tools for X" topics
-- each keyword must describe a concrete operating problem or workflow
+- avoid generic head terms
+- each keyword must describe a concrete search intent
+- include buyer intent, comparison intent, beginner intent, or income intent when natural
 - vary audience, situation, and decision point
-- avoid rewording the same onboarding, planning, admin, proposal, or invoicing idea
+- avoid rewording the same topic
 
 Avoid topics too similar to these existing post titles:
 {title_block if title_block else "- none"}
@@ -986,7 +1042,6 @@ Return valid JSON only:
   ]
 }}
 """.strip()
-
 
 def generate_cluster_keywords(
     cluster_name: str,
@@ -1013,7 +1068,7 @@ def generate_cluster_keywords(
 
 
 def build_general_keyword_prompt(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> str:
-    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai workflow automation for solo workers"
+    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
     title_block = "\n".join([f"- {x}" for x in existing_titles[:60]])
     existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:100]])
 
@@ -1021,9 +1076,12 @@ def build_general_keyword_prompt(seed_keywords: List[str], existing_titles: List
 You generate SEO blog topic keywords for a site targeting US and EU readers.
 
 Site focus:
-1. AI systems for real work
-2. Freelance operations
-3. Creator monetization systems
+1. AI tools for work and income
+2. beginner investing
+3. practical make money strategies
+4. productivity systems
+5. software reviews and comparisons
+6. side hustles for ordinary workers
 
 Need:
 - exactly 14 keyword ideas
@@ -1035,19 +1093,19 @@ Need:
 - no outdated years
 - no celebrity or news topics
 - no medical, legal, political, or unsafe topics
-- no generic definitions
-- no broad listicles
+- no vague definitions
 - do not create multiple keywords that only reword the same underlying problem
 
 Good patterns:
-- how to build X workflow
-- X system for Y
-- X checklist for Y
-- how to reduce X using Y
-- how to turn X into Y
-- decision framework for choosing X
-- template based workflow topics
-- one specific problem for one specific reader
+- best X for Y
+- X vs Y
+- is X worth it for Y
+- how to start X
+- X for beginners
+- how to choose X
+- how to make money with X
+- comparison keywords with buyer intent
+- beginner investing and software buying intent
 
 Seed keywords:
 {seed_block}
@@ -1066,7 +1124,6 @@ Return valid JSON only:
   ]
 }}
 """.strip()
-
 
 def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     prompt = build_general_keyword_prompt(seed_keywords, existing_titles, existing_keywords)
@@ -1170,13 +1227,13 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
 
     post_guidance = """
 This is a pillar guide.
-It should explain a family of related operating decisions clearly.
-It should still be practical and grounded.
+It should explain a family of related choices clearly.
+It should stay practical and grounded.
 It must not sound like an encyclopedia entry.
 """ if post_type == "pillar" else """
-This is a cluster article.
-It should solve one specific operating situation in detail.
-It should be narrower than most search results.
+This is a focused article.
+It should solve one specific search intent in detail.
+It can be a workflow article, a review article, a comparison article, a make money article, or a beginner investing article.
 """
 
     return f"""
@@ -1204,7 +1261,7 @@ Schema:
   "angle": "specific article angle",
   "title": "specific practical title",
   "description": "155-170 chars meta description not equal to title",
-  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
+  "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
   "intent": "pillar|cluster",
   "search_intent_summary": "one sentence",
   "section_plan": [
@@ -1228,24 +1285,27 @@ Schema:
 }}
 
 Hard rules:
-- No title patterns like Best, Top, Ultimate Guide, Comprehensive Guide, Essential Guide
+- Avoid fake sophistication
+- The title may use high CTR formats when natural:
+  - best X for Y
+  - X vs Y
+  - is X worth it for Y
+  - X for beginners
+  - how to choose X
+- Avoid vague clickbait
+- Avoid generic titles like "Top Tools" or "Best Apps"
 - Do not restate the seed keyword as the title
-- The title must include a real audience and a real operating outcome
-- Do not use vague audiences like professionals or business owners
-- Use a sharper audience such as solo creator, freelance designer, remote operator, newsletter writer, consultant, small agency owner
-- Avoid robotic templates repeated across posts
+- The title must include a real audience or real decision point
 - Keep title under 72 characters when possible
 - Section count must be exactly {section_count}
 - The section flow should roughly cover this structure:
 {json.dumps(blueprint, ensure_ascii=False, indent=2)}
-- Keep the article practical not generic
 - Each section must be materially distinct
 - image_query must be visual and believable
-- visual_type should prefer "diagram" for abstract workflow topics and "photo" or "workspace" for concrete environments
+- visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
 
 {post_guidance}
 """.strip()
-
 
 def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
     raw = _find_balanced_json(text)
@@ -1331,6 +1391,71 @@ def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", po
     }
 
 
+def infer_content_mode(category: str, keyword: str, post_type: str) -> str:
+    k = (keyword or "").lower()
+    c = (category or "").lower()
+
+    if c == "investing":
+        return "investing"
+
+    if c in {"software reviews"}:
+        return "review"
+
+    if c in {"make money", "side hustles"}:
+        return "money"
+
+    if any(x in k for x in [" vs ", "review", "worth it", "alternatives", "best "]):
+        return "review"
+
+    return "workflow"
+
+
+def build_mode_rules(mode: str) -> str:
+    if mode == "review":
+        return """
+- Explicitly include who the product is for
+- Explain pricing clearly
+- Include pros and cons
+- Include best for and not ideal for
+- Explain the decision logic between options
+- If comparing tools, explain why one wins for one audience and loses for another
+"""
+
+    if mode == "investing":
+        return """
+- Explain who this is for
+- Explain the beginner angle clearly
+- Include risk and volatility
+- Use the exact phrase long term in a natural sentence
+- Explain what to watch before buying
+- Do not give reckless certainty
+- Do not sound like day trading hype
+- Keep it educational and practical
+"""
+
+    if mode == "money":
+        return """
+- Explain the effort level
+- Explain the time requirement
+- Explain how income is actually generated
+- Include one mistake beginners make
+- Include one tradeoff that makes the method less attractive for some people
+- Explain who should avoid this path
+"""
+
+    return """
+- Explicitly include:
+  workflow, checklist, mistake, tradeoff, decision, step
+- Explain who this workflow is for
+- Explain why common advice fails
+- Include setup steps
+- Include mistakes
+- Include tradeoffs
+- Include a reusable checklist or template
+- Include when not to use this setup
+"""
+
+
 def build_article_prompt(
     keyword: str,
     cluster_name: str,
@@ -1338,6 +1463,10 @@ def build_article_prompt(
     planning: Dict[str, Any],
     corrective_note: str = "",
 ) -> str:
+    category = planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    mode = infer_content_mode(category, keyword, post_type)
+    mode_rules = build_mode_rules(mode)
+
     return (
         f"""
 You are writing a practical blog article for US and EU readers.
@@ -1351,6 +1480,9 @@ Cluster:
 Post type:
 {post_type}
 
+Content mode:
+{mode}
+
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
 
@@ -1360,7 +1492,7 @@ Schema:
 {{
   "title": "string",
   "description": "string",
-  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
+  "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
   "sections": [
     {{
       "heading": "string",
@@ -1374,6 +1506,7 @@ Schema:
     {{"q":"string","a":"string"}}
   ],
   "tldr": "string",
+  "editorial_note": "string"
 }}
 
 Hard rules:
@@ -1384,31 +1517,20 @@ Hard rules:
 - Aim for 9000 to 11000 characters when the topic supports it
 - Each section body must be at least {MIN_SECTION_CHARS} characters
 - Most sections should be longer than the minimum
-- Use concrete examples, mini-scenarios, edge cases, and decision logic in every section- The article must explicitly include these exact words in natural sentences:
-  workflow, checklist, mistake, tradeoff, decision, step
-- The article must explicitly include:
-  - who this workflow is for
-  - why common advice fails
-  - decision rules
-  - setup steps
-  - mistakes
-  - tradeoffs
-  - a reusable checklist or template
-  - when not to use this or do not use this setup
-- Do not open with generic filler
-- Do not list tools without explaining why the choice fits the situation
-- Use plain English
-- Be concrete
-- Avoid repeating the same sentence pattern across sections
+- Use concrete examples, mini-scenarios, edge cases, and decision logic in every section
+- The article must explicitly include these exact words in natural sentences:
+  mistake, tradeoff, decision, step
 - Include at least 2 sections with examples or edge cases
 - FAQ must have 3 to 5 realistic follow-up questions
 - TLDR must be 2 to 4 sentences
-- editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when workflows change
+- editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
+
+Mode specific requirements:
+{mode_rules}
 
 {corrective_note.strip() if corrective_note else ""}
 """
     ).strip()
-
 
 def parse_article_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
     raw = _find_balanced_json(text)
@@ -1459,11 +1581,12 @@ def parse_article_json(text: str, keyword: str = "", cluster_name: str = "", pos
     tldr = _clean_text(data.get("tldr", ""))
     editorial_note = _clean_text(data.get("editorial_note", ""))
 
-    if cat not in ALLOWED_CATEGORIES:
-        cat = pick_category(keyword or title or "", cluster_name, post_type)
+        if cat not in ALLOWED_CATEGORIES:
+                cat = pick_category(keyword or title or "", cluster_name, post_type)
 
-    total_text = (
+   total_text = (
         (tldr or "") +
+        (editorial_note or "") +
         "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
         "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
     )
@@ -1499,41 +1622,48 @@ def is_generic_title(title: str) -> bool:
     broad_bad = [
         "ai tools",
         "productivity tools",
-        "freelance tools",
-        "creator tools",
-        "workplace productivity",
-        "digital productivity",
-        "business productivity",
+        "investing guide",
+        "make money guide",
+        "software reviews",
         "remote work tools",
+        "side hustles",
     ]
     if t in broad_bad:
         return True
 
     words = t.split()
-    if len(words) < 5:
+    if len(words) < 4:
         return True
 
+    useful_patterns = [
+        "best ",
+        " vs ",
+        "review",
+        "worth it",
+        "for beginners",
+        "how to ",
+        "checklist",
+        "system",
+        "workflow",
+    ]
+    if any(p in t for p in useful_patterns):
+        return False
+
     audience_terms = [
-        "freelance", "freelancer", "freelancers",
-        "creator", "creators",
-        "consultant", "consultants",
-        "writer", "writers",
-        "designer", "designers",
-        "marketer", "marketers",
-        "remote worker", "remote workers",
-        "solo", "small agency", "one person",
-        "newsletter", "operator",
+        "beginner", "beginners", "young professionals", "freelancer", "freelancers",
+        "creator", "creators", "consultant", "consultants", "small team", "small teams",
+        "remote worker", "remote workers", "solo", "one person", "investor", "investors",
+        "full time worker", "full time workers",
     ]
     problem_terms = [
-        "workflow", "checklist", "system", "template", "playbook",
-        "follow up", "follow-up", "onboarding", "invoice", "proposal",
-        "revision", "planning", "task", "email", "automation",
-        "deliverables", "admin", "scope", "meeting notes", "crm", "pricing",
+        "workflow", "checklist", "system", "template", "playbook", "review",
+        "comparison", "pricing", "portfolio", "watchlist", "income", "side hustle",
+        "software", "stocks", "etf", "alternatives", "worth it", "budget app",
     ]
     has_audience = any(x in t for x in audience_terms)
     has_problem = any(x in t for x in problem_terms)
 
-    return not (has_audience and has_problem)
+    return not (has_audience or has_problem)
 
 
 def opening_too_generic(text: str) -> bool:
@@ -1555,16 +1685,36 @@ def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq:
 
 
 def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
-    audience = (planning.get("audience") or "freelancers").strip()
+    audience = (planning.get("audience") or "beginners").strip()
+    category = (planning.get("category") or "").strip()
+    mode = infer_content_mode(category, planning.get("title", ""), planning.get("intent", "cluster"))
 
     if reason == "missing-audience-framing":
         return f"""
 Retry correction:
-- The first section must explicitly say who this workflow is for
+- The first section must explicitly say who this article is for
 - The audience must be named directly as: {audience}
 """
 
     if reason == "missing-depth-signals":
+        if mode == "review":
+            return """
+Retry correction:
+- Explicitly include these exact ideas in natural sentences:
+pricing, pros, cons, best for, not ideal, decision
+"""
+        if mode == "investing":
+            return """
+Retry correction:
+- Explicitly include these exact ideas in natural sentences:
+risk, volatility, long term, beginner, watch, decision
+"""
+        if mode == "money":
+            return """
+Retry correction:
+- Explicitly include these exact ideas in natural sentences:
+income, effort, time, mistake, decision, step
+"""
         return """
 Retry correction:
 - Explicitly include these exact words in natural sentences:
@@ -1574,8 +1724,7 @@ workflow, checklist, mistake, tradeoff, decision, step
     if reason == "missing-template-checklist":
         return """
 Retry correction:
-- Include a clearly reusable checklist or template section
-- Use the exact word checklist or template
+- Include a clearly reusable checklist, framework, or summary format
 """
 
     if reason == "missing-mistakes":
@@ -1593,7 +1742,7 @@ Retry correction:
     if reason == "missing-limitations":
         return """
 Retry correction:
-- Include 'when not to use this' or 'do not use this setup'
+- Include 'when not to use this' or explain who should avoid this
 """
 
     if reason == "thin-section":
@@ -1607,12 +1756,14 @@ Retry correction:
 - Make the article more distinct, more concrete, and less templated
 """
 
-
+Y
 def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
     title = data.get("title", "")
     tldr = data.get("tldr", "")
     sections = data.get("sections", [])
     faq = data.get("faq", [])
+    category = data.get("category", "")
+    mode = infer_content_mode(category, keyword or title, "cluster")
 
     if is_generic_title(title):
         return False, "generic-title"
@@ -1639,24 +1790,44 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     if len(set(section_headings)) < len(section_headings):
         return False, "duplicate-headings"
 
-    signal_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
-    if signal_hits < 4:
+    base_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
+    if base_hits < 3:
         return False, "missing-depth-signals"
 
-    if "who this workflow is for" not in joined and "this workflow is for" not in joined and "who this is for" not in joined:
+    mode_signals = MODE_REQUIRED_SIGNALS.get(mode, MODE_REQUIRED_SIGNALS["workflow"])
+    mode_hits = sum(1 for x in mode_signals if x in joined)
+    if mode_hits < 4:
+        return False, "missing-depth-signals"
+
+    if "who this is for" not in joined and "this is for" not in joined and "best for" not in joined:
         return False, "missing-audience-framing"
 
     if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
         return False, "missing-mistakes"
 
-    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-        return False, "missing-template-checklist"
+    if mode == "workflow":
+        if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
+            return False, "missing-template-checklist"
+        if "tradeoff" not in joined and "trade-off" not in joined:
+            return False, "missing-tradeoff"
+        if "when not to use this" not in joined and "do not use this setup" not in joined:
+            return False, "missing-limitations"
 
-    if "tradeoff" not in joined and "trade-off" not in joined:
-        return False, "missing-tradeoff"
+    if mode == "review":
+        if "pricing" not in joined or "pros" not in joined or "cons" not in joined:
+            return False, "missing-depth-signals"
+        if "best for" not in joined or "not ideal" not in joined:
+            return False, "missing-limitations"
 
-    if "when not to use this" not in joined and "do not use this setup" not in joined:
-        return False, "missing-limitations"
+    if mode == "investing":
+        if "risk" not in joined or "volatility" not in joined or "long term" not in joined:
+            return False, "missing-depth-signals"
+        if "not financial advice" not in joined and "educational only" not in joined:
+            return False, "missing-limitations"
+
+    if mode == "money":
+        if "income" not in joined or "effort" not in joined or "time" not in joined:
+            return False, "missing-depth-signals"
 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
@@ -2726,13 +2897,15 @@ def render_post_html(
         <p>Written and reviewed by {html_escape(AUTHOR_NAME)}.</p>
       </div>
 
-      <div class="sidecard">
+<div class="sidecard">
         <h3>Categories</h3>
         <div class="catlist">
-          <a class="catitem" href="../category.html?cat=AI%20Tools"><span class="caticon">🤖</span><span class="cattext"><span class="catname">AI Tools</span><span class="catsub">Automation and systems</span></span></a>
-          <a class="catitem" href="../category.html?cat=Freelance%20Systems"><span class="caticon">📋</span><span class="cattext"><span class="catname">Freelance Systems</span><span class="catsub">Client ops and admin</span></span></a>
-          <a class="catitem" href="../category.html?cat=Creator%20Income"><span class="caticon">💰</span><span class="cattext"><span class="catname">Creator Income</span><span class="catsub">Templates and monetization</span></span></a>
-          <a class="catitem" href="../category.html?cat=Productivity"><span class="caticon">⚡</span><span class="cattext"><span class="catname">Productivity</span><span class="catsub">Focus and workflow</span></span></a>
+          <a class="catitem" href="../category.html?cat=AI%20Tools"><span class="caticon">🤖</span><span class="cattext"><span class="catname">AI Tools</span><span class="catsub">Automation and useful AI</span></span></a>
+          <a class="catitem" href="../category.html?cat=Investing"><span class="caticon">📈</span><span class="cattext"><span class="catname">Investing</span><span class="catsub">Beginner stocks and ETFs</span></span></a>
+          <a class="catitem" href="../category.html?cat=Make%20Money"><span class="caticon">💰</span><span class="cattext"><span class="catname">Make Money</span><span class="catsub">Income systems and ideas</span></span></a>
+          <a class="catitem" href="../category.html?cat=Productivity"><span class="caticon">⚡</span><span class="cattext"><span class="catname">Productivity</span><span class="catsub">Focus and work systems</span></span></a>
+          <a class="catitem" href="../category.html?cat=Software%20Reviews"><span class="caticon">🧰</span><span class="cattext"><span class="catname">Software Reviews</span><span class="catsub">Comparisons and buying decisions</span></span></a>
+          <a class="catitem" href="../category.html?cat=Side%20Hustles"><span class="caticon">🚀</span><span class="cattext"><span class="catname">Side Hustles</span><span class="catsub">Extra income after work</span></span></a>
         </div>
       </div>
     </aside>
@@ -3007,6 +3180,7 @@ Retry correction:
         log("DONE", f"Generated HTML: posts/{slug}.html")
         log("DONE", f"Source keyword: {keyword}")
         log("DONE", f"Topic cluster: {cluster_name}")
+        log("DONE", f"Category: {category}")
         log("DONE", f"Post type: {post_type}")
         log("DONE", f"Audience: {planning.get('audience', '')}")
         log("DONE", f"Problem: {planning.get('problem', '')}")
