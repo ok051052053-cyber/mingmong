@@ -1434,7 +1434,7 @@ Hard rules:
             raise ValueError("section item must be object")
         heading = _clean_text(s.get("heading", ""))
         goal = _clean_text(s.get("goal", ""))
-section_role = _clean_text(s.get("section_role", "")).lower()
+        section_role = _clean_text(s.get("section_role", "")).lower()
         image_query = _clean_text(s.get("image_query", ""))
         visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
         alt_hint = _clean_text(s.get("alt_hint", ""))
