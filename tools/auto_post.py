@@ -55,7 +55,7 @@ AUTHOR_NAME = os.environ.get("AUTHOR_NAME", "MingMong Editorial").strip()
 AUTHOR_URL = os.environ.get("AUTHOR_URL", f"{SITE_URL}/about.html").strip()
 SITE_TAGLINE = os.environ.get(
     "SITE_TAGLINE",
-    "Practical systems for AI work, solo operations, and creator income."
+    "Practical guides for AI tools, investing, productivity, software, and extra income."
 ).strip()
  
 TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.83"))
@@ -838,7 +838,7 @@ def get_existing_keywords_from_posts(posts: List[dict]) -> List[str]:
 def pick_next_cluster(posts: List[dict], topic_clusters: Dict[str, List[str]]) -> str:
     names = list(topic_clusters.keys())
     if not names:
-        return "AI Productivity"
+        return "AI Tools"
  
     recent = posts[:CLUSTER_ROTATION_WINDOW] if posts else []
     counts = {name: 0 for name in names}
@@ -980,13 +980,13 @@ def expand_keywords_from_google(seeds: List[str], existing_titles: List[str], ex
  
     for seed in base_seeds:
         variants = [
-            seed,
-            f"{seed} workflow",
-            f"{seed} system",
-            f"how to {seed}",
-            f"{seed} checklist",
-            f"{seed} template",
-            f"{seed} mistakes",
+            seed,
+            f"how to {seed}",
+            f"{seed} review",
+            f"{seed} for beginners",
+            f"{seed} worth it",
+            f"{seed} vs alternatives",
+            f"{seed} mistakes",
         ]
         for q in variants:
             pool.extend(fetch_google_suggest(q))
@@ -1464,7 +1464,11 @@ def build_article_prompt(
     corrective_note: str = "",
 ) -> str:
     category = planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-    mode = infer_content_mode(category, keyword, post_type)
+    mode = infer_content_mode(
+        category,
+        planning.get("search_intent_summary", "") or planning.get("title", ""),
+        planning.get("intent", "cluster"),
+    )
     mode_rules = build_mode_rules(mode)
  
     return (
@@ -1533,82 +1537,82 @@ Mode specific requirements:
     ).strip()
  
 def parse_article_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
-    raw = _find_balanced_json(text)
-    data = json.loads(raw)
- 
-    if not isinstance(data, dict):
-        raise ValueError("article JSON root is not object")
- 
-    title = _clean_text(data.get("title", ""))
-    desc = _clean_text(data.get("description", ""))
-    cat = _clean_text(data.get("category", ""))
- 
-    sections = data.get("sections")
-    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
-        raise ValueError(f"sections must be list of {SECTION_COUNT_MIN} to {SECTION_COUNT_MAX}")
- 
-    clean_sections = []
-    for s in sections:
-        if not isinstance(s, dict):
-            raise ValueError("section must be object")
-        heading = _clean_text(s.get("heading", ""))
-        iq = _clean_text(s.get("image_query", ""))
-        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
-        alt_text = _clean_text(s.get("alt_text", ""))
-        body = _clean_text(s.get("body", ""))
-        if visual_type not in {"photo", "diagram", "workspace"}:
-            visual_type = "diagram"
-        if not heading or not body:
-            raise ValueError("section heading/body required")
-        clean_sections.append({
-            "heading": heading,
-            "image_query": iq or heading,
-            "visual_type": visual_type,
-            "alt_text": alt_text or heading,
-            "body": body,
-        })
- 
-    faq = data.get("faq") or []
-    clean_faq = []
-    if isinstance(faq, list):
-        for item in faq[:5]:
-            if isinstance(item, dict):
-                q = _clean_text(item.get("q", ""))
-                a = _clean_text(item.get("a", ""))
-                if q and a:
-                    clean_faq.append({"q": q, "a": a})
- 
-    tldr = _clean_text(data.get("tldr", ""))
-    editorial_note = _clean_text(data.get("editorial_note", ""))
- 
-        if cat not in ALLOWED_CATEGORIES:
-                cat = pick_category(keyword or title or "", cluster_name, post_type)
- 
-   total_text = (
-        (tldr or "") +
-        (editorial_note or "") +
-        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
-        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
-    )
-    if len(total_text) < MIN_CHARS:
-        raise ValueError("Generated text too short")
- 
-    if not title:
-        title = f"Post {now_utc_date()}"
-    if not desc:
-        desc = short_desc(title)
-    if not editorial_note:
-        editorial_note = "This article is reviewed for practical usefulness and updated when the workflow or tool landscape changes."
- 
-    return {
-        "title": title,
-        "description": desc,
-        "category": cat,
-        "sections": clean_sections,
-        "faq": clean_faq,
-        "tldr": tldr or short_desc(desc),
-        "editorial_note": editorial_note,
-    }
+    raw = _find_balanced_json(text)
+    data = json.loads(raw)
+
+    if not isinstance(data, dict):
+        raise ValueError("article JSON root is not object")
+
+    title = _clean_text(data.get("title", ""))
+    desc = _clean_text(data.get("description", ""))
+    cat = _clean_text(data.get("category", ""))
+
+    sections = data.get("sections")
+    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+        raise ValueError(f"sections must be list of {SECTION_COUNT_MIN} to {SECTION_COUNT_MAX}")
+
+    clean_sections = []
+    for s in sections:
+        if not isinstance(s, dict):
+            raise ValueError("section must be object")
+        heading = _clean_text(s.get("heading", ""))
+        iq = _clean_text(s.get("image_query", ""))
+        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
+        alt_text = _clean_text(s.get("alt_text", ""))
+        body = _clean_text(s.get("body", ""))
+        if visual_type not in {"photo", "diagram", "workspace"}:
+            visual_type = "diagram"
+        if not heading or not body:
+            raise ValueError("section heading/body required")
+        clean_sections.append({
+            "heading": heading,
+            "image_query": iq or heading,
+            "visual_type": visual_type,
+            "alt_text": alt_text or heading,
+            "body": body,
+        })
+
+    faq = data.get("faq") or []
+    clean_faq = []
+    if isinstance(faq, list):
+        for item in faq[:5]:
+            if isinstance(item, dict):
+                q = _clean_text(item.get("q", ""))
+                a = _clean_text(item.get("a", ""))
+                if q and a:
+                    clean_faq.append({"q": q, "a": a})
+
+    tldr = _clean_text(data.get("tldr", ""))
+    editorial_note = _clean_text(data.get("editorial_note", ""))
+
+    if cat not in ALLOWED_CATEGORIES:
+        cat = pick_category(keyword or title or "", cluster_name, post_type)
+
+    total_text = (
+        (tldr or "") +
+        (editorial_note or "") +
+        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
+        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
+    )
+    if len(total_text) < MIN_CHARS:
+        raise ValueError("Generated text too short")
+
+    if not title:
+        title = f"Post {now_utc_date()}"
+    if not desc:
+        desc = short_desc(title)
+    if not editorial_note:
+        editorial_note = "This article is reviewed for practical usefulness and updated when information changes."
+
+    return {
+        "title": title,
+        "description": desc,
+        "category": cat,
+        "sections": clean_sections,
+        "faq": clean_faq,
+        "tldr": tldr or short_desc(desc),
+        "editorial_note": editorial_note,
+    }
  
  
 def is_generic_title(title: str) -> bool:
@@ -1756,7 +1760,7 @@ Retry correction:
 - Make the article more distinct, more concrete, and less templated
 """
  
-Y
+
 def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
     title = data.get("title", "")
     tldr = data.get("tldr", "")
@@ -2585,10 +2589,16 @@ def normalize_existing_post(p: dict) -> dict:
  
     url = resolve_post_url_path(p)
     category = p.get("category") or pick_category(keyword=keyword or title, cluster_name=cluster, post_type=post_type)
- 
+
+    legacy_map = {
+        "Freelance Systems": "Productivity",
+        "Creator Income": "Make Money",
+    }
+    category = legacy_map.get(category, category)
+
     if category not in ALLOWED_CATEGORIES:
-        category = pick_category(keyword=keyword or title, cluster_name=cluster, post_type=post_type)
- 
+        category = pick_category(keyword=keyword or title, cluster_name=cluster, post_type=post_type)
+     
     p["title"] = title
     p["slug"] = slug
     p["url"] = url if url else f"posts/{slug}.html"
