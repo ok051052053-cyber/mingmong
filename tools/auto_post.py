@@ -2013,7 +2013,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     mode_hits = sum(1 for x in mode_signals if x in joined)
     if mode_hits < 4:
         return False, "missing-depth-signals"
-     example_signals = [
+    example_signals = [
         "for example",
         "example",
         "scenario",
@@ -2032,14 +2032,14 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     if len(re.findall(r"\b\d+\b", joined)) < 5:
         return False, "not-specific-enough"
     for bad in BANNED_SHALLOW_ADVICE:
-           if bad in joined:
-               return False, "shallow-advice"
-dense_paragraph_count = 0
-       for s in sections:
-           blocks = re.split(r"\n\s*\n+", s.get("body", ""))
-           for b in blocks:
-               if len(b.strip()) > 650:
-                   dense_paragraph_count += 1
+        if bad in joined:
+            return False, "shallow-advice"
+    dense_paragraph_count = 0
+    for s in sections:
+        blocks = re.split(r"\n\s*\n+", s.get(" 
+        for b in blocks:
+            if len(b.strip()) > 650:
+                dense_paragraph_count += 1
 
     if dense_paragraph_count >= 3:
         return False, "too-dense"
@@ -2074,9 +2074,9 @@ dense_paragraph_count = 0
         if "income" not in joined or "effort" not in joined or "time" not in joined:
             return False, "missing-depth-signals"
  
-last_body = (sections[-1].get("body", "") or "").lower()
+    last_body = (sections[-1].get("body", "") or "").lower()
 
-weak_ending_patterns = [
+    weak_ending_patterns = [
         "in conclusion",
         "to summarize",
         "choose the right tool",
