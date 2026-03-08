@@ -2,20 +2,23 @@ import os
 import re
 import json
 import time
+import math
+import html
 import random
 import hashlib
-from difflib import SequenceMatcher
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 
 import requests
 from slugify import slugify
+from openai import OpenAI
 
 
-# -----------------------------
+# =========================================================
 # Paths
-# -----------------------------
+# =========================================================
 ROOT = Path(__file__).resolve().parents[1]
 POSTS_DIR = ROOT / "posts"
 ASSETS_POSTS_DIR = ROOT / "assets" / "posts"
@@ -23,57 +26,77 @@ POSTS_JSON = ROOT / "posts.json"
 KEYWORDS_JSON = ROOT / "keywords.json"
 USED_IMAGES_JSON = ROOT / "used_images.json"
 USED_TEXTS_JSON = ROOT / "used_texts.json"
+REDIRECTS_JSON = ROOT / "redirects.json"
 
 POSTS_DIR.mkdir(parents=True, exist_ok=True)
 ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# -----------------------------
+
+# =========================================================
 # Config
-# -----------------------------
+# =========================================================
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-MODEL = os.environ.get("MODEL", "gpt-4o-mini").strip()
+MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
+MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
-IMG_COUNT = 7
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "4200"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "420"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "5"))
 
-UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
-HTTP_TIMEOUT = 35
-
-UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "2000"))
-UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1200"))
-UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "60"))
-UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
-
-TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.84"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "6"))
-
+HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
 
-KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.76"))
-AUTO_KEYWORD_BATCH = int(os.environ.get("AUTO_KEYWORD_BATCH", "14"))
+AUTHOR_NAME = os.environ.get("AUTHOR_NAME", "MingMong Editorial").strip()
+AUTHOR_URL = os.environ.get("AUTHOR_URL", f"{SITE_URL}/about.html").strip()
+SITE_TAGLINE = os.environ.get(
+    "SITE_TAGLINE",
+    "Practical systems for AI work, solo operations, and creator income."
+).strip()
+
+TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.83"))
+KEYWORD_SIM_THRESHOLD = float(os.environ.get("KEYWORD_SIM_THRESHOLD", "0.74"))
+TOPIC_SIM_THRESHOLD = float(os.environ.get("TOPIC_SIM_THRESHOLD", "0.70"))
 MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
+
+GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
+GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
+GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "1.25"))
+
+SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
+SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
+SERP_CHECK_ENABLED = os.environ.get("SERP_CHECK_ENABLED", "1").strip() == "1"
+SERP_CHECK_LIMIT = int(os.environ.get("SERP_CHECK_LIMIT", "8"))
+
+UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
+UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "1800"))
+UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "1100"))
+UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "40"))
+UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
+
+RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
 
 CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
 CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "8"))
 CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
-
 PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "14"))
-GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
-GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
-GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
-RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
 
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "520"))
+SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "5"))
+SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "8"))
 
-# -----------------------------
-# Category policy
-# -----------------------------
+SEARCH_JS_VERSION = hashlib.sha1(str(int(time.time() // 3600)).encode("utf-8")).hexdigest()[:8]
+BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.random()}".encode("utf-8")).hexdigest()[:10]
+
+
+# =========================================================
+# Policy
+# =========================================================
 ALLOWED_CATEGORIES = {
     "AI Tools",
     "Freelance Systems",
@@ -81,9 +104,6 @@ ALLOWED_CATEGORIES = {
     "Productivity",
 }
 
-# -----------------------------
-# Generic-content blockers
-# -----------------------------
 BANNED_TITLE_PATTERNS = [
     "best ",
     "top ",
@@ -122,9 +142,37 @@ REQUIRED_CONTENT_SIGNALS = [
     "step",
 ]
 
-# -----------------------------
-# Defaults for topic clusters
-# -----------------------------
+SECTION_BLUEPRINTS = [
+    [
+        "who this is for and the exact operating problem",
+        "why usual advice breaks in practice",
+        "the workflow map",
+        "the setup steps",
+        "decision rules and tool choice logic",
+        "mistakes and tradeoffs",
+        "copyable checklist or template",
+    ],
+    [
+        "who this is for and the trigger moment",
+        "what makes the problem expensive",
+        "the system design",
+        "implementation steps",
+        "tool choice and process boundaries",
+        "mistakes and failure modes",
+        "when not to use this",
+        "copyable operating checklist",
+    ],
+    [
+        "who this is for",
+        "the broken default approach",
+        "the workflow design",
+        "step by step setup",
+        "decision framework",
+        "tradeoffs and limitations",
+        "template or checklist",
+    ],
+]
+
 DEFAULT_TOPIC_CLUSTERS = {
     "AI Productivity": [
         "ai email automation workflow for solo consultants",
@@ -180,52 +228,61 @@ DEFAULT_PILLAR_TOPICS = {
 }
 
 
-# -----------------------------
+# =========================================================
+# Logging
+# =========================================================
+def log(stage: str, message: str) -> None:
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{ts}] [{stage}] {message}")
+
+
+# =========================================================
 # OpenAI
-# -----------------------------
-def openai_generate_text(prompt: str) -> str:
+# =========================================================
+def _get_openai_client() -> OpenAI:
     if not OPENAI_API_KEY:
         raise RuntimeError("Missing OPENAI_API_KEY")
+    return OpenAI(api_key=OPENAI_API_KEY)
+
+
+def openai_generate_text(prompt: str, model: str, temperature: float = 0.5) -> str:
+    client = _get_openai_client()
 
     try:
-        from openai import OpenAI
-    except Exception as e:
-        raise RuntimeError(f"OpenAI package import failed: {e}")
-
-    client = OpenAI(api_key=OPENAI_API_KEY)
-
-    try:
-        res = client.responses.create(model=MODEL, input=prompt)
-        text = (res.output_text or "").strip()
+        res = client.responses.create(
+            model=model,
+            input=prompt,
+        )
+        text = (getattr(res, "output_text", None) or "").strip()
         if text:
             return text
-    except Exception:
-        pass
+    except Exception as e:
+        log("OPENAI", f"responses.create failed on model={model}: {e}")
 
     try:
         res = client.chat.completions.create(
-            model=MODEL,
+            model=model,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You write deeply useful blog content. "
-                        "You avoid generic listicles and shallow SEO filler. "
-                        "You return valid JSON when asked."
+                        "You write useful operational content. "
+                        "You avoid shallow SEO filler. "
+                        "When asked for JSON you return strict JSON only."
                     ),
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.7,
+            temperature=temperature,
         )
         return (res.choices[0].message.content or "").strip()
     except Exception as e:
-        raise RuntimeError(f"OpenAI call failed: {e}")
+        raise RuntimeError(f"OpenAI call failed on model={model}: {e}")
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
+# =========================================================
+# Date helpers
+# =========================================================
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -238,6 +295,9 @@ def current_year_utc() -> int:
     return int(datetime.now(timezone.utc).strftime("%Y"))
 
 
+# =========================================================
+# JSON and filesystem helpers
+# =========================================================
 def load_json(path: Path, default):
     if not path.exists():
         return default
@@ -251,15 +311,25 @@ def save_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def ensure_used_schema(used_raw):
-    if isinstance(used_raw, dict):
-        if "unsplash_ids" not in used_raw or not isinstance(used_raw.get("unsplash_ids"), list):
-            used_raw["unsplash_ids"] = []
-        return used_raw
+def safe_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
 
-    if isinstance(used_raw, list):
-        return {"unsplash_ids": [x for x in used_raw if isinstance(x, str)]}
 
+def short_desc(text: str) -> str:
+    t = (text or "").strip()
+    if len(t) > 160:
+        t = t[:157].rstrip() + "..."
+    return t
+
+
+def ensure_used_schema(raw):
+    if isinstance(raw, dict):
+        if "unsplash_ids" not in raw or not isinstance(raw.get("unsplash_ids"), list):
+            raw["unsplash_ids"] = []
+        return raw
+    if isinstance(raw, list):
+        return {"unsplash_ids": [x for x in raw if isinstance(x, str)]}
     return {"unsplash_ids": []}
 
 
@@ -273,43 +343,77 @@ def ensure_used_texts_schema(raw):
     return {"fingerprints": []}
 
 
-def short_desc(text: str) -> str:
-    t = (text or "").strip()
-    if len(t) > 160:
-        t = t[:157].rstrip() + "..."
-    return t
+def _clean_text(s: str) -> str:
+    s = (s or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    s = re.sub(r"[ \t]+", " ", s)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    return s.strip()
 
 
-def safe_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _json_extract(s: str) -> str:
+def _find_balanced_json(s: str) -> str:
     s = (s or "").strip()
     if not s:
         return s
 
-    s = re.sub(r"^```(json)?\s*", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
     s = re.sub(r"\s*```$", "", s)
 
-    i_obj = s.find("{")
-    j_obj = s.rfind("}")
-    if i_obj >= 0 and j_obj > i_obj:
-        return s[i_obj:j_obj + 1]
+    start_positions = [i for i, ch in enumerate(s) if ch in "{["]
+    for start in start_positions:
+        opener = s[start]
+        closer = "}" if opener == "{" else "]"
+        depth = 0
+        in_string = False
+        escape = False
+
+        for i in range(start, len(s)):
+            ch = s[i]
+
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+                continue
+
+            if ch == opener:
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+                if depth == 0:
+                    candidate = s[start:i + 1]
+                    try:
+                        json.loads(candidate)
+                        return candidate
+                    except Exception:
+                        break
 
     return s
 
 
-def _clean_text(s: str) -> str:
-    s = (s or "").strip()
-    s = re.sub(r"\s+\n", "\n", s)
-    s = re.sub(r"[ \t]+", " ", s)
-    return s.strip()
+def html_escape(s: str) -> str:
+    return html.escape(s or "", quote=True)
 
 
+# =========================================================
+# Text normalization and similarity
+# =========================================================
 def _norm_title(s: str) -> str:
     s = (s or "").lower().strip()
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def normalize_keyword(s: str) -> str:
+    s = (s or "").lower().strip()
+    s = s.replace("&", " and ")
     s = re.sub(r"[^a-z0-9\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
@@ -319,242 +423,15 @@ def title_too_similar(new_title: str, existing_titles: List[str], threshold: flo
     nt = _norm_title(new_title)
     if not nt:
         return True
-
-    pool = existing_titles[:500] if len(existing_titles) > 500 else existing_titles
-    for t in pool:
-        tt = _norm_title(t)
-        if not tt:
+    for old in existing_titles[:600]:
+        oo = _norm_title(old)
+        if not oo:
             continue
-        if tt == nt:
+        if oo == nt:
             return True
-        r = SequenceMatcher(a=nt, b=tt).ratio()
-        if r >= threshold:
+        if similarity_ratio(nt, oo) >= threshold:
             return True
     return False
-
-
-def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq: List[Dict[str, str]]) -> str:
-    parts = [title.strip(), (tldr or "").strip()[:400]]
-    for s in sections[:IMG_COUNT]:
-        parts.append((s.get("heading") or "").strip())
-        parts.append((s.get("body") or "").strip()[:500])
-    for item in (faq or [])[:5]:
-        parts.append((item.get("q") or "").strip()[:200])
-        parts.append((item.get("a") or "").strip()[:200])
-
-    joined = "\n".join([p for p in parts if p])
-    return hashlib.sha1(joined.encode("utf-8")).hexdigest()
-
-
-def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "") -> str:
-    c = (cluster_name or "").strip().lower()
-    k = (keyword or "").strip().lower()
-
-    comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives"]
-    if any(x in k for x in comparison_tokens):
-        return "AI Tools" if any(x in k for x in ["chatgpt", "claude", "notion", "ai"]) else "Productivity"
-
-    if c == "ai productivity":
-        return "AI Tools"
-    if c == "freelance operations":
-        return "Freelance Systems"
-    if c == "creator monetization":
-        return "Creator Income"
-
-    if any(x in k for x in ["invoice", "proposal", "client onboarding", "crm", "revision", "deliverable", "scope creep", "follow up", "follow-up", "client feedback"]):
-        return "Freelance Systems"
-
-    if any(x in k for x in ["gumroad", "newsletter", "digital product", "notion template", "monetization", "pricing"]):
-        return "Creator Income"
-
-    if any(x in k for x in ["ai", "chatgpt", "claude", "automation", "meeting notes", "summarization", "email automation"]):
-        return "AI Tools"
-
-    return "Productivity"
-
-
-def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
-    return cluster_to_category(cluster_name, keyword, post_type)
-
-
-def resolve_post_url_path(p: dict) -> str:
-    if not isinstance(p, dict):
-        return ""
-    url = (p.get("url") or "").strip()
-    slug = (p.get("slug") or "").strip()
-
-    if url:
-        url = url.lstrip("/")
-        if url.endswith(".md"):
-            url = url[:-3] + ".html"
-        if url.startswith("posts/") and "." not in Path(url).name:
-            url = url + ".html"
-        return url
-
-    if slug:
-        return f"posts/{slug}.html"
-
-    return ""
-
-
-def post_href_from_post_page(p: dict) -> str:
-    url = resolve_post_url_path(p)
-    if not url:
-        return "#"
-    if url.startswith("posts/"):
-        return url.split("/", 1)[1]
-    return "../" + url
-
-
-def get_cluster_pillar(posts: List[dict], cluster_name: str) -> dict:
-    for p in posts:
-        if not isinstance(p, dict):
-            continue
-        if p.get("cluster") == cluster_name and p.get("post_type") == "pillar":
-            return p
-    return {}
-
-
-def is_generic_title(title: str) -> bool:
-    t = _norm_title(title)
-    if not t:
-        return True
-
-    banned_starts = [
-        "best ",
-        "top ",
-        "ultimate guide",
-        "comprehensive guide",
-        "essential guide",
-        "complete guide",
-        "must have",
-        "must-have",
-    ]
-    if any(t.startswith(x) for x in banned_starts):
-        return True
-
-    broad_bad = [
-        "ai tools",
-        "productivity tools",
-        "freelance tools",
-        "creator tools",
-        "workplace productivity",
-        "digital productivity",
-        "business productivity",
-        "remote work tools",
-    ]
-    if t in broad_bad:
-        return True
-
-    words = t.split()
-    if len(words) < 5:
-        return True
-
-    audience_terms = [
-        "freelance", "freelancer", "freelancers",
-        "creator", "creators",
-        "consultant", "consultants",
-        "writer", "writers",
-        "designer", "designers",
-        "marketer", "marketers",
-        "remote worker", "remote workers",
-        "solo", "small business", "one person",
-    ]
-    problem_terms = [
-        "workflow", "checklist", "system", "template", "playbook",
-        "follow up", "follow-up", "onboarding", "invoice", "proposal",
-        "revision", "planning", "task", "email", "automation",
-        "deliverables", "admin", "scope", "meeting notes",
-    ]
-
-    has_audience = any(x in t for x in audience_terms)
-    has_problem = any(x in t for x in problem_terms)
-
-    return not (has_audience and has_problem)
-
-
-def opening_too_generic(text: str) -> bool:
-    t = (text or "").lower().strip()[:500]
-    return any(p in t for p in BANNED_OPENING_PHRASES)
-
-
-def build_retry_corrections(reason: str, strategy: Dict[str, str]) -> str:
-    audience = (strategy.get("audience") or "freelancers").strip()
-    problem = (strategy.get("problem") or "reduce admin work").strip()
-
-    if reason == "missing-audience-framing":
-        return f"""
-Retry correction:
-- Section 1 must begin with exactly this prefix:
-  "Who this is for:"
-- In section 1 you must explicitly write at least one of these exact phrases:
-  - "Who this is for:"
-  - "This workflow is for"
-  - "This setup is for"
-- The audience must be named explicitly as: {audience}
-""".strip()
-
-    if reason == "missing-depth-signals":
-        return """
-Retry correction:
-- The article must explicitly include these exact words somewhere in natural sentences:
-  workflow, checklist, mistake, tradeoff, decision, step
-- Do not use only synonyms.
-""".strip()
-
-    if reason == "missing-template-checklist":
-        return """
-Retry correction:
-- Section 7 must explicitly include the word "checklist" or "template"
-- Include a reusable checklist or template the reader can copy
-""".strip()
-
-    if reason == "missing-mistakes":
-        return """
-Retry correction:
-- Section 6 must explicitly include the word "mistake" or the phrase "common pitfall"
-- Include at least two concrete mistakes
-""".strip()
-
-    if reason == "missing-tradeoff":
-        return """
-Retry correction:
-- You must explicitly use the word "tradeoff"
-- Explain at least one tradeoff of this workflow
-""".strip()
-
-    if reason == "missing-limitations":
-        return """
-Retry correction:
-- Section 7 must explicitly include the phrase "when not to use this"
-  or "do not use this setup"
-- Explain at least one limitation
-""".strip()
-
-    return """
-Retry correction:
-- Follow the required structure more strictly
-- Make the article more distinct and less generic
-- Add clearer audience framing and reusable material
-""".strip()
-
-
-def merge_corrections(base_prompt: str, correction: str) -> str:
-    correction = (correction or "").strip()
-    if not correction:
-        return base_prompt
-    return base_prompt + "\n\n" + correction
-
-
-# -----------------------------
-# Keyword automation
-# -----------------------------
-def normalize_keyword(s: str) -> str:
-    s = (s or "").lower().strip()
-    s = s.replace("&", " and ")
-    s = re.sub(r"[^a-z0-9\s]", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
 
 
 def keyword_too_similar(a: str, b: str, threshold: float = KEYWORD_SIM_THRESHOLD) -> bool:
@@ -564,9 +441,59 @@ def keyword_too_similar(a: str, b: str, threshold: float = KEYWORD_SIM_THRESHOLD
         return False
     if na == nb:
         return True
-    return SequenceMatcher(a=na, b=nb).ratio() >= threshold
+    return similarity_ratio(na, nb) >= threshold
 
 
+def similarity_ratio(a: str, b: str) -> float:
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    set_a = set(a.split())
+    set_b = set(b.split())
+    inter = len(set_a & set_b)
+    union = len(set_a | set_b)
+    jaccard = inter / union if union else 0.0
+    prefix_bonus = 0.12 if a[:24] == b[:24] else 0.0
+    return min(1.0, jaccard + prefix_bonus)
+
+
+def token_signature(text: str, top_n: int = 12) -> str:
+    words = [
+        w for w in normalize_keyword(text).split()
+        if len(w) > 2 and w not in {
+            "this", "that", "with", "from", "into", "using", "your", "their",
+            "have", "will", "what", "when", "where", "which", "about", "guide",
+            "workflow", "system", "checklist", "template", "playbook", "steps",
+        }
+    ]
+    counts = Counter(words)
+    ranked = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[:top_n]
+    return "|".join([w for w, _ in ranked])
+
+
+def semantic_overlap_score(a: str, b: str) -> float:
+    na = normalize_keyword(a)
+    nb = normalize_keyword(b)
+    if not na or not nb:
+        return 0.0
+
+    wa = set(na.split())
+    wb = set(nb.split())
+    inter = len(wa & wb)
+    union = len(wa | wb)
+    jaccard = inter / union if union else 0.0
+
+    sig_a = token_signature(a)
+    sig_b = token_signature(b)
+    sig_score = similarity_ratio(sig_a, sig_b)
+
+    return round((jaccard * 0.62) + (sig_score * 0.38), 4)
+
+
+# =========================================================
+# Keyword quality
+# =========================================================
 def is_search_intent_keyword(keyword: str) -> bool:
     k = normalize_keyword(keyword)
     if not k:
@@ -614,6 +541,7 @@ def is_search_intent_keyword(keyword: str) -> bool:
         "process",
         "automation",
         "set up",
+        "setup",
         "how to",
         "reduce",
         "save time",
@@ -628,6 +556,9 @@ def is_search_intent_keyword(keyword: str) -> bool:
         "content repurposing",
         "one person",
         "solo",
+        "pricing",
+        "crm",
+        "admin",
     ]
     if not any(tok in k for tok in intent_tokens):
         return False
@@ -640,18 +571,16 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
     seen_norm = set()
 
     baseline = []
-    for x in existing_titles[:500]:
+    for x in existing_titles[:800]:
         if isinstance(x, str) and x.strip():
             baseline.append(x)
-    for x in existing_keywords[:1000]:
+    for x in existing_keywords[:1500]:
         if isinstance(x, str) and x.strip():
             baseline.append(x)
 
     for kw in keywords:
         kw = _clean_text(kw)
-        if not kw:
-            continue
-        if not is_search_intent_keyword(kw):
+        if not kw or not is_search_intent_keyword(kw):
             continue
 
         n = normalize_keyword(kw)
@@ -663,11 +592,17 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
             if keyword_too_similar(kw, ex):
                 skip = True
                 break
+            if semantic_overlap_score(kw, ex) >= TOPIC_SIM_THRESHOLD:
+                skip = True
+                break
         if skip:
             continue
 
         for kept in out:
             if keyword_too_similar(kw, kept):
+                skip = True
+                break
+            if semantic_overlap_score(kw, kept) >= TOPIC_SIM_THRESHOLD:
                 skip = True
                 break
         if skip:
@@ -679,6 +614,140 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
     return out
 
 
+# =========================================================
+# Search opportunity validation
+# =========================================================
+def fetch_google_suggest(query: str) -> List[str]:
+    if not query or not GOOGLE_SUGGEST_ENABLED:
+        return []
+
+    try:
+        url = "https://suggestqueries.google.com/complete/search"
+        params = {"client": "firefox", "q": query}
+        r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+        if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+            out = []
+            for item in data[1][:GOOGLE_SUGGEST_PER_QUERY]:
+                if isinstance(item, str) and item.strip():
+                    out.append(item.strip())
+            return out
+    except Exception as e:
+        log("SUGGEST", f"Suggest fetch failed for '{query}': {e}")
+    return []
+
+
+def serpapi_search(query: str) -> Dict[str, Any]:
+    if not SERPAPI_KEY or not SERP_CHECK_ENABLED:
+        return {}
+
+    try:
+        r = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": SERPAPI_ENGINE,
+                "q": query,
+                "api_key": SERPAPI_KEY,
+                "num": 10,
+                "hl": "en",
+                "gl": "us",
+            },
+            timeout=HTTP_TIMEOUT,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        log("SERP", f"SerpAPI failed for '{query}': {e}")
+        return {}
+
+
+def compute_keyword_opportunity(keyword: str, existing_titles: List[str]) -> Tuple[float, Dict[str, Any]]:
+    base = normalize_keyword(keyword)
+    suggests = fetch_google_suggest(keyword)
+    exact_hits = sum(1 for s in suggests if normalize_keyword(s) == base)
+    broad_penalty = 0.35 if len(base.split()) < 5 else 0.0
+    suggest_richness = len(suggests) / max(GOOGLE_SUGGEST_PER_QUERY, 1)
+
+    diversity_terms = 0
+    if suggests:
+        token_pool = set()
+        for s in suggests:
+            token_pool.update(normalize_keyword(s).split())
+        diversity_terms = len(token_pool)
+
+    overlap_penalty = 0.0
+    for t in existing_titles[:300]:
+        overlap_penalty = max(overlap_penalty, semantic_overlap_score(keyword, t) * 0.9)
+
+    serp_penalty = 0.0
+    serp_good = 0.0
+    serp_checked = False
+
+    if SERPAPI_KEY and SERP_CHECK_ENABLED:
+        serp_checked = True
+        serp = serpapi_search(keyword)
+        organic = serp.get("organic_results") or []
+        titles = []
+        for item in organic[:10]:
+            title = (item.get("title") or "").strip()
+            link = (item.get("link") or "").strip().lower()
+            if title:
+                titles.append(title)
+            if any(d in link for d in ["forbes.com", "hubspot.com", "zapier.com", "shopify.com", "semrush.com"]):
+                serp_penalty += 0.12
+            if "reddit.com" in link or "medium.com" in link:
+                serp_good += 0.06
+
+        for t in titles[:8]:
+            serp_penalty = max(serp_penalty, semantic_overlap_score(keyword, t) * 0.55)
+
+    score = (
+        (suggest_richness * 1.2) +
+        (min(diversity_terms / 18.0, 1.0) * 0.8) +
+        (exact_hits * 0.08) +
+        serp_good -
+        broad_penalty -
+        overlap_penalty -
+        serp_penalty
+    )
+
+    details = {
+        "suggest_count": len(suggests),
+        "suggests": suggests[:8],
+        "diversity_terms": diversity_terms,
+        "exact_hits": exact_hits,
+        "broad_penalty": broad_penalty,
+        "overlap_penalty": round(overlap_penalty, 3),
+        "serp_checked": serp_checked,
+        "serp_penalty": round(serp_penalty, 3),
+        "score": round(score, 3),
+    }
+    return round(score, 3), details
+
+
+def filter_keywords_by_opportunity(keywords: List[str], existing_titles: List[str]) -> List[str]:
+    ranked = []
+    checked = 0
+
+    for kw in keywords:
+        if checked >= SERP_CHECK_LIMIT and not SERPAPI_KEY:
+            ranked.append((GOOGLE_SUGGEST_SCORE_THRESHOLD, kw))
+            continue
+
+        score, info = compute_keyword_opportunity(kw, existing_titles)
+        checked += 1
+        log("KW", f"'{kw}' score={score} details={json.dumps(info, ensure_ascii=False)}")
+        if score >= GOOGLE_SUGGEST_SCORE_THRESHOLD:
+            ranked.append((score, kw))
+
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    return [kw for _, kw in ranked]
+
+
+# =========================================================
+# Topic clusters
+# =========================================================
 def load_topic_clusters() -> Dict[str, List[str]]:
     if TOPIC_CLUSTERS_JSON:
         try:
@@ -690,8 +759,8 @@ def load_topic_clusters() -> Dict[str, List[str]]:
                         out[k] = [str(x).strip() for x in v if str(x).strip()]
                 if out:
                     return out
-        except Exception:
-            pass
+        except Exception as e:
+            log("CLUSTER", f"TOPIC_CLUSTERS_JSON parse failed: {e}")
     return DEFAULT_TOPIC_CLUSTERS
 
 
@@ -700,7 +769,7 @@ def get_existing_keywords_from_posts(posts: List[dict]) -> List[str]:
     for p in posts:
         if not isinstance(p, dict):
             continue
-        for key in ["keyword", "title", "slug", "description"]:
+        for key in ["keyword", "title", "slug", "description", "audience", "problem"]:
             val = p.get(key)
             if isinstance(val, str) and val.strip():
                 out.append(val.strip())
@@ -745,8 +814,100 @@ def should_make_pillar(posts: List[dict], cluster_name: str) -> bool:
         recent_cluster = cluster_posts[:6]
         if not any(p.get("post_type") == "pillar" for p in recent_cluster):
             return True
-
     return False
+
+
+def get_cluster_pillar(posts: List[dict], cluster_name: str) -> dict:
+    for p in posts:
+        if not isinstance(p, dict):
+            continue
+        if p.get("cluster") == cluster_name and p.get("post_type") == "pillar":
+            return p
+    return {}
+
+
+# =========================================================
+# Category mapping
+# =========================================================
+def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "") -> str:
+    c = (cluster_name or "").strip().lower()
+    k = (keyword or "").strip().lower()
+
+    comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives"]
+    if any(x in k for x in comparison_tokens):
+        return "AI Tools" if any(x in k for x in ["chatgpt", "claude", "notion", "ai"]) else "Productivity"
+
+    if c == "ai productivity":
+        return "AI Tools"
+    if c == "freelance operations":
+        return "Freelance Systems"
+    if c == "creator monetization":
+        return "Creator Income"
+
+    if any(x in k for x in ["invoice", "proposal", "client onboarding", "crm", "revision", "deliverable", "scope creep", "follow up", "follow-up", "client feedback"]):
+        return "Freelance Systems"
+
+    if any(x in k for x in ["gumroad", "newsletter", "digital product", "notion template", "monetization", "pricing"]):
+        return "Creator Income"
+
+    if any(x in k for x in ["ai", "chatgpt", "claude", "automation", "meeting notes", "summarization", "email automation"]):
+        return "AI Tools"
+
+    return "Productivity"
+
+
+def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
+    return cluster_to_category(cluster_name, keyword, post_type)
+
+
+# =========================================================
+# Keyword generation
+# =========================================================
+def load_keywords() -> List[str]:
+    data = load_json(KEYWORDS_JSON, [])
+    if isinstance(data, list):
+        return [x for x in data if isinstance(x, str) and x.strip()]
+    if isinstance(data, dict):
+        ks = data.get("keywords") or []
+        if isinstance(ks, list):
+            return [x for x in ks if isinstance(x, str) and x.strip()]
+    return []
+
+
+def save_keywords(keywords: List[str]) -> None:
+    keywords = [k for k in keywords if isinstance(k, str) and k.strip()]
+    unique = []
+    seen = set()
+    for k in keywords:
+        nk = normalize_keyword(k)
+        if not nk or nk in seen:
+            continue
+        seen.add(nk)
+        unique.append(k.strip())
+    save_json(KEYWORDS_JSON, {"keywords": unique})
+
+
+def expand_keywords_from_google(seeds: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
+    if not GOOGLE_SUGGEST_ENABLED:
+        return []
+
+    pool: List[str] = []
+    base_seeds = [s for s in seeds if isinstance(s, str) and s.strip()][:GOOGLE_SUGGEST_MAX_SEEDS]
+
+    for seed in base_seeds:
+        variants = [
+            seed,
+            f"{seed} workflow",
+            f"{seed} system",
+            f"how to {seed}",
+            f"{seed} checklist",
+            f"{seed} template",
+            f"{seed} mistakes",
+        ]
+        for q in variants:
+            pool.extend(fetch_google_suggest(q))
+
+    return dedupe_keywords(pool, existing_titles, existing_keywords)
 
 
 def build_cluster_keyword_prompt(
@@ -756,7 +917,7 @@ def build_cluster_keyword_prompt(
     existing_keywords: List[str],
 ) -> str:
     seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai workflow automation for solo workers"
-    title_block = "\n".join([f"- {x}" for x in existing_titles[:60]])
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:70]])
     existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:100]])
 
     return f"""
@@ -769,34 +930,25 @@ Need:
 - exactly {CLUSTER_BATCH} keyword ideas
 - long-tail keywords only
 - practical search intent only
-- suitable for a newer niche blog
+- suitable for a niche site that wants durable traffic
 - no outdated years
 - no news
 - no politics
 - no medical or legal advice
-- no broad listicle topics
-- no generic "best tools for X" patterns
-- topics must sound like a real operating problem or workflow
-- do not generate near-duplicates of onboarding, planning, admin, proposal, invoicing, or follow-up topics unless the audience or situation is meaningfully different
-
-Prefer topic patterns like:
-- how to build a workflow for X
-- X system for Y
-- X checklist for Y
-- X playbook for Y
-- how to reduce X using Y
-- how to turn X into Y with AI
-- setup guides for one specific situation
-- decision frameworks for one specific buyer
-
-Cluster seed keywords:
-{seed_block}
+- no generic listicles
+- no broad "best tools for X" topics
+- each keyword must describe a concrete operating problem or workflow
+- vary audience, situation, and decision point
+- avoid rewording the same onboarding, planning, admin, proposal, or invoicing idea
 
 Avoid topics too similar to these existing post titles:
 {title_block if title_block else "- none"}
 
 Avoid topics too similar to these existing keywords:
 {existing_kw_block if existing_kw_block else "- none"}
+
+Cluster seeds:
+{seed_block}
 
 Return valid JSON only:
 {{
@@ -815,8 +967,8 @@ def generate_cluster_keywords(
     existing_keywords: List[str],
 ) -> List[str]:
     prompt = build_cluster_keyword_prompt(cluster_name, seed_keywords, existing_titles, existing_keywords)
-    raw = openai_generate_text(prompt)
-    data = json.loads(_json_extract(raw))
+    raw = openai_generate_text(prompt, model=MODEL_PLANNER, temperature=0.6)
+    data = json.loads(_find_balanced_json(raw))
 
     kws = data.get("keywords") or []
     if not isinstance(kws, list):
@@ -827,13 +979,15 @@ def generate_cluster_keywords(
         if isinstance(kw, str) and kw.strip():
             clean.append(_clean_text(kw))
 
-    return dedupe_keywords(clean, existing_titles, existing_keywords)
+    clean = dedupe_keywords(clean, existing_titles, existing_keywords)
+    clean = filter_keywords_by_opportunity(clean, existing_titles)
+    return clean
 
 
 def build_general_keyword_prompt(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> str:
     seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai workflow automation for solo workers"
-    title_block = "\n".join([f"- {x}" for x in existing_titles[:50]])
-    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:80]])
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:60]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:100]])
 
     return f"""
 You generate SEO blog topic keywords for a site targeting US and EU readers.
@@ -844,7 +998,7 @@ Site focus:
 3. Creator monetization systems
 
 Need:
-- exactly {AUTO_KEYWORD_BATCH} keyword ideas
+- exactly 14 keyword ideas
 - long-tail keywords only
 - practical search intent only
 - human sounding
@@ -854,7 +1008,7 @@ Need:
 - no celebrity or news topics
 - no medical, legal, political, or unsafe topics
 - no generic definitions
-- no broad listicle topics like "best ai tools for students"
+- no broad listicles
 - do not create multiple keywords that only reword the same underlying problem
 
 Good patterns:
@@ -888,8 +1042,8 @@ Return valid JSON only:
 
 def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     prompt = build_general_keyword_prompt(seed_keywords, existing_titles, existing_keywords)
-    raw = openai_generate_text(prompt)
-    data = json.loads(_json_extract(raw))
+    raw = openai_generate_text(prompt, model=MODEL_PLANNER, temperature=0.65)
+    data = json.loads(_find_balanced_json(raw))
 
     kws = data.get("keywords") or []
     if not isinstance(kws, list):
@@ -900,50 +1054,9 @@ def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str],
         if isinstance(kw, str) and kw.strip():
             clean.append(_clean_text(kw))
 
-    return dedupe_keywords(clean, existing_titles, existing_keywords)
-
-
-def fetch_google_suggest(query: str) -> List[str]:
-    if not query or not GOOGLE_SUGGEST_ENABLED:
-        return []
-
-    try:
-        url = "https://suggestqueries.google.com/complete/search"
-        params = {"client": "firefox", "q": query}
-        r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
-        r.raise_for_status()
-        data = r.json()
-        if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
-            out = []
-            for item in data[1][:GOOGLE_SUGGEST_PER_QUERY]:
-                if isinstance(item, str) and item.strip():
-                    out.append(item.strip())
-            return out
-    except Exception:
-        return []
-    return []
-
-
-def expand_keywords_from_google(seeds: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
-    if not GOOGLE_SUGGEST_ENABLED:
-        return []
-
-    pool: List[str] = []
-    base_seeds = [s for s in seeds if isinstance(s, str) and s.strip()][:GOOGLE_SUGGEST_MAX_SEEDS]
-
-    for seed in base_seeds:
-        variants = [
-            seed,
-            f"{seed} workflow",
-            f"{seed} system",
-            f"how to {seed}",
-            f"{seed} checklist",
-            f"{seed} template",
-        ]
-        for q in variants:
-            pool.extend(fetch_google_suggest(q))
-
-    return dedupe_keywords(pool, existing_titles, existing_keywords)
+    clean = dedupe_keywords(clean, existing_titles, existing_keywords)
+    clean = filter_keywords_by_opportunity(clean, existing_titles)
+    return clean
 
 
 def build_pillar_keyword_pool(cluster_name: str, posts: List[dict], existing_titles: List[str]) -> List[str]:
@@ -951,31 +1064,8 @@ def build_pillar_keyword_pool(cluster_name: str, posts: List[dict], existing_tit
     base = DEFAULT_PILLAR_TOPICS.get(cluster_name) or []
     google_kw = expand_keywords_from_google(base, existing_titles, existing_keywords)
     merged = dedupe_keywords(base + google_kw, existing_titles, existing_keywords)
+    merged = filter_keywords_by_opportunity(merged, existing_titles)
     return merged
-
-
-def load_keywords() -> List[str]:
-    data = load_json(KEYWORDS_JSON, [])
-    if isinstance(data, list):
-        return [x for x in data if isinstance(x, str) and x.strip()]
-    if isinstance(data, dict):
-        ks = data.get("keywords") or []
-        if isinstance(ks, list):
-            return [x for x in ks if isinstance(x, str) and x.strip()]
-    return []
-
-
-def save_keywords(keywords: List[str]) -> None:
-    keywords = [k for k in keywords if isinstance(k, str) and k.strip()]
-    unique = []
-    seen = set()
-    for k in keywords:
-        nk = normalize_keyword(k)
-        if not nk or nk in seen:
-            continue
-        seen.add(nk)
-        unique.append(k.strip())
-    save_json(KEYWORDS_JSON, {"keywords": unique})
 
 
 def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> Tuple[List[str], str, str, str]:
@@ -1012,16 +1102,16 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 existing_keywords=existing_keywords,
             )
             google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
-            merged_all = clean_base + cluster_keywords + google_keywords
-            merged_all = dedupe_keywords(merged_all, existing_titles, existing_keywords)
+            merged_all = dedupe_keywords(clean_base + cluster_keywords + google_keywords, existing_titles, existing_keywords)
+            merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
             if merged_all:
                 save_keywords(merged_all)
-                pool = [kw for kw in merged_all if not title_too_similar(kw, existing_titles, KEYWORD_SIM_THRESHOLD)]
-                return pool, cluster_name, "normal", current_pillar_slug
+                return merged_all, cluster_name, "normal", current_pillar_slug
         except Exception as e:
-            print("Cluster keyword generation failed:", e)
+            log("KW", f"Cluster keyword generation failed: {e}")
 
         fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
+        fallback = filter_keywords_by_opportunity(fallback, existing_titles)
         return fallback, cluster_name, "normal", current_pillar_slug
 
     auto_keywords: List[str] = []
@@ -1029,40 +1119,543 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
         try:
             auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
             google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
-            merged = clean_base + auto_keywords + google_keywords
-            merged = dedupe_keywords(merged, existing_titles, existing_keywords)
+            merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
+            merged = filter_keywords_by_opportunity(merged, existing_titles)
             if merged:
                 save_keywords(merged)
                 return merged, "General", "normal", ""
         except Exception as e:
-            print("Auto keyword generation failed:", e)
+            log("KW", f"Auto keyword generation failed: {e}")
 
+    clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
     return clean_base, "General", "normal", ""
 
 
-# -----------------------------
-# Semantic overlap checks
-# -----------------------------
+# =========================================================
+# Strategy and article generation
+# =========================================================
+def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
+    avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:40]]) if avoid_titles else "- none"
+    category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    blueprint = random.choice(SECTION_BLUEPRINTS)
+    section_count = min(max(len(blueprint), SECTION_COUNT_MIN), SECTION_COUNT_MAX)
+
+    post_guidance = """
+This is a pillar guide.
+It should explain a family of related operating decisions clearly.
+It should still be practical and grounded.
+It must not sound like an encyclopedia entry.
+""" if post_type == "pillar" else """
+This is a cluster article.
+It should solve one specific operating situation in detail.
+It should be narrower than most search results.
+"""
+
+    return f"""
+You are planning a practical article for US and EU readers.
+
+Cluster:
+{cluster_name}
+
+Seed keyword:
+{keyword}
+
+Preferred category:
+{category_hint}
+
+Avoid titles too similar to:
+{avoid_block}
+
+Return valid JSON only.
+
+Schema:
+{{
+  "audience": "specific reader type",
+  "problem": "specific painful situation",
+  "outcome": "clear promised result",
+  "angle": "specific article angle",
+  "title": "specific practical title",
+  "description": "155-170 chars meta description not equal to title",
+  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
+  "intent": "pillar|cluster",
+  "search_intent_summary": "one sentence",
+  "section_plan": [
+    {{
+      "heading": "section heading",
+      "goal": "what this section must achieve",
+      "image_query": "2-6 words concrete visual idea",
+      "visual_type": "photo|diagram|workspace",
+      "must_include": ["point 1", "point 2"],
+      "alt_hint": "specific image alt text idea"
+    }}
+  ],
+  "faq_questions": [
+    "question 1",
+    "question 2"
+  ],
+  "tldr_focus": [
+    "point 1",
+    "point 2"
+  ]
+}}
+
+Hard rules:
+- No title patterns like Best, Top, Ultimate Guide, Comprehensive Guide, Essential Guide
+- Do not restate the seed keyword as the title
+- The title must include a real audience and a real operating outcome
+- Do not use vague audiences like professionals or business owners
+- Use a sharper audience such as solo creator, freelance designer, remote operator, newsletter writer, consultant, small agency owner
+- Avoid robotic templates repeated across posts
+- Keep title under 72 characters when possible
+- Section count must be exactly {section_count}
+- The section flow should roughly cover this structure:
+{json.dumps(blueprint, ensure_ascii=False, indent=2)}
+- Keep the article practical not generic
+- Each section must be materially distinct
+- image_query must be visual and believable
+- visual_type should prefer "diagram" for abstract workflow topics and "photo" or "workspace" for concrete environments
+
+{post_guidance}
+""".strip()
+
+
+def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
+    raw = _find_balanced_json(text)
+    data = json.loads(raw)
+
+    if not isinstance(data, dict):
+        raise ValueError("planning JSON root is not object")
+
+    audience = _clean_text(data.get("audience", ""))
+    problem = _clean_text(data.get("problem", ""))
+    outcome = _clean_text(data.get("outcome", ""))
+    angle = _clean_text(data.get("angle", ""))
+    title = _clean_text(data.get("title", ""))
+    description = _clean_text(data.get("description", ""))
+    category = _clean_text(data.get("category", ""))
+    intent = _clean_text(data.get("intent", post_type or "cluster"))
+    search_intent_summary = _clean_text(data.get("search_intent_summary", ""))
+
+    if not audience or not problem or not outcome or not angle or not title:
+        raise ValueError("planning fields missing")
+
+    if category not in ALLOWED_CATEGORIES:
+        category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+    section_plan = data.get("section_plan") or []
+    if not isinstance(section_plan, list):
+        raise ValueError("section_plan must be a list")
+    if len(section_plan) < SECTION_COUNT_MIN or len(section_plan) > SECTION_COUNT_MAX:
+        raise ValueError(f"section_plan must be between {SECTION_COUNT_MIN} and {SECTION_COUNT_MAX}")
+
+    clean_sections = []
+    for s in section_plan:
+        if not isinstance(s, dict):
+            raise ValueError("section item must be object")
+        heading = _clean_text(s.get("heading", ""))
+        goal = _clean_text(s.get("goal", ""))
+        image_query = _clean_text(s.get("image_query", ""))
+        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
+        alt_hint = _clean_text(s.get("alt_hint", ""))
+        must_include = s.get("must_include") or []
+        if not isinstance(must_include, list):
+            must_include = []
+        must_include = [_clean_text(x) for x in must_include if isinstance(x, str) and _clean_text(x)]
+
+        if visual_type not in {"photo", "diagram", "workspace"}:
+            visual_type = "diagram"
+
+        if not heading or not goal or not image_query or len(must_include) < 2:
+            raise ValueError("section_plan item missing required fields")
+
+        clean_sections.append({
+            "heading": heading,
+            "goal": goal,
+            "image_query": image_query,
+            "visual_type": visual_type,
+            "must_include": must_include[:6],
+            "alt_hint": alt_hint or heading,
+        })
+
+    faq_questions = data.get("faq_questions") or []
+    if not isinstance(faq_questions, list):
+        faq_questions = []
+    faq_questions = [_clean_text(x) for x in faq_questions if isinstance(x, str) and _clean_text(x)][:5]
+
+    tldr_focus = data.get("tldr_focus") or []
+    if not isinstance(tldr_focus, list):
+        tldr_focus = []
+    tldr_focus = [_clean_text(x) for x in tldr_focus if isinstance(x, str) and _clean_text(x)][:5]
+
+    return {
+        "audience": audience,
+        "problem": problem,
+        "outcome": outcome,
+        "angle": angle,
+        "title": title,
+        "description": description or short_desc(f"{angle}. {outcome}"),
+        "category": category,
+        "intent": intent or post_type,
+        "search_intent_summary": search_intent_summary or angle,
+        "section_plan": clean_sections,
+        "faq_questions": faq_questions,
+        "tldr_focus": tldr_focus,
+    }
+
+
+def build_article_prompt(
+    keyword: str,
+    cluster_name: str,
+    post_type: str,
+    planning: Dict[str, Any],
+    corrective_note: str = "",
+) -> str:
+    return (
+        f"""
+You are writing a practical blog article for US and EU readers.
+
+Seed keyword:
+{keyword}
+
+Cluster:
+{cluster_name}
+
+Post type:
+{post_type}
+
+Planning JSON:
+{json.dumps(planning, ensure_ascii=False, indent=2)}
+
+Output must be valid JSON only.
+
+Schema:
+{{
+  "title": "string",
+  "description": "string",
+  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
+  "sections": [
+    {{
+      "heading": "string",
+      "image_query": "string",
+      "visual_type": "photo|diagram|workspace",
+      "alt_text": "string",
+      "body": "string"
+    }}
+  ],
+  "faq": [
+    {{"q":"string","a":"string"}}
+  ],
+  "tldr": "string",
+  "editorial_note": "1 to 2 sentence trust note"
+}}
+
+Hard rules:
+- Use the section_plan exactly as the structural backbone
+- Preserve the same number of sections as in section_plan
+- Total text must be at least {MIN_CHARS} characters
+- Each section must be materially useful
+- Each section body must be at least {MIN_SECTION_CHARS} characters
+- The article must explicitly include these exact words in natural sentences:
+  workflow, checklist, mistake, tradeoff, decision, step
+- The article must explicitly include:
+  - who this workflow is for
+  - why common advice fails
+  - decision rules
+  - setup steps
+  - mistakes
+  - tradeoffs
+  - a reusable checklist or template
+  - when not to use this or do not use this setup
+- Do not open with generic filler
+- Do not list tools without explaining why the choice fits the situation
+- Use plain English
+- Be concrete
+- Avoid repeating the same sentence pattern across sections
+- Include at least 2 sections with examples or edge cases
+- FAQ must have 3 to 5 realistic follow-up questions
+- TLDR must be 2 to 4 sentences
+- editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when workflows change
+
+{corrective_note.strip() if corrective_note else ""}
+"""
+    ).strip()
+
+
+def parse_article_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
+    raw = _find_balanced_json(text)
+    data = json.loads(raw)
+
+    if not isinstance(data, dict):
+        raise ValueError("article JSON root is not object")
+
+    title = _clean_text(data.get("title", ""))
+    desc = _clean_text(data.get("description", ""))
+    cat = _clean_text(data.get("category", ""))
+
+    sections = data.get("sections")
+    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+        raise ValueError(f"sections must be list of {SECTION_COUNT_MIN} to {SECTION_COUNT_MAX}")
+
+    clean_sections = []
+    for s in sections:
+        if not isinstance(s, dict):
+            raise ValueError("section must be object")
+        heading = _clean_text(s.get("heading", ""))
+        iq = _clean_text(s.get("image_query", ""))
+        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
+        alt_text = _clean_text(s.get("alt_text", ""))
+        body = _clean_text(s.get("body", ""))
+        if visual_type not in {"photo", "diagram", "workspace"}:
+            visual_type = "diagram"
+        if not heading or not body:
+            raise ValueError("section heading/body required")
+        clean_sections.append({
+            "heading": heading,
+            "image_query": iq or heading,
+            "visual_type": visual_type,
+            "alt_text": alt_text or heading,
+            "body": body,
+        })
+
+    faq = data.get("faq") or []
+    clean_faq = []
+    if isinstance(faq, list):
+        for item in faq[:5]:
+            if isinstance(item, dict):
+                q = _clean_text(item.get("q", ""))
+                a = _clean_text(item.get("a", ""))
+                if q and a:
+                    clean_faq.append({"q": q, "a": a})
+
+    tldr = _clean_text(data.get("tldr", ""))
+    editorial_note = _clean_text(data.get("editorial_note", ""))
+
+    if cat not in ALLOWED_CATEGORIES:
+        cat = pick_category(keyword or title or "", cluster_name, post_type)
+
+    total_text = (
+        (tldr or "") +
+        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
+        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
+    )
+    if len(total_text) < MIN_CHARS:
+        raise ValueError("Generated text too short")
+
+    if not title:
+        title = f"Post {now_utc_date()}"
+    if not desc:
+        desc = short_desc(title)
+    if not editorial_note:
+        editorial_note = "This article is reviewed for practical usefulness and updated when the workflow or tool landscape changes."
+
+    return {
+        "title": title,
+        "description": desc,
+        "category": cat,
+        "sections": clean_sections,
+        "faq": clean_faq,
+        "tldr": tldr or short_desc(desc),
+        "editorial_note": editorial_note,
+    }
+
+
+def is_generic_title(title: str) -> bool:
+    t = _norm_title(title)
+    if not t:
+        return True
+
+    if any(t.startswith(x) for x in BANNED_TITLE_PATTERNS):
+        return True
+
+    broad_bad = [
+        "ai tools",
+        "productivity tools",
+        "freelance tools",
+        "creator tools",
+        "workplace productivity",
+        "digital productivity",
+        "business productivity",
+        "remote work tools",
+    ]
+    if t in broad_bad:
+        return True
+
+    words = t.split()
+    if len(words) < 5:
+        return True
+
+    audience_terms = [
+        "freelance", "freelancer", "freelancers",
+        "creator", "creators",
+        "consultant", "consultants",
+        "writer", "writers",
+        "designer", "designers",
+        "marketer", "marketers",
+        "remote worker", "remote workers",
+        "solo", "small agency", "one person",
+        "newsletter", "operator",
+    ]
+    problem_terms = [
+        "workflow", "checklist", "system", "template", "playbook",
+        "follow up", "follow-up", "onboarding", "invoice", "proposal",
+        "revision", "planning", "task", "email", "automation",
+        "deliverables", "admin", "scope", "meeting notes", "crm", "pricing",
+    ]
+    has_audience = any(x in t for x in audience_terms)
+    has_problem = any(x in t for x in problem_terms)
+
+    return not (has_audience and has_problem)
+
+
+def opening_too_generic(text: str) -> bool:
+    t = (text or "").lower().strip()[:550]
+    return any(p in t for p in BANNED_OPENING_PHRASES)
+
+
+def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq: List[Dict[str, str]]) -> str:
+    parts = [title.strip(), (tldr or "").strip()[:400]]
+    for s in sections[:8]:
+        parts.append((s.get("heading") or "").strip())
+        parts.append((s.get("body") or "").strip()[:500])
+    for item in (faq or [])[:5]:
+        parts.append((item.get("q") or "").strip()[:200])
+        parts.append((item.get("a") or "").strip()[:200])
+
+    joined = "\n".join([p for p in parts if p])
+    return hashlib.sha1(joined.encode("utf-8")).hexdigest()
+
+
+def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
+    audience = (planning.get("audience") or "freelancers").strip()
+
+    if reason == "missing-audience-framing":
+        return f"""
+Retry correction:
+- The first section must explicitly say who this workflow is for
+- The audience must be named directly as: {audience}
+"""
+
+    if reason == "missing-depth-signals":
+        return """
+Retry correction:
+- Explicitly include these exact words in natural sentences:
+workflow, checklist, mistake, tradeoff, decision, step
+"""
+
+    if reason == "missing-template-checklist":
+        return """
+Retry correction:
+- Include a clearly reusable checklist or template section
+- Use the exact word checklist or template
+"""
+
+    if reason == "missing-mistakes":
+        return """
+Retry correction:
+- Include at least two concrete mistakes or one common pitfall section
+"""
+
+    if reason == "missing-tradeoff":
+        return """
+Retry correction:
+- Use the exact word tradeoff and explain at least one tradeoff
+"""
+
+    if reason == "missing-limitations":
+        return """
+Retry correction:
+- Include 'when not to use this' or 'do not use this setup'
+"""
+
+    if reason == "thin-section":
+        return """
+Retry correction:
+- Expand the weaker sections with examples, edge cases, and decision logic
+"""
+
+    return """
+Retry correction:
+- Make the article more distinct, more concrete, and less templated
+"""
+
+
+def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
+    title = data.get("title", "")
+    tldr = data.get("tldr", "")
+    sections = data.get("sections", [])
+    faq = data.get("faq", [])
+
+    if is_generic_title(title):
+        return False, "generic-title"
+
+    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+        return False, "bad-sections"
+
+    joined = "\n".join(
+        [title, tldr] +
+        [s.get("heading", "") + "\n" + s.get("body", "") for s in sections] +
+        [item.get("q", "") + "\n" + item.get("a", "") for item in faq]
+    ).lower()
+
+    if len(joined) < MIN_CHARS:
+        return False, "too-short"
+
+    if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
+        return False, "generic-opening"
+
+    if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
+        return False, "thin-section"
+
+    section_headings = [_norm_title(s.get("heading", "")) for s in sections]
+    if len(set(section_headings)) < len(section_headings):
+        return False, "duplicate-headings"
+
+    signal_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
+    if signal_hits < 4:
+        return False, "missing-depth-signals"
+
+    if "who this workflow is for" not in joined and "this workflow is for" not in joined and "who this is for" not in joined:
+        return False, "missing-audience-framing"
+
+    if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
+        return False, "missing-mistakes"
+
+    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
+        return False, "missing-template-checklist"
+
+    if "tradeoff" not in joined and "trade-off" not in joined:
+        return False, "missing-tradeoff"
+
+    if "when not to use this" not in joined and "do not use this setup" not in joined:
+        return False, "missing-limitations"
+
+    nk = normalize_keyword(keyword)
+    nt = normalize_keyword(title)
+    if nk and nt and nk == nt:
+        return False, "title-too-close-to-keyword"
+
+    return True, "ok"
+
+
 def post_semantically_too_close(
     keyword: str,
-    strategy: Dict[str, str],
+    planning: Dict[str, Any],
     posts: List[dict],
-    threshold: float = 0.78,
+    threshold: float = TOPIC_SIM_THRESHOLD,
 ) -> bool:
     new_parts = [
         normalize_keyword(keyword),
-        normalize_keyword(strategy.get("audience", "")),
-        normalize_keyword(strategy.get("problem", "")),
-        normalize_keyword(strategy.get("outcome", "")),
-        normalize_keyword(strategy.get("angle", "")),
-        normalize_keyword(strategy.get("title", "")),
+        normalize_keyword(planning.get("audience", "")),
+        normalize_keyword(planning.get("problem", "")),
+        normalize_keyword(planning.get("outcome", "")),
+        normalize_keyword(planning.get("angle", "")),
+        normalize_keyword(planning.get("title", "")),
     ]
     new_text = " ".join([x for x in new_parts if x]).strip()
     if not new_text:
         return False
 
-    recent_posts = posts[:120]
-
+    recent_posts = posts[:160]
     for p in recent_posts:
         if not isinstance(p, dict):
             continue
@@ -1071,6 +1664,8 @@ def post_semantically_too_close(
             normalize_keyword(p.get("keyword", "")),
             normalize_keyword(p.get("title", "")),
             normalize_keyword(p.get("description", "")),
+            normalize_keyword(p.get("audience", "")),
+            normalize_keyword(p.get("problem", "")),
             normalize_keyword(p.get("cluster", "")),
             normalize_keyword(p.get("category", "")),
         ]
@@ -1078,15 +1673,50 @@ def post_semantically_too_close(
         if not old_text:
             continue
 
-        if SequenceMatcher(a=new_text, b=old_text).ratio() >= threshold:
+        if semantic_overlap_score(new_text, old_text) >= threshold:
             return True
 
     return False
 
 
-# -----------------------------
-# Unsplash
-# -----------------------------
+def generate_deep_post(
+    *,
+    keyword: str,
+    cluster_name: str,
+    post_type: str,
+    avoid_titles: List[str],
+    corrective_note: str = "",
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    planning_raw = openai_generate_text(
+        build_planning_prompt(keyword, avoid_titles, cluster_name, post_type),
+        model=MODEL_PLANNER,
+        temperature=0.55,
+    )
+    planning = parse_planning_json(planning_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+    article_raw = openai_generate_text(
+        build_article_prompt(keyword, cluster_name, post_type, planning, corrective_note=corrective_note),
+        model=MODEL_WRITER,
+        temperature=0.6,
+    )
+    data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+    if not data.get("description"):
+        data["description"] = planning.get("description") or short_desc(data.get("title", ""))
+
+    if not data.get("category"):
+        data["category"] = planning.get("category") or pick_category(
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
+
+    return data, planning
+
+
+# =========================================================
+# Images and visuals
+# =========================================================
 def unsplash_search(query: str, page: int = 1) -> dict:
     url = "https://api.unsplash.com/search/photos"
     headers = {
@@ -1146,79 +1776,177 @@ def download_unsplash_photo(item: dict, out_path: Path) -> None:
     if not raw:
         raise RuntimeError("Unsplash photo url missing")
 
-    if "?" in raw:
-        dl = raw + "&fm=jpg&q=80&w=1800&fit=max"
-    else:
-        dl = raw + "?fm=jpg&q=80&w=1800&fit=max"
-
+    dl = raw + ("&fm=jpg&q=80&w=1800&fit=max" if "?" in raw else "?fm=jpg&q=80&w=1800&fit=max")
     r = requests.get(dl, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(r.content)
 
 
-def get_high_quality_photos_for_queries(slug: str, queries: List[str]) -> Tuple[List[str], List[str]]:
-    if not UNSPLASH_ACCESS_KEY:
-        raise RuntimeError("Missing UNSPLASH_ACCESS_KEY")
+def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "Workflow Visual") -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def esc(x: str) -> str:
+        return html_escape(x)
+
+    title = title[:72]
+    subtitle = subtitle[:120]
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="{esc(title)}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#eef4ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="90" y="90" width="1420" height="720" rx="34" fill="#ffffff" stroke="#dbe5f3"/>
+  <rect x="140" y="140" width="260" height="44" rx="22" fill="#eaf2ff"/>
+  <text x="170" y="168" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#2563eb" font-weight="700">{esc(badge)}</text>
+
+  <text x="140" y="280" font-family="Arial, Helvetica, sans-serif" font-size="52" fill="#0f172a" font-weight="700">{esc(title)}</text>
+  <text x="140" y="350" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#475569">{esc(subtitle)}</text>
+
+  <rect x="140" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="560" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="980" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+
+  <text x="175" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Input</text>
+  <text x="595" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Decision</text>
+  <text x="1015" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Output</text>
+
+  <line x1="490" y1="515" x2="560" y2="515" stroke="#94a3b8" stroke-width="6"/>
+  <polygon points="560,515 540,503 540,527" fill="#94a3b8"/>
+  <line x1="910" y1="515" x2="980" y2="515" stroke="#94a3b8" stroke-width="6"/>
+  <polygon points="980,515 960,503 960,527" fill="#94a3b8"/>
+
+  <text x="140" y="705" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#64748b">Generated by {esc(SITE_NAME)}</text>
+</svg>"""
+    out_path.write_text(svg, encoding="utf-8")
+
+
+def build_image_asset_for_section(
+    slug: str,
+    idx: int,
+    heading: str,
+    image_query: str,
+    visual_type: str,
+    alt_hint: str,
+    used_ids: set,
+) -> Tuple[str, str, Optional[str], set]:
+    folder = ASSETS_POSTS_DIR / slug
+    folder.mkdir(parents=True, exist_ok=True)
+
+    photo_credit_html = None
+
+    should_try_photo = (
+        visual_type in {"photo", "workspace"} and
+        bool(UNSPLASH_ACCESS_KEY) and
+        len(image_query.split()) >= 2
+    )
+
+    if should_try_photo:
+        found = None
+        for page in [1, 2, 3]:
+            try:
+                data = unsplash_search(image_query, page=page)
+                results = data.get("results") or []
+                candidates = pick_high_quality_unsplash(results, used_ids)
+                if candidates:
+                    found = candidates[0]
+                    break
+            except Exception as e:
+                log("IMG", f"Unsplash search failed for '{image_query}' page={page}: {e}")
+
+        if found:
+            pid = found.get("id")
+            used_ids.add(pid)
+            ext_path = folder / f"{idx}.jpg"
+            download_unsplash_photo(found, ext_path)
+            rel_path = f"assets/posts/{slug}/{idx}.jpg"
+
+            user = found.get("user") or {}
+            name = html_escape(user.get("name") or "Unsplash contributor")
+            user_link = html_escape((user.get("links") or {}).get("html") or "https://unsplash.com")
+            photo_link = html_escape((found.get("links") or {}).get("html") or "https://unsplash.com")
+            photo_credit_html = (
+                f'<li>Photo {idx}: '
+                f'<a href="{user_link}" target="_blank" rel="noopener noreferrer">{name}</a> '
+                f'on <a href="{photo_link}" target="_blank" rel="noopener noreferrer">Unsplash</a></li>'
+            )
+            return rel_path, alt_hint or heading, photo_credit_html, used_ids
+
+    svg_path = folder / f"{idx}.svg"
+    create_svg_visual(
+        svg_path,
+        title=heading,
+        subtitle=image_query or alt_hint or heading,
+        badge="Workflow Visual" if visual_type == "diagram" else "Workspace Visual",
+    )
+    rel_path = f"assets/posts/{slug}/{idx}.svg"
+    return rel_path, alt_hint or heading, None, used_ids
+
+
+def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
     used_raw = load_json(USED_IMAGES_JSON, {})
     used = ensure_used_schema(used_raw)
     used_ids = set(used.get("unsplash_ids") or [])
 
-    folder = ASSETS_POSTS_DIR / slug
-    folder.mkdir(parents=True, exist_ok=True)
-
-    chosen: List[dict] = []
-    credits: List[str] = []
-
-    if len(queries) != IMG_COUNT:
-        queries = (queries or [])[:IMG_COUNT]
-        while len(queries) < IMG_COUNT:
-            queries.append(slug.replace("-", " "))
-
-    for qi in queries:
-        qi = (qi or "").strip()
-        if not qi:
-            qi = slug.replace("-", " ")
-
-        found = None
-        for page in [1, 2, 3]:
-            data = unsplash_search(qi, page=page)
-            results = data.get("results") or []
-            candidates = pick_high_quality_unsplash(results, used_ids)
-            if candidates:
-                found = candidates[0]
-                break
-
-        if not found:
-            return [], []
-
-        pid = found.get("id")
-        used_ids.add(pid)
-        chosen.append(found)
-
     image_paths: List[str] = []
+    alt_texts: List[str] = []
+    credits_li: List[str] = []
 
-    for i, it in enumerate(chosen, start=1):
-        out = folder / f"{i}.jpg"
-        download_unsplash_photo(it, out)
-        image_paths.append(f"assets/posts/{slug}/{i}.jpg")
-
-        user = it.get("user") or {}
-        name = user.get("name")
-        link = (user.get("links") or {}).get("html")
-        photo_link = (it.get("links") or {}).get("html")
-        credits.append(f"<li>Photo {i}: {name} on Unsplash ({link}) ({photo_link})</li>")
+    for i, sec in enumerate(sections, start=1):
+        path, alt, credit, used_ids = build_image_asset_for_section(
+            slug=slug,
+            idx=i,
+            heading=sec.get("heading", f"Section {i}"),
+            image_query=sec.get("image_query", sec.get("heading", "")),
+            visual_type=sec.get("visual_type", "diagram"),
+            alt_hint=sec.get("alt_text", sec.get("alt_hint", sec.get("heading", ""))),
+            used_ids=used_ids,
+        )
+        image_paths.append(path)
+        alt_texts.append(alt or sec.get("heading", f"Section {i}"))
+        if credit:
+            credits_li.append(credit)
 
     used["unsplash_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
-    return image_paths, credits
+    return image_paths, alt_texts, credits_li
 
 
-# -----------------------------
+# =========================================================
 # Internal links
-# -----------------------------
+# =========================================================
+def resolve_post_url_path(p: dict) -> str:
+    if not isinstance(p, dict):
+        return ""
+    url = (p.get("url") or "").strip()
+    slug = (p.get("slug") or "").strip()
+
+    if url:
+        url = url.lstrip("/")
+        if url.endswith(".md"):
+            url = url[:-3] + ".html"
+        if url.startswith("posts/") and "." not in Path(url).name:
+            url = url + ".html"
+        return url
+
+    if slug:
+        return f"posts/{slug}.html"
+    return ""
+
+
+def post_href_from_post_page(p: dict) -> str:
+    url = resolve_post_url_path(p)
+    if not url:
+        return "#"
+    if url.startswith("posts/"):
+        return url.split("/", 1)[1]
+    return "../" + url
+
+
 def select_related_posts(
     posts: List[dict],
     *,
@@ -1246,10 +1974,13 @@ def select_related_posts(
             score += 15
         if pillar_slug and slug == pillar_slug:
             score += 100
-        score += min(int(p.get("views") or 0), 50)
 
-        date_bonus = 1 if str(p.get("updated") or p.get("date") or "") else 0
-        score += date_bonus
+        date_text = str(p.get("updated") or p.get("date") or "")
+        if date_text:
+            score += 2
+
+        if p.get("keyword") and p.get("title"):
+            score += int(semantic_overlap_score(category + " " + cluster, (p.get("category") or "") + " " + (p.get("cluster") or "")) * 10)
 
         scored.append((score, p))
 
@@ -1297,524 +2028,9 @@ def render_related_guides_html(related_posts: List[dict]) -> str:
     )
 
 
-# -----------------------------
-# Writing pipeline
-# -----------------------------
-def build_strategy_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
-    avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:30]]) if avoid_titles else "- none"
-    category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-
-    if post_type == "pillar":
-        extra = """
-This is a pillar guide.
-It should still be deep and practical.
-It should explain systems and decision logic clearly.
-It must not sound like a generic encyclopedia article.
-It should cover a family of related operating decisions without becoming broad and fluffy.
-""".strip()
-    else:
-        extra = """
-This is a cluster article.
-It should focus on one sharp operating problem.
-It should solve one real situation in detail.
-It should feel narrower than most search results.
-""".strip()
-
-    return f"""
-You are planning a deep blog article for US and EU readers.
-
-Cluster:
-{cluster_name}
-
-Seed keyword:
-{keyword}
-
-Preferred category:
-{category_hint}
-
-Avoid titles too similar to:
-{avoid_block}
-
-Return valid JSON only.
-
-Schema:
-{{
-  "audience": "specific reader type",
-  "problem": "specific painful situation",
-  "outcome": "clear promised result",
-  "angle": "specific article angle",
-  "title": "specific practical title",
-  "description": "155-170 chars meta description not equal to title",
-  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
-  "intent": "pillar|cluster",
-  "search_intent_summary": "one sentence"
-}}
-
-Hard rules:
-- Do not use title patterns like Best, Top, Ultimate Guide, Comprehensive Guide, Essential Guide, Must-Have
-- Do not produce repetitive templates
-- Vary title structure naturally
-- The title must not simply restate the seed keyword
-- The title must be specific and practical
-- The title must include:
-  - a clear audience
-  - a concrete operating problem
-  - a real outcome
-- Allowed title shapes include but are not limited to:
-  1. Client Onboarding Checklist for Freelance Consultants
-  2. How Freelance Writers Can Automate Follow-Up Emails
-  3. A Revision Workflow Freelance Designers Can Actually Use
-  4. Weekly Planning System for Freelancers With Multiple Clients
-  5. Proposal and Invoicing Workflow for Solo Consultants
-- Avoid robotic title shapes repeated across posts
-- Avoid "who want to" unless it sounds natural
-- Prefer shorter titles under 72 characters when possible
-- The title must feel like something a human would actually click
-- Avoid vague audiences like everyone, professionals, business owners
-- Use a sharper audience such as solo creator, freelance designer, one person consultancy, remote operator, junior marketer, newsletter writer
-- Focus on one real situation not a generic roundup
-- The angle must feel more specific than common search results
-- The article should promise a process or decision framework not a list of tools
-- Do not create a near-duplicate of existing onboarding, planning, admin, proposal, invoicing, or follow-up articles unless the audience or situation is materially different
-
-{extra}
-""".strip()
-
-
-def parse_strategy_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, str]:
-    raw = _json_extract(text)
-    data = json.loads(raw)
-
-    if not isinstance(data, dict):
-        raise ValueError("strategy JSON root is not object")
-
-    audience = _clean_text(data.get("audience", ""))
-    problem = _clean_text(data.get("problem", ""))
-    outcome = _clean_text(data.get("outcome", ""))
-    angle = _clean_text(data.get("angle", ""))
-    title = _clean_text(data.get("title", ""))
-    description = _clean_text(data.get("description", ""))
-    category = _clean_text(data.get("category", ""))
-    intent = _clean_text(data.get("intent", post_type or "cluster"))
-    search_intent_summary = _clean_text(data.get("search_intent_summary", ""))
-
-    if not audience or not problem or not outcome or not angle or not title:
-        raise ValueError("strategy fields missing")
-
-    if category not in ALLOWED_CATEGORIES:
-        category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-
-    if not description:
-        description = short_desc(f"{angle}. {outcome}")
-
-    return {
-        "audience": audience,
-        "problem": problem,
-        "outcome": outcome,
-        "angle": angle,
-        "title": title,
-        "description": description,
-        "category": category,
-        "intent": intent or post_type,
-        "search_intent_summary": search_intent_summary or angle,
-    }
-
-
-def build_outline_prompt(strategy: Dict[str, str], keyword: str, cluster_name: str, post_type: str) -> str:
-    return f"""
-You are creating a detailed article outline.
-
-Seed keyword:
-{keyword}
-
-Cluster:
-{cluster_name}
-
-Post type:
-{post_type}
-
-Strategy:
-{json.dumps(strategy, ensure_ascii=False, indent=2)}
-
-Return valid JSON only.
-
-Schema:
-{{
-  "title": "must match strategy title",
-  "description": "must match strategy description",
-  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
-  "sections": [
-    {{
-      "heading": "section heading",
-      "goal": "what this section must achieve",
-      "image_query": "2-6 words concrete photo idea",
-      "must_include": [
-        "point 1",
-        "point 2"
-      ]
-    }}
-  ],
-  "faq_questions": [
-    "question 1",
-    "question 2"
-  ],
-  "tldr_focus": [
-    "point 1",
-    "point 2"
-  ]
-}}
-
-Hard rules:
-- Exactly {IMG_COUNT} sections
-- The 7 sections should roughly follow this depth:
-  1. sharp setup and who this is for
-  2. why common advice fails
-  3. the workflow or system map
-  4. setup steps
-  5. decision rules or tool choice logic
-  6. common mistakes and tradeoffs
-  7. checklist or template plus when not to use this setup
-- Every section must have concrete must_include bullets
-- No generic section headings like Introduction, Conclusion, Benefits
-- image_query must be visual and photo-friendly
-- Keep the angle narrow and practical
-- FAQ questions should be realistic follow-up questions
-""".strip()
-
-
-def parse_outline_json(text: str, strategy: Dict[str, str]) -> Dict[str, Any]:
-    raw = _json_extract(text)
-    data = json.loads(raw)
-
-    if not isinstance(data, dict):
-        raise ValueError("outline JSON root is not object")
-
-    title = _clean_text(data.get("title", strategy.get("title", "")))
-    description = _clean_text(data.get("description", strategy.get("description", "")))
-    category = _clean_text(data.get("category", strategy.get("category", "")))
-
-    sections = data.get("sections")
-    if not isinstance(sections, list) or len(sections) != IMG_COUNT:
-        raise ValueError(f"outline sections must be list of {IMG_COUNT}")
-
-    clean_sections = []
-    for s in sections:
-        if not isinstance(s, dict):
-            raise ValueError("outline section must be object")
-        heading = _clean_text(s.get("heading", ""))
-        goal = _clean_text(s.get("goal", ""))
-        image_query = _clean_text(s.get("image_query", ""))
-        must_include = s.get("must_include") or []
-        if not isinstance(must_include, list):
-            must_include = []
-        must_include = [_clean_text(x) for x in must_include if isinstance(x, str) and _clean_text(x)]
-        if not heading or not goal or not image_query or len(must_include) < 2:
-            raise ValueError("outline section missing required fields")
-        clean_sections.append({
-            "heading": heading,
-            "goal": goal,
-            "image_query": image_query,
-            "must_include": must_include[:6],
-        })
-
-    faq_questions = data.get("faq_questions") or []
-    if not isinstance(faq_questions, list):
-        faq_questions = []
-    faq_questions = [_clean_text(x) for x in faq_questions if isinstance(x, str) and _clean_text(x)][:5]
-
-    tldr_focus = data.get("tldr_focus") or []
-    if not isinstance(tldr_focus, list):
-        tldr_focus = []
-    tldr_focus = [_clean_text(x) for x in tldr_focus if isinstance(x, str) and _clean_text(x)][:5]
-
-    if category not in ALLOWED_CATEGORIES:
-        category = strategy.get("category") or "Productivity"
-
-    return {
-        "title": title or strategy.get("title", ""),
-        "description": description or strategy.get("description", ""),
-        "category": category,
-        "sections": clean_sections,
-        "faq_questions": faq_questions,
-        "tldr_focus": tldr_focus,
-    }
-
-
-def build_article_prompt(
-    keyword: str,
-    cluster_name: str,
-    post_type: str,
-    strategy: Dict[str, str],
-    outline: Dict[str, Any],
-    corrective_note: str = "",
-) -> str:
-    base_prompt = f"""
-You are writing a deep practical blog article for US and EU readers.
-
-Seed keyword:
-{keyword}
-
-Cluster:
-{cluster_name}
-
-Post type:
-{post_type}
-
-Strategy:
-{json.dumps(strategy, ensure_ascii=False, indent=2)}
-
-Outline:
-{json.dumps(outline, ensure_ascii=False, indent=2)}
-
-Output MUST be valid JSON only.
-No markdown.
-No extra text.
-
-JSON schema:
-{{
-  "title": "string",
-  "description": "string",
-  "category": "AI Tools|Freelance Systems|Creator Income|Productivity",
-  "sections": [
-    {{
-      "heading": "string",
-      "image_query": "string",
-      "body": "string"
-    }}
-  ],
-  "faq": [
-    {{"q":"string","a":"string"}}
-  ],
-  "tldr": "string"
-}}
-
-Hard rules:
-- Exactly {IMG_COUNT} sections
-- Each section body must be detailed and useful
-- Total combined text length must be at least {MIN_CHARS} characters
-- Every section body should feel like it was written by someone who understands operations not by a generic SEO writer
-- The article must include:
-  - who this workflow is for
-  - why generic advice usually fails
-  - one clean workflow or operating system
-  - decision rules or tool choice logic
-  - setup steps
-  - common mistakes
-  - tradeoffs
-  - a checklist or template readers can reuse
-  - when not to use this setup
-- Section 1 must begin with exactly one of these:
-  - "Who this is for:"
-  - "This workflow is for"
-  - "This setup is for"
-- Section 1 must explicitly name the audience from the strategy
-- The article must explicitly include these exact words in natural sentences:
-  workflow, checklist, mistake, tradeoff, decision, step
-- The article must explicitly include either:
-  - "when not to use this"
-  - "do not use this setup"
-- Avoid generic intros and fluffy summaries
-- Avoid phrases like "AI is transforming productivity"
-- Avoid generic listicle tone
-- Do not simply list tools
-- Explain why one approach is better in one specific situation
-- Use plain English
-- Be concrete
-- Be original
-- Each section must closely follow the outline section goal and must_include items
-- Keep section heading and image_query aligned with the outline
-
-Style:
-- practical
-- sharp
-- grounded
-- operational
-- useful for a real person doing real work
-
-FAQ rules:
-- 3 to 5 questions
-- realistic follow-up questions only
-- concise but useful answers
-
-TLDR rules:
-- 2 to 4 sentences
-- summarize the system and who it suits
-""".strip()
-
-    return merge_corrections(base_prompt, corrective_note)
-
-
-def parse_post_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
-    raw = _json_extract(text)
-    data = json.loads(raw)
-
-    if not isinstance(data, dict):
-        raise ValueError("JSON root is not object")
-
-    title = _clean_text(data.get("title", ""))
-    desc = _clean_text(data.get("description", ""))
-    cat = _clean_text(data.get("category", ""))
-
-    sections = data.get("sections")
-    if not isinstance(sections, list) or len(sections) != IMG_COUNT:
-        raise ValueError(f"sections must be list of {IMG_COUNT}")
-
-    clean_sections = []
-    for s in sections:
-        if not isinstance(s, dict):
-            raise ValueError("section must be object")
-        heading = _clean_text(s.get("heading", ""))
-        iq = _clean_text(s.get("image_query", ""))
-        body = _clean_text(s.get("body", ""))
-        if not heading or not body:
-            raise ValueError("section heading/body required")
-        clean_sections.append({"heading": heading, "image_query": iq, "body": body})
-
-    faq = data.get("faq") or []
-    clean_faq = []
-    if isinstance(faq, list):
-        for item in faq[:5]:
-            if isinstance(item, dict):
-                q = _clean_text(item.get("q", ""))
-                a = _clean_text(item.get("a", ""))
-                if q and a:
-                    clean_faq.append({"q": q, "a": a})
-
-    tldr = _clean_text(data.get("tldr", ""))
-
-    if cat not in ALLOWED_CATEGORIES:
-        cat = pick_category(keyword or title or "", cluster_name, post_type)
-
-    total_text = (
-        (tldr or "") +
-        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
-        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
-    )
-    if len(total_text) < MIN_CHARS:
-        raise ValueError("Generated text too short")
-
-    if not title:
-        title = f"Post {now_utc_date()}"
-
-    if not desc:
-        desc = short_desc(title)
-
-    return {
-        "title": title,
-        "description": desc,
-        "category": cat,
-        "sections": clean_sections,
-        "faq": clean_faq,
-        "tldr": tldr or short_desc(desc),
-    }
-
-
-def generate_deep_post(
-    *,
-    keyword: str,
-    cluster_name: str,
-    post_type: str,
-    avoid_titles: List[str],
-    corrective_note: str = "",
-) -> Tuple[Dict[str, Any], Dict[str, str], Dict[str, Any]]:
-    strategy_raw = openai_generate_text(build_strategy_prompt(keyword, avoid_titles, cluster_name, post_type))
-    strategy = parse_strategy_json(strategy_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-
-    outline_raw = openai_generate_text(build_outline_prompt(strategy, keyword, cluster_name, post_type))
-    outline = parse_outline_json(outline_raw, strategy)
-
-    article_raw = openai_generate_text(
-        build_article_prompt(
-            keyword,
-            cluster_name,
-            post_type,
-            strategy,
-            outline,
-            corrective_note=corrective_note,
-        )
-    )
-    data = parse_post_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-
-    if not data.get("description"):
-        data["description"] = strategy.get("description") or short_desc(data.get("title", ""))
-
-    if not data.get("category"):
-        data["category"] = strategy.get("category") or pick_category(
-            keyword=keyword,
-            cluster_name=cluster_name,
-            post_type=post_type,
-        )
-
-    return data, strategy, outline
-
-
-# -----------------------------
-# Quality checks
-# -----------------------------
-def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
-    title = data.get("title", "")
-    tldr = data.get("tldr", "")
-    sections = data.get("sections", [])
-    faq = data.get("faq", [])
-
-    if is_generic_title(title):
-        return False, "generic-title"
-
-    if not isinstance(sections, list) or len(sections) != IMG_COUNT:
-        return False, "bad-sections"
-
-    joined = "\n".join(
-        [title, tldr] +
-        [s.get("heading", "") + "\n" + s.get("body", "") for s in sections] +
-        [item.get("q", "") + "\n" + item.get("a", "") for item in faq]
-    ).lower()
-
-    if len(joined) < MIN_CHARS:
-        return False, "too-short"
-
-    if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
-        return False, "generic-opening"
-
-    if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
-        return False, "thin-section"
-
-    section_headings = [_norm_title(s.get("heading", "")) for s in sections]
-    if len(set(section_headings)) < len(section_headings):
-        return False, "duplicate-headings"
-
-    signal_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
-    if signal_hits < 4:
-        return False, "missing-depth-signals"
-
-    if "who this is for" not in joined and "this workflow is for" not in joined and "this setup is for" not in joined:
-        return False, "missing-audience-framing"
-
-    if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
-        return False, "missing-mistakes"
-
-    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-        return False, "missing-template-checklist"
-
-    if "tradeoff" not in joined and "trade-off" not in joined:
-        return False, "missing-tradeoff"
-
-    if "when not to use this" not in joined and "do not use this setup" not in joined:
-        return False, "missing-limitations"
-
-    nk = normalize_keyword(keyword)
-    nt = normalize_keyword(title)
-    if nk and nt and nk == nt:
-        return False, "title-too-close-to-keyword"
-
-    if nk and SequenceMatcher(a=nk, b=joined[:1200]).ratio() > 0.92:
-        return False, "too-keyword-shaped"
-
-    return True, "ok"
-
-
-# -----------------------------
-# Slug and legacy cleanup
-# -----------------------------
+# =========================================================
+# Slug and redirects
+# =========================================================
 def build_clean_slug(title: str, keyword: str = "") -> str:
     raw = slugify(title) or slugify(keyword) or f"post-{int(time.time())}"
     raw = raw[:72].strip("-")
@@ -1822,6 +2038,17 @@ def build_clean_slug(title: str, keyword: str = "") -> str:
     if len(raw) < 12:
         raw = f"{raw}-{int(time.time())}"
     return raw
+
+
+def load_redirects() -> Dict[str, str]:
+    raw = load_json(REDIRECTS_JSON, {})
+    if isinstance(raw, dict):
+        return {str(k): str(v) for k, v in raw.items()}
+    return {}
+
+
+def save_redirects(data: Dict[str, str]) -> None:
+    save_json(REDIRECTS_JSON, data)
 
 
 def normalize_existing_post(p: dict) -> dict:
@@ -1865,56 +2092,117 @@ def normalize_existing_post(p: dict) -> dict:
     return p
 
 
-# -----------------------------
-# HTML rendering
-# -----------------------------
-def html_escape(s: str) -> str:
-    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-
-
+# =========================================================
+# HTML rendering helpers
+# =========================================================
 def paragraphs_to_html(text: str) -> str:
     text = (text or "").strip()
     if not text:
         return ""
 
-    text = text.replace("**", "")
-    text = re.sub(r"\s*(\d+\.\s)", r"\n\n\1", text)
-    text = re.sub(r"\s*(-\s)", r"\n\n\1", text)
-    text = re.sub(r'([.!?])\s+([A-Z])', r'\1\n\n\2', text)
-
-    parts = re.split(r"\n\s*\n+", text)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    blocks = re.split(r"\n\s*\n+", text)
 
     out = []
-    for p in parts:
-        p = p.strip()
-        if not p:
+    for block in blocks:
+        block = block.strip()
+        if not block:
             continue
 
-        if re.match(r"^\d+\.\s", p):
-            lines = [x.strip() for x in p.split("\n") if x.strip()]
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        if not lines:
+            continue
+
+        if all(re.match(r"^\d+\.\s+", ln) for ln in lines):
             items = []
-            for line in lines:
-                m = re.match(r"^\d+\.\s+(.*)$", line)
+            for ln in lines:
+                m = re.match(r"^\d+\.\s+(.*)$", ln)
                 if m:
                     items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
-            if items:
-                out.append("<ol>" + "".join(items) + "</ol>")
-                continue
+            out.append("<ol>" + "".join(items) + "</ol>")
+            continue
 
-        if re.match(r"^-\s", p):
-            lines = [x.strip() for x in p.split("\n") if x.strip()]
+        if all(re.match(r"^[-*]\s+", ln) for ln in lines):
             items = []
-            for line in lines:
-                m = re.match(r"^-\s+(.*)$", line)
+            for ln in lines:
+                m = re.match(r"^[-*]\s+(.*)$", ln)
                 if m:
                     items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
-            if items:
-                out.append("<ul>" + "".join(items) + "</ul>")
-                continue
+            out.append("<ul>" + "".join(items) + "</ul>")
+            continue
 
-        out.append(f"<p>{html_escape(p)}</p>")
+        para = " ".join(lines)
+        out.append(f"<p>{html_escape(para)}</p>")
 
     return "\n".join(out)
+
+
+def build_json_ld(
+    *,
+    title: str,
+    description: str,
+    canonical: str,
+    og_image: str,
+    updated_iso: str,
+    faq: List[Dict[str, str]],
+    category: str,
+) -> str:
+    article = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": title,
+        "description": description,
+        "mainEntityOfPage": canonical,
+        "image": [og_image] if og_image else [],
+        "datePublished": updated_iso,
+        "dateModified": updated_iso,
+        "author": {
+            "@type": "Organization",
+            "name": AUTHOR_NAME,
+            "url": AUTHOR_URL,
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": SITE_NAME,
+            "url": SITE_URL,
+        },
+        "articleSection": category,
+    }
+
+    breadcrumb = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": f"{SITE_URL}/index.html"},
+            {"@type": "ListItem", "position": 2, "name": category, "item": f"{SITE_URL}/category.html?cat={category.replace(' ', '%20')}"},
+            {"@type": "ListItem", "position": 3, "name": title, "item": canonical},
+        ],
+    }
+
+    blocks = [
+        f'<script type="application/ld+json">{json.dumps(article, ensure_ascii=False)}</script>',
+        f'<script type="application/ld+json">{json.dumps(breadcrumb, ensure_ascii=False)}</script>',
+    ]
+
+    if faq:
+        faq_schema = {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": item["q"],
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": item["a"],
+                    },
+                }
+                for item in faq
+            ],
+        }
+        blocks.append(f'<script type="application/ld+json">{json.dumps(faq_schema, ensure_ascii=False)}</script>')
+
+    return "\n".join(blocks)
 
 
 def render_post_html(
@@ -1925,25 +2213,29 @@ def render_post_html(
     updated_iso: str,
     slug: str,
     image_paths: List[str],
+    alt_texts: List[str],
     sections: List[Dict[str, str]],
     tldr: str,
     faq: List[Dict[str, str]],
     photo_credits_li: List[str],
     related_posts: List[dict],
     post_type: str,
+    editorial_note: str,
 ) -> str:
     canonical = f"{SITE_URL}/posts/{slug}.html"
     og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
 
     blocks = []
+    blocks.append('<section class="editorial-note-block"><p><strong>Editorial note:</strong> ' + html_escape(editorial_note) + '</p></section>')
     blocks.append("<h2>TL;DR</h2>")
     blocks.append(paragraphs_to_html(tldr))
 
-    for i in range(IMG_COUNT):
+    for i, sec in enumerate(sections):
         img_rel = f"../{image_paths[i]}"
-        blocks.append(f"<img src=\"{img_rel}\" alt=\"{html_escape(title)}\" loading=\"lazy\">")
-        blocks.append(f"<h2>{html_escape(sections[i]['heading'])}</h2>")
-        blocks.append(paragraphs_to_html(sections[i]["body"]))
+        alt = html_escape(alt_texts[i] if i < len(alt_texts) else sec.get("heading", title))
+        blocks.append(f'<figure class="post-figure"><img src="{img_rel}" alt="{alt}" loading="lazy"><figcaption>{alt}</figcaption></figure>')
+        blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
+        blocks.append(paragraphs_to_html(sec["body"]))
 
     if faq:
         blocks.append("<h2>FAQ</h2>")
@@ -1983,7 +2275,6 @@ def render_post_html(
     adsense_tag = ""
     if ADSENSE_CLIENT:
         adsense_tag = f"""
-  <!-- Google AdSense -->
   <script async
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={html_escape(ADSENSE_CLIENT)}"
   crossorigin="anonymous"></script>
@@ -1992,6 +2283,16 @@ def render_post_html(
     guide_badge = ""
     if post_type == "pillar":
         guide_badge = '<span class="post-type-badge">Featured Guide</span>'
+
+    json_ld = build_json_ld(
+        title=title,
+        description=description,
+        canonical=canonical,
+        og_image=og_image,
+        updated_iso=updated_iso,
+        faq=faq,
+        category=category,
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -2014,153 +2315,13 @@ def render_post_html(
   <meta name="twitter:description" content="{html_escape(description)}">
   <meta name="twitter:image" content="{html_escape(og_image)}">
 
-  <link rel="stylesheet" href="../style.css?v=9">
+  <meta name="author" content="{html_escape(AUTHOR_NAME)}">
+  <meta name="article:section" content="{html_escape(category)}">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+
+  <link rel="stylesheet" href="../style.css?v=10">
 {adsense_tag}
-  <style>
-    .post-type-badge {{
-      display:inline-block;
-      margin-bottom:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      font-size:12px;
-      font-weight:700;
-      background:#eef6ff;
-      color:#2563eb;
-    }}
-    .related-guides {{
-      margin-top:40px;
-      padding-top:12px;
-      border-top:1px solid #e5e7eb;
-    }}
-    .related-guides-list {{
-      display:grid;
-      gap:12px;
-      margin-top:14px;
-    }}
-    .related-guide {{
-      display:block;
-      padding:14px 16px;
-      border:1px solid #e5e7eb;
-      border-radius:14px;
-      text-decoration:none;
-      color:inherit;
-      background:#fff;
-    }}
-    .rg-kicker {{
-      display:block;
-      font-size:12px;
-      color:#6b7280;
-      margin-bottom:4px;
-    }}
-    .rg-title {{
-      display:block;
-      font-weight:700;
-      line-height:1.45;
-    }}
-    .rg-badge {{
-      display:inline-block;
-      margin-top:8px;
-      font-size:11px;
-      font-weight:700;
-      color:#2563eb;
-      background:#eef6ff;
-      padding:4px 8px;
-      border-radius:999px;
-    }}
-
-    .post-search-block {{
-      margin:28px 0 10px;
-      padding:18px;
-      border:1px solid #e5e7eb;
-      border-radius:16px;
-      background:#fff;
-      box-shadow:0 12px 32px rgba(15,23,42,.08);
-    }}
-    .post-search-title {{
-      margin:0 0 6px;
-      font-size:18px;
-      font-weight:900;
-    }}
-    .post-search-sub {{
-      margin:0 0 12px;
-      color:#6b7280;
-      font-size:14px;
-    }}
-    .site-search-bar {{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      border:1px solid #e5e7eb;
-      border-radius:16px;
-      background:#fff;
-      box-shadow:0 12px 32px rgba(15,23,42,.08);
-    }}
-    .site-search-icon {{
-      font-size:16px;
-      line-height:1;
-      flex:0 0 auto;
-    }}
-    .site-search-input {{
-      flex:1 1 auto;
-      min-width:0;
-      border:0;
-      outline:none;
-      font-size:15px;
-      background:transparent;
-      color:#0f172a;
-    }}
-    .site-search-submit {{
-      border:0;
-      background:#2563eb;
-      color:#fff;
-      font-weight:700;
-      padding:10px 14px;
-      border-radius:12px;
-      cursor:pointer;
-    }}
-    .site-search-inline-results {{
-      margin-top:12px;
-      display:grid;
-      gap:10px;
-    }}
-    .site-search-mini-card {{
-      display:block;
-      padding:12px 14px;
-      border:1px solid #e5e7eb;
-      border-radius:14px;
-      background:#fff;
-      color:inherit;
-      text-decoration:none;
-    }}
-    .site-search-mini-kicker {{
-      font-size:12px;
-      color:#6b7280;
-      margin-bottom:4px;
-    }}
-    .site-search-mini-title {{
-      font-size:14px;
-      font-weight:700;
-      line-height:1.45;
-    }}
-    .site-search-empty {{
-      padding:14px;
-      border:1px dashed #e5e7eb;
-      border-radius:14px;
-      background:#fff;
-      color:#6b7280;
-      font-size:14px;
-    }}
-
-    @media(max-width:760px){{
-      .site-search-bar {{
-        flex-wrap:wrap;
-      }}
-      .site-search-submit {{
-        width:100%;
-      }}
-    }}
-  </style>
+{json_ld}
 </head>
 <body>
 
@@ -2186,6 +2347,7 @@ def render_post_html(
         {guide_badge}
         <div class="kicker">{html_escape(category)}</div>
         <h1 class="post-h1">{html_escape(title)}</h1>
+        <p class="post-dek">{html_escape(description)}</p>
         <div class="post-meta">
           <span>{html_escape(category)}</span>
           <span>•</span>
@@ -2199,6 +2361,12 @@ def render_post_html(
     </div>
 
     <aside class="post-aside">
+      <div class="sidecard">
+        <h3>About this site</h3>
+        <p>{html_escape(SITE_TAGLINE)}</p>
+        <p>Written and reviewed by {html_escape(AUTHOR_NAME)}.</p>
+      </div>
+
       <div class="sidecard">
         <h3>Categories</h3>
         <div class="catlist">
@@ -2224,16 +2392,16 @@ def render_post_html(
   </div>
 </footer>
 
-<script src="../search.js?v=1"></script>
+<script src="../search.js?v={SEARCH_JS_VERSION}"></script>
 
 </body>
 </html>
 """.strip()
 
 
-# -----------------------------
-# Posts index
-# -----------------------------
+# =========================================================
+# Post index
+# =========================================================
 def load_posts_index() -> List[dict]:
     data = load_json(POSTS_JSON, [])
     posts = data if isinstance(data, list) else []
@@ -2259,9 +2427,9 @@ def add_post_to_index(
     cluster: str,
     post_type: str,
     pillar_slug: str,
+    planning: Dict[str, Any],
 ) -> None:
     thumb = image_paths[0] if image_paths else ""
-
     posts.insert(0, {
         "title": title,
         "slug": slug,
@@ -2272,27 +2440,31 @@ def add_post_to_index(
         "thumbnail": thumb,
         "image": thumb,
         "url": f"posts/{slug}.html",
-        "views": 0,
         "keyword": keyword,
         "cluster": cluster,
         "post_type": post_type,
-        "pillar_slug": (pillar_slug or slug) if post_type == "pillar" else pillar_slug
+        "pillar_slug": (pillar_slug or slug) if post_type == "pillar" else pillar_slug,
+        "audience": planning.get("audience", ""),
+        "problem": planning.get("problem", ""),
+        "outcome": planning.get("outcome", ""),
+        "angle": planning.get("angle", ""),
     })
 
 
-# -----------------------------
+# =========================================================
 # Main
-# -----------------------------
+# =========================================================
 def main() -> int:
     base_keywords = load_keywords()
     posts = load_posts_index()
+    redirects = load_redirects()
 
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
     existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
 
     keyword_pool, cluster_name, post_type, current_pillar_slug = build_keyword_pool(base_keywords, existing_titles, posts)
     if not keyword_pool:
-        print("No keyword pool available.")
+        log("MAIN", "No keyword pool available")
         return 0
 
     used_texts_raw = load_json(USED_TEXTS_JSON, {})
@@ -2308,7 +2480,7 @@ def main() -> int:
 
         remaining_keywords = [k for k in keyword_pool if normalize_keyword(k) not in tried_keywords]
         if not remaining_keywords:
-            print("Keyword pool exhausted for this run.")
+            log("MAIN", "Keyword pool exhausted for this run")
             break
 
         keyword = random.choice(remaining_keywords).strip()
@@ -2317,15 +2489,16 @@ def main() -> int:
             continue
 
         created_iso = now_utc_iso()
+        log("MAIN", f"Selected keyword='{keyword}' cluster='{cluster_name}' post_type='{post_type}'")
 
         data = None
-        strategy = {}
-        outline = {}
+        planning = {}
         corrective_note = ""
 
         for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
             try:
-                cand, cand_strategy, cand_outline = generate_deep_post(
+                log("PLAN", f"Attempt {attempt} generating planning")
+                cand, cand_planning = generate_deep_post(
                     keyword=keyword,
                     cluster_name=cluster_name,
                     post_type=post_type,
@@ -2333,66 +2506,65 @@ def main() -> int:
                     corrective_note=corrective_note,
                 )
             except Exception as e:
-                print("Deep generation failed:", e)
-                corrective_note = "Retry correction: follow the required structure more strictly."
+                log("GEN", f"Attempt {attempt} failed during generation for keyword='{keyword}': {e}")
+                corrective_note = "Retry correction: follow the required structure more strictly and keep the article less generic."
                 continue
 
-            if post_semantically_too_close(keyword, cand_strategy, posts):
-                print(f"Semantic overlap detected (attempt {attempt}). Regenerating.")
+            if post_semantically_too_close(keyword, cand_planning, posts):
+                log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
                 corrective_note = """
 Retry correction:
 - Choose a meaningfully different audience or operating problem
-- Do not create another article that overlaps with existing onboarding, planning, admin, proposal, invoicing, or follow-up workflows
-- Make the angle narrower and more distinct
-""".strip()
+- Narrow the angle
+- Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
+"""
                 continue
 
             cand_title = cand["title"]
 
             if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
-                print(f"Title too similar (attempt {attempt}). Regenerating.")
+                log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
                 corrective_note = """
 Retry correction:
 - Create a more distinct title
 - Keep the title natural and human
 - Do not resemble existing titles
-""".strip()
+"""
                 continue
 
             ok, reason = quality_check_post(cand, keyword=keyword)
             if not ok:
-                print(f"Quality check failed ({reason}) (attempt {attempt}). Regenerating.")
-                corrective_note = build_retry_corrections(reason, cand_strategy)
+                log("QUALITY", f"Quality check failed on attempt {attempt}: reason='{reason}'")
+                corrective_note = build_retry_corrections(reason, cand_planning)
                 continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
-                print(f"Content fingerprint duplicate (attempt {attempt}). Regenerating.")
+                log("DUP", f"Fingerprint duplicate on attempt {attempt}")
                 corrective_note = """
 Retry correction:
-- Keep the same strategic angle
-- Change the framing
-- Change the reusable checklist or template
-- Produce a meaningfully different article
-""".strip()
+- Keep the same intent
+- Change framing, examples, and reusable checklist
+- Make the article materially different
+"""
                 continue
 
             data = cand
-            strategy = cand_strategy
-            outline = cand_outline
+            planning = cand_planning
             used_fps.add(fp)
             break
 
         if not data:
-            print("Failed to generate a unique deep post. Skipping keyword.")
+            log("MAIN", f"Failed to generate a unique post for keyword='{keyword}'")
             continue
 
         title = data["title"]
-        description = data["description"] or strategy.get("description") or short_desc(title)
-        category = data["category"] or strategy.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+        description = data["description"] or planning.get("description") or short_desc(title)
+        category = data["category"] or planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
         sections = data["sections"]
         tldr = data["tldr"]
         faq = data["faq"]
+        editorial_note = data.get("editorial_note", "")
 
         if category not in ALLOWED_CATEGORIES:
             category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
@@ -2401,17 +2573,22 @@ Retry correction:
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
 
+        old_slug = ""
+        for p in posts[:100]:
+            if isinstance(p, dict) and normalize_keyword(p.get("title", "")) == normalize_keyword(title):
+                old_slug = (p.get("slug") or "").strip()
+                break
+
+        if old_slug and old_slug != slug:
+            redirects[f"/posts/{old_slug}.html"] = f"/posts/{slug}.html"
+
         pillar_slug = current_pillar_slug
         if post_type == "pillar":
             pillar_slug = slug
 
-        queries = [s.get("image_query") for s in sections]
-        if len(queries) != IMG_COUNT:
-            queries = [title] * IMG_COUNT
-
-        image_paths, credits_li = get_high_quality_photos_for_queries(slug, queries)
-        if len(image_paths) < IMG_COUNT:
-            print("Could not source 7 high quality photos. Skipping.")
+        image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
+        if len(image_paths) != len(sections):
+            log("IMG", f"Visual asset generation count mismatch for slug='{slug}'")
             continue
 
         related_posts = select_related_posts(
@@ -2430,12 +2607,14 @@ Retry correction:
             updated_iso=created_iso[:19].replace("T", " "),
             slug=slug,
             image_paths=image_paths,
+            alt_texts=alt_texts,
             sections=sections,
             tldr=tldr,
             faq=faq,
             photo_credits_li=credits_li,
             related_posts=related_posts,
             post_type=post_type,
+            editorial_note=editorial_note,
         )
 
         html_path = POSTS_DIR / f"{slug}.html"
@@ -2453,25 +2632,30 @@ Retry correction:
             cluster=cluster_name,
             post_type=post_type,
             pillar_slug=pillar_slug,
+            planning=planning,
         )
         existing_slugs.add(slug)
         existing_titles.insert(0, title)
 
         used_texts["fingerprints"] = sorted(list(used_fps))
         save_json(USED_TEXTS_JSON, used_texts)
+        save_redirects(redirects)
 
-        print(f"Generated HTML: posts/{slug}.html")
-        print(f"Source keyword: {keyword}")
-        print(f"Topic cluster: {cluster_name}")
-        print(f"Post type: {post_type}")
-        print(f"Strategy angle: {strategy.get('angle', '')}")
+        log("DONE", f"Generated HTML: posts/{slug}.html")
+        log("DONE", f"Source keyword: {keyword}")
+        log("DONE", f"Topic cluster: {cluster_name}")
+        log("DONE", f"Post type: {post_type}")
+        log("DONE", f"Audience: {planning.get('audience', '')}")
+        log("DONE", f"Problem: {planning.get('problem', '')}")
+        log("DONE", f"Angle: {planning.get('angle', '')}")
         made += 1
 
     if made == 0:
-        print("No posts generated this run. Exiting 0 so workflow stays green.")
+        log("MAIN", "No posts generated this run. Exiting 0 so workflow stays green.")
         return 0
 
     save_posts_index(posts)
+    log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
 
 
