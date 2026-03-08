@@ -150,6 +150,12 @@ BANNED_OPENING_PHRASES = [
     "in the modern workplace",
     "investing can be intimidating",
     "making money online has become popular",
+"freelancers often need",
+    "choosing the right tool",
+    "client retention is important",
+    "many businesses struggle",
+    "one of the most important things",
+    "this article will explore",
 ]
  
 REQUIRED_CONTENT_SIGNALS = [
@@ -165,6 +171,69 @@ MODE_REQUIRED_SIGNALS = {
     "investing": ["risk", "volatility", "long term", "beginner", "watch", "decision"],
     "money": ["income", "effort", "time", "mistake", "decision", "step"],
 }
+DEPTH_REQUIRED_SIGNALS = [
+    "hidden reason",
+    "friction",
+    "re-engagement",
+    "repeat client",
+    "retention metric",
+    "workflow",
+    "decision",
+    "tradeoff",
+    "mistake",
+    "example",
+]
+
+ENGAGEMENT_REQUIRED_SIGNALS = [
+    "why this matters",
+    "here is the catch",
+    "most people think",
+    "what actually happens",
+    "for example",
+    "in practice",
+    "the real reason",
+    "the problem is not",
+]
+
+RETENTION_SYSTEM_SIGNALS = [
+    "onboarding system",
+    "communication cadence",
+    "progress visibility",
+    "offboarding",
+    "reactivation",
+    "follow-up",
+    "check-in",
+    "renewal",
+    "repeat booking",
+]
+
+TIME_BASED_SIGNAL_PATTERNS = [
+    "7 days",
+    "14 days",
+    "30 days",
+    "weekly",
+    "monthly",
+]
+
+WEAK_SECTION_HEADINGS = [
+    "who this is for",
+    "the practical approach",
+    "decision framework",
+    "final recommendation",
+    "step by step setup",
+    "template checklist",
+    "tradeoffs and limitations",
+]
+
+BANNED_SHALLOW_ADVICE = [
+    "choose the right tool",
+    "compare features",
+    "test free trials",
+    "there are many tools available",
+    "streamline your workflow",
+    "improve efficiency",
+    "boost productivity",
+]
  
 SECTION_BLUEPRINTS = [
     [
@@ -1224,7 +1293,7 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     blueprint = random.choice(SECTION_BLUEPRINTS)
     section_count = min(max(len(blueprint), SECTION_COUNT_MIN), SECTION_COUNT_MAX)
- 
+
     post_guidance = """
 This is a pillar guide.
 It should explain a family of related choices clearly.
@@ -1235,24 +1304,24 @@ This is a focused article.
 It should solve one specific search intent in detail.
 It can be a workflow article, a review article, a comparison article, a make money article, or a beginner investing article.
 """
- 
+
     return f"""
 You are planning a practical article for US and EU readers.
- 
+
 Cluster:
 {cluster_name}
- 
+
 Seed keyword:
 {keyword}
- 
+
 Preferred category:
 {category_hint}
- 
+
 Avoid titles too similar to:
 {avoid_block}
- 
+
 Return valid JSON only.
- 
+
 Schema:
 {{
   "audience": "specific reader type",
@@ -1267,6 +1336,7 @@ Schema:
   "section_plan": [
     {{
       "heading": "section heading",
+      "section_role": "problem|insight|solution|example|decision|checklist|ending",
       "goal": "what this section must achieve",
       "image_query": "2-6 words concrete visual idea",
       "visual_type": "photo|diagram|workspace",
@@ -1283,9 +1353,30 @@ Schema:
     "point 2"
   ]
 }}
- 
+
 Hard rules:
 - Avoid fake sophistication
+- Avoid shallow SEO filler
+- Avoid generic software roundup structure
+- The article must go one level deeper than a standard blog post
+- The article structure must follow this logic:
+  problem -> insight -> solution
+- At least the first 3 sections must clearly map to:
+  1. the visible problem
+  2. the hidden insight or misunderstanding
+  3. the practical solution or system
+- The section headings must reflect this progression
+- Avoid flat list-style structure where each section feels interchangeable
+- Each section heading must create curiosity, tension, contrast, or a decision point
+- Avoid bland headings like:
+  who this is for
+  practical approach
+  decision framework
+  final recommendation
+  step by step setup
+- Prefer headings that imply a hidden truth, invisible moment, overlooked tradeoff, or real-world consequence
+- The last section must not feel like a generic summary
+- The final section should leave the reader with a decision, a reflection, or a pressure point
 - The title may use high CTR formats when natural:
   - best X for Y
   - X vs Y
@@ -1303,11 +1394,12 @@ Hard rules:
 - Each section must be materially distinct
 - image_query must be visual and believable
 - visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
- 
+
 {post_guidance}
 """.strip()
+
  
-def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
+
     raw = _find_balanced_json(text)
     data = json.loads(raw)
  
@@ -1342,6 +1434,7 @@ def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", po
             raise ValueError("section item must be object")
         heading = _clean_text(s.get("heading", ""))
         goal = _clean_text(s.get("goal", ""))
+section_role = _clean_text(s.get("section_role", "")).lower()
         image_query = _clean_text(s.get("image_query", ""))
         visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
         alt_hint = _clean_text(s.get("alt_hint", ""))
@@ -1352,13 +1445,16 @@ def parse_planning_json(text: str, keyword: str = "", cluster_name: str = "", po
  
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "diagram"
- 
+        if section_role not in {"problem", "insight", "solution", "example", "decision", "checklist", "ending"}:
+            section_role = "solution"
+
         if not heading or not goal or not image_query or len(must_include) < 2:
             raise ValueError("section_plan item missing required fields")
  
         clean_sections.append({
             "heading": heading,
             "goal": goal,
+"section_role": section_role,
             "image_query": image_query,
             "visual_type": visual_type,
             "must_include": must_include[:6],
@@ -1453,6 +1549,9 @@ def build_mode_rules(mode: str) -> str:
 - Include tradeoffs
 - Include a reusable checklist or template
 - Include when not to use this setup
+- Include at least 2 time-based actions
+- Include at least 1 measurable threshold or review cadence
+- Convert abstract advice into specific operational timing
 - Do not use markdown bold like **text**
 - When writing numbered steps, put each step on its own block
 """
@@ -1472,28 +1571,28 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
- 
+
     return (
         f"""
 You are writing a practical blog article for US and EU readers.
- 
+
 Seed keyword:
 {keyword}
- 
+
 Cluster:
 {cluster_name}
- 
+
 Post type:
 {post_type}
- 
+
 Content mode:
 {mode}
- 
+
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
- 
+
 Output must be valid JSON only.
- 
+
 Schema:
 {{
   "title": "string",
@@ -1514,7 +1613,7 @@ Schema:
   "tldr": "string",
   "editorial_note": "string"
 }}
- 
+
 Hard rules:
 - Do not use markdown bold like **text**
 - Do not place multiple numbered items in one paragraph
@@ -1541,92 +1640,61 @@ Hard rules:
 - FAQ must have 3 to 5 realistic follow-up questions
 - TLDR must be 2 to 4 sentences
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
- 
+
+Engagement and dwell time requirements:
+- The TLDR and the opening of section 1 must create immediate curiosity
+- The first 3 lines must explain why the reader should keep reading
+- The opening must start with a non-obvious insight, tension, or hidden problem
+- Do not start with generic context such as "many people", "in today's world", or broad importance statements
+- The opening should feel like a strong column opening, not a textbook introduction
+- The first section must answer:
+  - what people usually think
+  - what actually happens
+  - why that gap matters
+- The article must clearly move from problem to insight to solution
+- The reader should feel progression, not repetition
+- Section 1 should define the visible problem
+- Section 2 should reveal a hidden reason, false assumption, or overlooked mechanism
+- Section 3 should present the practical solution or system
+- Each section heading should feel worth reading on its own
+- Avoid bland, generic section titles
+- Break the reading pattern at least 2 times in the article
+- Include at least 2 mini-scenarios, short examples, or edge cases
+- At least 1 example should read like a brief story with sequence and consequence
+- Use labels like:
+  Example
+  Scenario
+  In practice
+  What this looks like
+  Edge case
+- Do not let every section follow the same rhythm
+- Use concrete numbers whenever possible
+- Include at least 3 specific numeric details such as:
+  7 days
+  14 days
+  30 days
+  weekly
+  monthly
+  3 steps
+- Avoid purely abstract advice like improve communication or be more organized
+- Translate advice into measurable actions
+- Keep paragraphs short
+- Most paragraphs should be 1 to 3 sentences
+- Use short sentences frequently
+- Do not write long dense paragraphs for the whole article
+- Vary sentence length to improve reading rhythm
+- Some lines may stand alone for emphasis when natural
+- The ending must leave the reader with a strong question, contrast, or decision point
+- Do not end with generic summary language
+- The final paragraph should feel memorable and reflective
+- The final lines should make the reader reconsider their current setup, behavior, or assumption
+
 Mode specific requirements:
 {mode_rules}
- 
+
 {corrective_note.strip() if corrective_note else ""}
 """
-    ).strip()
- 
-def parse_article_json(text: str, keyword: str = "", cluster_name: str = "", post_type: str = "") -> Dict[str, Any]:
-    raw = _find_balanced_json(text)
-    data = json.loads(raw)
-
-    if not isinstance(data, dict):
-        raise ValueError("article JSON root is not object")
-
-    title = _clean_text(data.get("title", ""))
-    desc = _clean_text(data.get("description", ""))
-    cat = _clean_text(data.get("category", ""))
-
-    sections = data.get("sections")
-    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
-        raise ValueError(f"sections must be list of {SECTION_COUNT_MIN} to {SECTION_COUNT_MAX}")
-
-    clean_sections = []
-    for s in sections:
-        if not isinstance(s, dict):
-            raise ValueError("section must be object")
-        heading = _clean_text(s.get("heading", ""))
-        iq = _clean_text(s.get("image_query", ""))
-        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
-        alt_text = _clean_text(s.get("alt_text", ""))
-        body = _clean_text(s.get("body", ""))
-        if visual_type not in {"photo", "diagram", "workspace"}:
-            visual_type = "diagram"
-        if not heading or not body:
-            raise ValueError("section heading/body required")
-        clean_sections.append({
-            "heading": heading,
-            "image_query": iq or heading,
-            "visual_type": visual_type,
-            "alt_text": alt_text or heading,
-            "body": body,
-        })
-
-    faq = data.get("faq") or []
-    clean_faq = []
-    if isinstance(faq, list):
-        for item in faq[:5]:
-            if isinstance(item, dict):
-                q = _clean_text(item.get("q", ""))
-                a = _clean_text(item.get("a", ""))
-                if q and a:
-                    clean_faq.append({"q": q, "a": a})
-
-    tldr = _clean_text(data.get("tldr", ""))
-    editorial_note = _clean_text(data.get("editorial_note", ""))
-
-    if cat not in ALLOWED_CATEGORIES:
-        cat = pick_category(keyword or title or "", cluster_name, post_type)
-
-    total_text = (
-        (tldr or "") +
-        (editorial_note or "") +
-        "\n".join([x["heading"] + "\n" + x["body"] for x in clean_sections]) +
-        "\n".join([x["q"] + "\n" + x["a"] for x in clean_faq])
-    )
-    if len(total_text) < MIN_CHARS:
-        raise ValueError("Generated text too short")
-
-    if not title:
-        title = f"Post {now_utc_date()}"
-    if not desc:
-        desc = short_desc(title)
-    if not editorial_note:
-        editorial_note = "This article is reviewed for practical usefulness and updated when information changes."
-
-    return {
-        "title": title,
-        "description": desc,
-        "category": cat,
-        "sections": clean_sections,
-        "faq": clean_faq,
-        "tldr": tldr or short_desc(desc),
-        "editorial_note": editorial_note,
-    }
- 
+    ).strip() 
  
 def is_generic_title(title: str) -> bool:
     t = _norm_title(title)
@@ -1768,6 +1836,95 @@ Retry correction:
 - Expand the weaker sections with examples, edge cases, and decision logic
 """
  
+if reason == "weak-opening-hook":
+        return """
+Retry correction:
+- Rewrite the opening to create immediate curiosity
+- Start with a non-obvious insight or hidden problem
+- Use phrases like:
+  the real reason
+  most people think
+  what actually happens
+  the problem is not
+- Do not start with broad general context
+"""
+
+    if reason == "missing-problem-stage":
+        return """
+Retry correction:
+- Make the article structure clearly begin with a visible problem
+- Show what is going wrong before moving into solutions
+"""
+
+    if reason == "missing-insight-stage":
+        return """
+Retry correction:
+- Add a hidden reason, misunderstanding, or overlooked mechanism
+- The second stage should reveal why the obvious explanation is incomplete
+"""
+
+    if reason == "missing-solution-stage":
+        return """
+Retry correction:
+- Add a practical system, workflow, or process after the problem and insight stages
+- The article must clearly move into solution mode
+"""
+
+    if reason == "weak-section-headings":
+        return """
+Retry correction:
+- Rewrite the section headings to create curiosity
+- Avoid generic headings like practical approach or decision framework
+- Use headings that imply hidden reasons, mistakes, tension, contrast, or decision moments
+"""
+
+    if reason == "missing-pattern-breaks":
+        return """
+Retry correction:
+- Add at least 2 mini-scenarios or example blocks
+- Break the article rhythm with short story-like examples
+- Use labels such as Example, Scenario, In practice, or Edge case
+"""
+
+    if reason == "not-specific-enough":
+        return """
+Retry correction:
+- Add specific numbers and timing
+- Use concrete actions such as 7 days, 14 days, 30 days, weekly, or monthly
+- Replace abstract advice with measurable steps
+"""
+
+    if reason == "too-dense":
+        return """
+Retry correction:
+- Rewrite the article with shorter paragraphs
+- Most paragraphs should be 1 to 3 sentences
+- Use shorter sentences and more visual breaks
+- Keep the article long but easier to scan
+"""
+
+    if reason == "weak-ending":
+        return """
+Retry correction:
+- Rewrite the ending so it does not sound like a generic summary
+- End with a sharper reflection, decision question, or strategic takeaway
+"""
+
+    if reason == "missing-reflective-ending":
+        return """
+Retry correction:
+- The final paragraph must leave the reader thinking
+- Use a strong closing question, contrast, or implication
+- Make the ending memorable rather than merely complete
+"""
+
+    if reason == "shallow-advice":
+        return """
+Retry correction:
+- Remove shallow advice such as choose the right tool or compare features
+- Go deeper into behavioral causes, systems, timing, and decision logic
+"""
+
     return """
 Retry correction:
 - Make the article more distinct, more concrete, and less templated
@@ -1799,14 +1956,55 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
  
     if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
         return False, "generic-opening"
- 
+     opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
+
+    strong_opening_signals = [
+        "the real reason",
+        "most people think",
+        "what actually happens",
+        "the problem is not",
+        "even when",
+        "hidden reason",
+        "looks like",
+    ]
+
+    if not any(x in opening_text[:700] for x in strong_opening_signals):
+        return False, "weak-opening-hook"
+opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
+
+    strong_opening_signals = [
+        "the real reason.",
+        "most people think",
+        "what actually happens",
+        "the problem is not",
+        "even when",
+        "hidden reason",
+        "looks like",
+    ]
+
+    if not any(x in opening_text[:700] for x in strong_opening_signals):
+        return False, "weak-opening-hook"
+problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
+    insight_signals = ["real reason", "hidden", "actually", "invisible", "why", "misunderstand"]
+    solution_signals = ["system", "workflow", "process", "how to", "setup", "build"]
+
+    if not any(x in joined for x in problem_signals):
+        return False, "missing-problem-stage"
+    if not any(x in joined for x in insight_signals):
+        return False, "missing-insight-stage"
+    if not any(x in joined for x in solution_signals):
+        return False, "missing-solution-stage"
+
     if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
         return False, "thin-section"
  
     section_headings = [_norm_title(s.get("heading", "")) for s in sections]
     if len(set(section_headings)) < len(section_headings):
         return False, "duplicate-headings"
- 
+     for h in section_headings:
+        if h in WEAK_SECTION_HEADINGS:
+            return False, "weak-section-headings"
+
     base_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
     if base_hits < 3:
         return False, "missing-depth-signals"
@@ -1815,7 +2013,37 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     mode_hits = sum(1 for x in mode_signals if x in joined)
     if mode_hits < 4:
         return False, "missing-depth-signals"
- 
+     example_signals = [
+        "for example",
+        "example",
+        "scenario",
+        "in practice",
+        "edge case",
+        "consider this",
+        "imagine",
+    ]
+    example_hits = sum(1 for x in example_signals if x in joined)
+    if example_hits < 3:
+        return False, "missing-pattern-breaks"
+
+if sum(1 for x in TIME_BASED_SIGNAL_PATTERNS if x in joined) < 2:
+        return False, "not-specific-enough"
+
+    if len(re.findall(r"\b\d+\b", joined)) < 5:
+        return False, "not-specific-enough"
+for bad in BANNED_SHALLOW_ADVICE:
+           if bad in joined:
+               return False, "shallow-advice"
+dense_paragraph_count = 0
+       for s in sections:
+           blocks = re.split(r"\n\s*\n+", s.get("body", ""))
+           for b in blocks:
+               if len(b.strip()) > 650:
+                   dense_paragraph_count += 1
+
+    if dense_paragraph_count >= 3:
+        return False, "too-dense"
+
     if "who this is for" not in joined and "this is for" not in joined and "best for" not in joined:
         return False, "missing-audience-framing"
  
@@ -1846,6 +2074,31 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
         if "income" not in joined or "effort" not in joined or "time" not in joined:
             return False, "missing-depth-signals"
  
+last_body = (sections[-1].get("body", "") or "").lower()
+
+weak_ending_patterns = [
+        "in conclusion",
+        "to summarize",
+        "choose the right tool",
+        "depends on your needs",
+        "final recommendation",
+    ]
+
+    if any(x in last_body[-500:] for x in weak_ending_patterns):
+        return False, "weak-ending"
+
+    ending_signals = [
+        "?",
+        "the real question",
+        "before you",
+        "ask yourself",
+        "if this happened tomorrow",
+        "what would happen",
+    ]
+
+    if not any(x in last_body[-700:] for x in ending_signals):
+        return False, "missing-reflective-ending"
+
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
     if nk and nt and nk == nt:
@@ -2632,11 +2885,41 @@ def normalize_existing_post(p: dict) -> dict:
 # =========================================================
 # HTML rendering helpers
 # =========================================================
-def paragraphs_to_html(text: str) -> str:
+def soften_dense_paragraphs(text: str) -> str:
     text = (text or "").strip()
     if not text:
         return ""
- 
+
+    blocks = re.split(r"\n\s*\n+", text)
+    out = []
+
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        if len(block) > 420 and ". " in block:
+            parts = re.split(r"(?<=[.!?])\s+", block)
+            chunk = []
+            chunk_len = 0
+            for part in parts:
+                chunk.append(part)
+                chunk_len += len(part)
+                if chunk_len >= 180:
+                    out.append(" ".join(chunk).strip())
+                    chunk = []
+                    chunk_len = 0
+            if chunk:
+                out.append(" ".join(chunk).strip())
+        else:
+            out.append(block)
+
+    return "\n\n".join(out)
+
+def paragraphs_to_html(text: str) -> str:
+text = soften_dense_paragraphs((text or "").strip())
+    if not text:
+        return "" 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     blocks = re.split(r"\n\s*\n+", text)
  
