@@ -2001,7 +2001,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     section_headings = [_norm_title(s.get("heading", "")) for s in sections]
     if len(set(section_headings)) < len(section_headings):
         return False, "duplicate-headings"
-     for h in section_headings:
+    for h in section_headings:
         if h in WEAK_SECTION_HEADINGS:
             return False, "weak-section-headings"
 
