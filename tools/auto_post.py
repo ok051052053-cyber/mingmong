@@ -2917,7 +2917,7 @@ def soften_dense_paragraphs(text: str) -> str:
     return "\n\n".join(out)
 
 def paragraphs_to_html(text: str) -> str:
-text = soften_dense_paragraphs((text or "").strip())
+    text = soften_dense_paragraphs((text or "").strip())
     if not text:
         return "" 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
