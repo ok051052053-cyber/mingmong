@@ -2868,11 +2868,11 @@ def main() -> int:
                 if post_semantically_too_close(keyword, cand_planning, posts):
                     log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
                     corrective_note = """
-                    Retry correction:
-                    - Choose a meaningfully different audience or operating problem
-                    - Narrow the angle
-                    - Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
-                    """
+Retry correction:
+- Choose a meaningfully different audience or operating problem
+- Narrow the angle
+- Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
+"""
                     continue
 
                 cand_title = cand["title"]
@@ -2880,11 +2880,11 @@ def main() -> int:
                 if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                     log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
                     corrective_note = """
-                    Retry correction:
-                    - Create a more distinct title
-                    - Keep the title natural and human
-                    - Do not resemble existing titles
-                    """
+Retry correction:
+- Create a more distinct title
+- Keep the title natural and human
+- Do not resemble existing titles
+"""
                     continue
 
                 ok, reason = quality_check_post(cand, keyword=keyword)
@@ -2897,59 +2897,11 @@ def main() -> int:
                 if fp in used_fps:
                     log("DUP", f"Fingerprint duplicate on attempt {attempt}")
                     corrective_note = """
-                    Retry correction:
-                    - Keep the same intent
-                    - Change framing, examples, and reusable checklist
-                    - Make the article materially different
-                    """
-                    continue
-
-                data = cand
-                planning = cand_planning
-                used_fps.add(fp)
-                break
-
-            except Exception as e:
-                import traceback
-                log("GEN", f"Attempt {attempt} crashed for keyword='{keyword}': {e}")
-                traceback.print_exc()
-                corrective_note = "Retry correction: follow the required structure more strictly and keep the article less generic."
-                continue
-    
-Retry correction:
-- Choose a meaningfully different audience or operating problem
-- Narrow the angle
-- Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
-"""
-                continue
-
-            cand_title = cand["title"]
-
-            if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
-                log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
-                corrective_note = """
-                    Retry correction:
-                    - Create a more distinct title
-                    - Keep the title natural and human
-                    - Do not resemble existing titles
-                    """
-                continue
-
-            ok, reason = quality_check_post(cand, keyword=keyword)
-            if not ok:
-                log("QUALITY", f"Quality check failed on attempt {attempt}: reason='{reason}'")
-                corrective_note = build_retry_corrections(reason, cand_planning)
-                continue
-
-                fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
-                if fp in used_fps:
-                    log("DUP", f"Fingerprint duplicate on attempt {attempt}")
-                    corrective_note = """
 Retry correction:
 - Keep the same intent
 - Change framing, examples, and reusable checklist
 - Make the article materially different
-
+"""
                     continue
 
                 data = cand
@@ -3069,15 +3021,6 @@ Retry correction:
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
 
-
-if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except Exception as e:
-        import traceback
-        print("[FATAL] Unhandled exception:")
-        traceback.print_exc()
-        raise
 
 if __name__ == "__main__":
     try:
