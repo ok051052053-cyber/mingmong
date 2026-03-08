@@ -1861,6 +1861,26 @@ def render_post_html(
     if related_html:
         blocks.append(related_html)
 
+    blocks.append("""
+<div class="post-search-block">
+  <h2 class="post-search-title">Search more articles</h2>
+  <p class="post-search-sub">Find related tools, workflows, and guides.</p>
+  <form class="site-search-form js-inline-search-form" autocomplete="off">
+    <div class="site-search-bar">
+      <span class="site-search-icon">🔍</span>
+      <input
+        type="search"
+        class="site-search-input js-inline-search-input"
+        placeholder="Search guides, workflows, templates"
+        aria-label="Search guides, workflows, templates"
+      />
+      <button type="submit" class="site-search-submit">Search</button>
+    </div>
+  </form>
+  <div class="site-search-inline-results js-inline-search-results"></div>
+</div>
+""".strip())
+
     if photo_credits_li:
         blocks.append("<h2>Photo credits</h2>")
         blocks.append("<ul>" + "\n".join(photo_credits_li) + "</ul>")
@@ -1901,7 +1921,7 @@ def render_post_html(
   <meta name="twitter:description" content="{html_escape(description)}">
   <meta name="twitter:image" content="{html_escape(og_image)}">
 
-  <link rel="stylesheet" href="../style.css?v=4">
+  <link rel="stylesheet" href="../style.css?v=9">
 {adsense_tag}
   <style>
     .post-type-badge {{
@@ -1954,6 +1974,133 @@ def render_post_html(
       padding:4px 8px;
       border-radius:999px;
     }}
+
+    .nav-search-btn {{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:10px 12px;
+      font-weight:700;
+      font-size:14px;
+      border-radius:10px;
+      color:#0f172a;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      cursor:pointer;
+    }}
+    .nav-search-btn:hover {{
+      background:#f3f4f6;
+      text-decoration:none;
+    }}
+    .nav-search-ico {{
+      line-height:1;
+    }}
+    .nav-search-text {{
+      line-height:1;
+    }}
+
+    .post-search-block {{
+      margin:28px 0 10px;
+      padding:18px;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      background:#fff;
+      box-shadow:0 12px 32px rgba(15,23,42,.08);
+    }}
+    .post-search-title {{
+      margin:0 0 6px;
+      font-size:18px;
+      font-weight:900;
+    }}
+    .post-search-sub {{
+      margin:0 0 12px;
+      color:#6b7280;
+      font-size:14px;
+    }}
+    .site-search-bar {{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      background:#fff;
+      box-shadow:0 12px 32px rgba(15,23,42,.08);
+    }}
+    .site-search-icon {{
+      font-size:16px;
+      line-height:1;
+      flex:0 0 auto;
+    }}
+    .site-search-input {{
+      flex:1 1 auto;
+      min-width:0;
+      border:0;
+      outline:none;
+      font-size:15px;
+      background:transparent;
+      color:#0f172a;
+    }}
+    .site-search-submit {{
+      border:0;
+      background:#2563eb;
+      color:#fff;
+      font-weight:700;
+      padding:10px 14px;
+      border-radius:12px;
+      cursor:pointer;
+    }}
+    .site-search-inline-results {{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+    }}
+    .site-search-mini-card {{
+      display:block;
+      padding:12px 14px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+      color:inherit;
+      text-decoration:none;
+    }}
+    .site-search-mini-kicker {{
+      font-size:12px;
+      color:#6b7280;
+      margin-bottom:4px;
+    }}
+    .site-search-mini-title {{
+      font-size:14px;
+      font-weight:700;
+      line-height:1.45;
+    }}
+    .site-search-empty {{
+      padding:14px;
+      border:1px dashed #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+      color:#6b7280;
+      font-size:14px;
+    }}
+
+    @media(max-width:520px){{
+      .nav-search-text {{
+        display:none;
+      }}
+      .nav-search-btn {{
+        padding:10px;
+        min-width:42px;
+      }}
+    }}
+    @media(max-width:760px){{
+      .site-search-bar {{
+        flex-wrap:wrap;
+      }}
+      .site-search-submit {{
+        width:100%;
+      }}
+    }}
   </style>
 </head>
 <body>
@@ -1968,6 +2115,10 @@ def render_post_html(
       <a href="../index.html">Home</a>
       <a href="../about.html">About</a>
       <a href="../contact.html">Contact</a>
+      <button class="nav-search-btn js-open-search" type="button" aria-label="Open search">
+        <span class="nav-search-ico">🔍</span>
+        <span class="nav-search-text">Search</span>
+      </button>
     </nav>
   </div>
 </header>
@@ -2017,6 +2168,8 @@ def render_post_html(
     </div>
   </div>
 </footer>
+
+<script src="../search.js?v=1"></script>
 
 </body>
 </html>
