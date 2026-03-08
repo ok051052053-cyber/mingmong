@@ -2196,11 +2196,10 @@ def build_image_asset_for_section(
     folder = ASSETS_POSTS_DIR / slug
     folder.mkdir(parents=True, exist_ok=True)
 
-    clean_query = " ".join([
-        (post_title or "").strip(),
-        (image_query or "").strip(),
-        (heading or "").strip(),
-    ]).strip() or "modern office workspace laptop notes"
+clean_query = " ".join([
+    (image_query or "").strip(),
+    (heading or "").strip(),
+]).strip() or "modern office workspace laptop notes"
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
 
     should_try_external = len(clean_query.split()) >= 1
@@ -2871,23 +2870,23 @@ def main() -> int:
                 if post_semantically_too_close(keyword, cand_planning, posts):
                     log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
                     corrective_note = """
-        Retry correction:
-        - Choose a meaningfully different audience or operating problem
-        - Narrow the angle
-        - Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
-        """
-            continue
+Retry correction:
+- Choose a meaningfully different audience or operating problem
+- Narrow the angle
+- Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
+"""
+                    continue
 
                 cand_title = cand["title"]
 
                 if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                     log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
                     corrective_note = """
-        Retry correction:
-        - Create a more distinct title
-        - Keep the title natural and human
-        - Do not resemble existing titles
-        """
+Retry correction:
+- Create a more distinct title
+- Keep the title natural and human
+- Do not resemble existing titles
+"""
                     continue
 
                 ok, reason = quality_check_post(cand, keyword=keyword)
@@ -2900,11 +2899,11 @@ def main() -> int:
                 if fp in used_fps:
                     log("DUP", f"Fingerprint duplicate on attempt {attempt}")
                     corrective_note = """
-        Retry correction:
-        - Keep the same intent
-        - Change framing, examples, and reusable checklist
-        - Make the article materially different
-        """
+Retry correction:
+- Keep the same intent
+- Change framing, examples, and reusable checklist
+- Make the article materially different
+"""
                     continue
 
                 data = cand
