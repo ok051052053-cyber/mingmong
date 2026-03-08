@@ -2115,10 +2115,6 @@ def render_post_html(
       <a href="../index.html">Home</a>
       <a href="../about.html">About</a>
       <a href="../contact.html">Contact</a>
-      <button class="nav-search-btn js-open-search" type="button" aria-label="Open search">
-        <span class="nav-search-ico">🔍</span>
-        <span class="nav-search-text">Search</span>
-      </button>
     </nav>
   </div>
 </header>
