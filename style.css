@@ -1326,3 +1326,38 @@ textarea:focus-visible{
     text-align:left;
   }
 }
+
+/* PC에서만 이미지가 글 옆에 삽입되도록 */
+@media(min-width:1024px){
+  .post-figure{
+    float:left;
+    width:380px;
+    max-width:40%;
+    margin:8px 28px 18px 0;
+  }
+
+  .post-figure img{
+    width:100%;
+    margin:0;
+    display:block;
+    border-radius:18px;
+  }
+
+  .post-figure figcaption{
+    margin-top:10px;
+    font-size:13px;
+    line-height:1.5;
+    text-align:left;
+    color:var(--muted);
+  }
+
+  .post-content::after{
+    content:"";
+    display:block;
+    clear:both;
+  }
+
+  .post-content h2{
+    clear:both;
+  }
+}
