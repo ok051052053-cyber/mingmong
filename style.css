@@ -1086,3 +1086,222 @@ body.search-open{
     width:100%;
   }
 }
+
+/* =========================
+   AUTO POST ENHANCEMENTS
+   append only
+   ========================= */
+
+/* accessibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible{
+  outline:2px solid #93c5fd;
+  outline-offset:2px;
+}
+
+/* better long text wrapping */
+.post-h1,
+.post-title,
+.search-result-title,
+.rg-title,
+.post-content h2,
+.post-content p,
+.post-content li{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+
+/* article dek */
+.post-dek{
+  margin:10px 0 0;
+  color:#475569;
+  font-size:16px;
+  line-height:1.65;
+  max-width:72ch;
+}
+
+/* editorial note */
+.editorial-note-block{
+  margin:0 0 18px;
+  padding:14px 16px;
+  border:1px solid #dbe7ff;
+  background:#f8fbff;
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(37,99,235,.06);
+}
+.editorial-note-block p{
+  margin:0;
+  font-size:14px;
+  color:#334155;
+}
+.editorial-note-block strong{
+  color:#1e3a8a;
+}
+
+/* post type badge */
+.post-type-badge{
+  display:inline-block;
+  margin-bottom:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  background:#eef6ff;
+  color:#2563eb;
+  border:1px solid #dbeafe;
+}
+
+/* figures */
+.post-figure{
+  margin:18px 0;
+}
+.post-figure img{
+  width:100%;
+  border-radius:18px;
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  background:#fff;
+}
+.post-figure figcaption{
+  margin-top:8px;
+  color:#64748b;
+  font-size:12px;
+  line-height:1.5;
+}
+
+/* related guides */
+.related-guides{
+  margin-top:40px;
+  padding-top:12px;
+  border-top:1px solid var(--border);
+}
+.related-guides-list{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+}
+.related-guide{
+  display:block;
+  padding:14px 16px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  text-decoration:none;
+  color:inherit;
+  background:#fff;
+  box-shadow:0 8px 20px rgba(15,23,42,.04);
+  transition:transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.related-guide:hover{
+  transform:translateY(-1px);
+  box-shadow:0 12px 24px rgba(15,23,42,.08);
+  background:#f8fafc;
+  text-decoration:none;
+}
+.rg-kicker{
+  display:block;
+  font-size:12px;
+  color:#6b7280;
+  margin-bottom:4px;
+  font-weight:800;
+}
+.rg-title{
+  display:block;
+  font-weight:900;
+  line-height:1.45;
+  color:var(--text);
+}
+.rg-badge{
+  display:inline-block;
+  margin-top:8px;
+  font-size:11px;
+  font-weight:800;
+  color:#2563eb;
+  background:#eef6ff;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid #dbeafe;
+}
+
+/* post search cards from generated posts */
+.site-search-mini-card{
+  display:block;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#fff;
+  color:inherit;
+  text-decoration:none;
+}
+.site-search-mini-card:hover{
+  background:#f8fafc;
+  text-decoration:none;
+}
+.site-search-mini-kicker{
+  font-size:12px;
+  color:#6b7280;
+  margin-bottom:4px;
+  font-weight:800;
+}
+.site-search-mini-title{
+  font-size:14px;
+  font-weight:900;
+  line-height:1.45;
+  color:var(--text);
+}
+.site-search-empty{
+  padding:14px;
+  border:1px dashed var(--border);
+  border-radius:14px;
+  background:#fff;
+  color:#6b7280;
+  font-size:14px;
+}
+
+/* post aside spacing */
+.post-aside{
+  display:grid;
+  gap:14px;
+}
+
+/* about box text refinement */
+.post-aside .sidecard p{
+  margin:8px 0 0;
+  color:#475569;
+  font-size:14px;
+  line-height:1.65;
+}
+
+/* photo credits */
+.post-content ul li a{
+  word-break:break-word;
+}
+
+/* smoother media rendering */
+.post-content img,
+.post-figure img,
+.post-hero img,
+.thumb{
+  backface-visibility:hidden;
+  transform:translateZ(0);
+}
+
+/* mobile tweaks */
+@media(max-width:760px){
+  .post-dek{
+    font-size:15px;
+  }
+
+  .editorial-note-block{
+    padding:12px 14px;
+  }
+
+  .post-figure figcaption{
+    font-size:11px;
+  }
+
+  .related-guide{
+    padding:12px 14px;
+  }
+}
