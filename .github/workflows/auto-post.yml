@@ -33,6 +33,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Clean invisible spaces in auto_post.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tools/auto_post.py")
+          text = path.read_text(encoding="utf-8")
+
+          text = text.replace("\u00A0", " ")
+          text = text.replace("\u2007", " ")
+          text = text.replace("\u202F", " ")
+
+          path.write_text(text, encoding="utf-8")
+          print("Cleaned invisible spaces from", path)
+          PY
+
+      - name: Check syntax
+        run: |
+          python -m py_compile tools/auto_post.py
+
       - name: Generate post
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
