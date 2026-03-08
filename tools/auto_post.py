@@ -2941,21 +2941,28 @@ Retry correction:
                 corrective_note = build_retry_corrections(reason, cand_planning)
                 continue
 
-            fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
-            if fp in used_fps:
-                log("DUP", f"Fingerprint duplicate on attempt {attempt}")
-                corrective_note = """
+                fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
+                if fp in used_fps:
+                    log("DUP", f"Fingerprint duplicate on attempt {attempt}")
+                    corrective_note = """
 Retry correction:
 - Keep the same intent
 - Change framing, examples, and reusable checklist
 - Make the article materially different
 """
-                continue
+                    continue
 
-            data = cand
-            planning = cand_planning
-            used_fps.add(fp)
-            break
+                data = cand
+                planning = cand_planning
+                used_fps.add(fp)
+                break
+
+            except Exception as e:
+                import traceback
+                log("GEN", f"Attempt {attempt} crashed for keyword='{keyword}': {e}")
+                traceback.print_exc()
+                corrective_note = "Retry correction: follow the required structure more strictly and keep the article less generic."
+                continue
 
         if not data:
             log("MAIN", f"Failed to generate a unique post for keyword='{keyword}'")
@@ -2963,7 +2970,11 @@ Retry correction:
 
         title = data["title"]
         description = data["description"] or planning.get("description") or short_desc(title)
-        category = data["category"] or planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+        category = data["category"] or planning.get("category") or pick_category(
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
         sections = data["sections"]
         tldr = data["tldr"]
         faq = data["faq"]
@@ -2990,7 +3001,7 @@ Retry correction:
             pillar_slug = slug
 
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
-       
+
         related_posts = select_related_posts(
             posts,
             current_slug=slug,
@@ -3058,6 +3069,15 @@ Retry correction:
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
 
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as e:
+        import traceback
+        print("[FATAL] Unhandled exception:")
+        traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
     try:
