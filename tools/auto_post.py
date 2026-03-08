@@ -2564,14 +2564,25 @@ def render_post_html(
         img_path = image_paths[i] if i < len(image_paths) else ""
         alt = html_escape(alt_texts[i] if i < len(alt_texts) else sec.get("heading", title))
 
+        blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
+
+        section_body_html = paragraphs_to_html(sec["body"])
+
         if img_path:
             img_rel = f"../{img_path}"
             blocks.append(
-                f'<figure class="post-figure"><img src="{img_rel}" alt="{alt}" loading="lazy"><figcaption>{alt}</figcaption></figure>'
+                f'''
+    <div class="section-media-block">
+      <figure class="section-float">
+        <img src="{img_rel}" alt="{alt}" loading="lazy">
+        <figcaption>{alt}</figcaption>
+      </figure>
+      {section_body_html}
+    </div>
+    '''.strip()
             )
-
-        blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
-        blocks.append(paragraphs_to_html(sec["body"]))
+        else:
+            blocks.append(section_body_html)
 
     if faq:
         blocks.append("<h2>FAQ</h2>")
