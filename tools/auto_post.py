@@ -1956,7 +1956,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
  
     if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
         return False, "generic-opening"
-     opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
+    opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
 
     strong_opening_signals = [
         "the real reason",
@@ -1970,7 +1970,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
 
     if not any(x in opening_text[:700] for x in strong_opening_signals):
         return False, "weak-opening-hook"
-opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
+    opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
 
     strong_opening_signals = [
         "the real reason.",
@@ -1984,7 +1984,7 @@ opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
 
     if not any(x in opening_text[:700] for x in strong_opening_signals):
         return False, "weak-opening-hook"
-problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
+    problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
     insight_signals = ["real reason", "hidden", "actually", "invisible", "why", "misunderstand"]
     solution_signals = ["system", "workflow", "process", "how to", "setup", "build"]
 
@@ -2026,12 +2026,12 @@ problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
     if example_hits < 3:
         return False, "missing-pattern-breaks"
 
-if sum(1 for x in TIME_BASED_SIGNAL_PATTERNS if x in joined) < 2:
+    if sum(1 for x in TIME_BASED_SIGNAL_PATTERNS if x in joined) < 2:
         return False, "not-specific-enough"
 
     if len(re.findall(r"\b\d+\b", joined)) < 5:
         return False, "not-specific-enough"
-for bad in BANNED_SHALLOW_ADVICE:
+    for bad in BANNED_SHALLOW_ADVICE:
            if bad in joined:
                return False, "shallow-advice"
 dense_paragraph_count = 0
