@@ -1514,6 +1514,17 @@ Schema:
 }}
  
 Hard rules:
+- Do not use markdown bold like **text**
+- Do not place multiple numbered items in one paragraph
+- When using numbered steps, format them like:
+  1. Step title
+  Explanation sentence one.
+  Explanation sentence two.
+
+  2. Step title
+  Explanation sentence one.
+  Explanation sentence two.
+- Keep each numbered step as its own separate block
 - Use the section_plan exactly as the structural backbone
 - Preserve the same number of sections as in section_plan
 - Each section must be materially useful
