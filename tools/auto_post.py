@@ -1836,7 +1836,7 @@ Retry correction:
 - Expand the weaker sections with examples, edge cases, and decision logic
 """
  
-if reason == "weak-opening-hook":
+    if reason == "weak-opening-hook":
         return """
 Retry correction:
 - Rewrite the opening to create immediate curiosity
@@ -1855,7 +1855,7 @@ Retry correction:
 - Make the article structure clearly begin with a visible problem
 - Show what is going wrong before moving into solutions
 """
-
+   
     if reason == "missing-insight-stage":
         return """
 Retry correction:
