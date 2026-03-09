@@ -46,7 +46,7 @@ MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "4"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "8"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
@@ -1788,9 +1788,19 @@ def build_mode_rules(mode: str) -> str:
         return """
 - Explain who this is for
 - Explain the beginner angle clearly
+- Use one of these exact phrases:
+  this is for
+  if you are
+  for beginners
 - Include risk and volatility
 - Use the exact phrase long term in a natural sentence
 - Explain what to watch before buying
+- Include at least one limitation such as:
+  not ideal for
+  avoid this if
+  time horizon
+  risk tolerance
+  educational content
 - Do not give reckless certainty
 - Do not sound like day trading hype
 - Keep it educational and practical
@@ -2219,10 +2229,15 @@ def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
  
     if reason == "missing-audience-framing":
         return f"""
-Retry correction:
-- The first section must explicitly say who this article is for
-- The audience must be named directly as: {audience}
-"""
+    Retry correction:
+    - The first section must explicitly say who this article is for
+    - Use one of these exact phrases in the first section:
+      this is for
+      best for
+      if you are
+      for beginners
+    - The audience must be named directly as: {audience}
+    """
  
     if reason == "missing-depth-signals":
         if mode == "review":
@@ -2589,15 +2604,28 @@ def quality_check_post(
             return False, "shallow-advice"
     dense_paragraph_count = 0
     for s in sections:
-        blocks = re.split(r"\n\s*\n+", s.get("body", ""))
+        softened = soften_dense_paragraphs(s.get("body", ""))
+        blocks = re.split(r"\n\s*\n+", softened)
         for b in blocks:
-            if len(b.strip()) > 520:
+            if len(b.strip()) > 700:
                 dense_paragraph_count += 1
 
-    if dense_paragraph_count >= 3:
+    if dense_paragraph_count >= 5:
         return False, "too-dense"
 
-    if "who this is for" not in joined and "this is for" not in joined and "best for" not in joined:
+    audience_signals = [
+        "who this is for",
+        "this is for",
+        "best for",
+        "if you are",
+        "for beginners",
+        "beginner investors",
+        "new investors",
+        "young professionals",
+        "first time investors",
+    ]    
+
+    if not any(x in joined for x in audience_signals):
         return False, "missing-audience-framing"
  
     if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
@@ -2634,6 +2662,12 @@ def quality_check_post(
             "this may not work",
             "less useful if",
             "not the best choice",
+            "this is not for",
+            "not a good fit",
+            "only makes sense if",
+            "works better if",
+            "can underperform",
+            "short time horizon",
         ]
         if not any(x in joined for x in limitation_signals):
             return False, "missing-limitations"
@@ -2685,7 +2719,21 @@ def quality_check_post(
     if mode == "investing":
         if "risk" not in joined or "volatility" not in joined or "long term" not in joined:
             return False, "missing-depth-signals"
-        if "not financial advice" not in joined and "educational only" not in joined:
+
+        investing_limitation_signals = [
+            "not financial advice",
+            "educational only",
+            "educational content",
+            "not personalized advice",
+            "risk tolerance",
+            "time horizon",
+            "short time horizon",
+            "can underperform",
+            "this may not fit",
+            "avoid this if",
+            "not ideal for",
+        ]
+        if not any(x in joined for x in investing_limitation_signals):
             return False, "missing-limitations"
  
     if mode == "money":
