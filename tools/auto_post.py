@@ -1568,6 +1568,15 @@ Schema:
 }}
 
 Hard rules:
+- At least 2 sections must include a concrete number, cost, percentage, amount, or time example
+- At least 1 section must include a realistic beginner scenario with money, timing, and consequence
+- For investing topics include practical realism such as:
+  monthly amount
+  allocation percentage
+  fee difference
+  review cadence
+- Avoid generic illustrations as the only visual idea
+- image_query must be specific enough to look unique and editorial
 - Titles must match a real beginner search query closely
 - Prefer concrete patterns like:
   how to start X with Y
@@ -1919,6 +1928,17 @@ Schema:
 }}
 
 Hard rules:
+- For investing topics include at least 2 practical realism examples with numbers
+- Good examples:
+  100 dollars per month
+  500 dollar starting portfolio
+  80 20 allocation
+  0.07 percent fee vs 0.60 percent fee
+- Include one sentence that frames the article as educational content not personal financial advice
+- Include one short editorial-style observation that sounds reviewed and practical
+- The body must satisfy the exact promise implied by the title
+- If the title includes beginner, simple, monthly, first, or small amount, the article must explain that constraint directly
+- Do not drift into a broader guide than the title promises
 - Include at least 2 natural internal-link hook moments inside the body
 - These hooks should mention related article angles such as:
   comparison
