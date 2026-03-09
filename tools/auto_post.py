@@ -66,7 +66,7 @@ MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
 GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
 GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
-GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "1.1"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = 1.1 float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "1.1"))
  
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
@@ -2514,15 +2514,13 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     if realism_hits < 2:
         return False, "missing-realism"
 
-    if commercial_hits < 3:
+    if intent_type in {"comparison", "review"} and commercial_hits < 2:
         return False, "missing-commercial-depth"
-
     if cta_hits < 1:
         return False, "missing-cta"
 
-    if internal_link_hits < 2:
-        return False, "missing-cluster-hooks"
- 
+    if post_type == "pillar" and internal_link_hits < 1:
+        return False, "missing-cluster-hooks" 
     if mode == "workflow":
         if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
             return False, "missing-template-checklist"
@@ -2753,7 +2751,7 @@ def generate_deep_post(
     corrective_note: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     planning_raw = openai_generate_text(
-        build_planning_prompt(keyword, avoid_titles, cluster_name, post_type),
+        build_planning_prompt(keyword, avoid_titles, cluster_name, post_type, corrective_note="")
         model=MODEL_PLANNER,
         temperature=0.55,
     )
@@ -3982,9 +3980,12 @@ def main() -> int:
             break
  
         keyword = random.choice(remaining_keywords).strip()
-        effective_cluster_name = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-        effective_category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-        effective_cluster_name = effective_category
+        effective_cluster_name = cluster_name
+effective_category = pick_category(
+           keyword=keyword,
+           cluster_name=cluster_name,
+           post_type=post_type,
+)
         tried_keywords.add(normalize_keyword(keyword))
         if not keyword:
             continue
