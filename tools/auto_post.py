@@ -4164,8 +4164,8 @@ Retry correction:
         made += 1
 
     if made == 0:
-        log("MAIN", "No posts generated this run. Exiting 0 so workflow stays green.")
-        return 0
+        log("MAIN", "No posts generated this run after all retries.")
+        raise RuntimeError("No posts generated this run")
 
     save_posts_index(posts)
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
