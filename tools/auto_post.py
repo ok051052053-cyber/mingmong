@@ -3009,11 +3009,16 @@ def sanitize_query_for_image(q: str) -> str:
         "client retention system": "crm dashboard freelancer",
         "client retention": "freelancer crm dashboard",
         "decision framework": "comparison chart software dashboard",
-        "practical approach": "freelancer workflow dashboard",
+        "practical approach": "workspace planning notebook laptop",
         "template checklist": "checklist notebook desk",
         "follow-up automation": "crm automation dashboard",
         "offboarding": "client handoff checklist desk",
         "reactivation": "email follow up workspace",
+        "simple long term portfolio": "investment portfolio chart laptop desk",
+        "beginner portfolio allocation": "portfolio allocation chart spreadsheet",
+        "monthly investing plan": "budget spreadsheet laptop coffee desk",
+        "etf comparison": "etf comparison chart laptop screen",
+        "risk tolerance": "investment risk chart notebook desk",
     }
 
     for src, dst in replacements.items():
@@ -3027,7 +3032,7 @@ def sanitize_query_for_image(q: str) -> str:
         flags=re.IGNORECASE,
     )
     q = re.sub(r"\s+", " ", q).strip()
-    return q or "freelancer workspace crm dashboard"
+    return q or "workspace planning notebook laptop"
  
  
 def normalize_asset_id(source: str, raw_id: str) -> str:
