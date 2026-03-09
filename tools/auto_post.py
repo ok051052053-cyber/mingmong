@@ -2557,7 +2557,24 @@ def post_semantically_too_close(
             return True
  
     return False
- 
+
+def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str):
+    import json
+    import re
+
+    try:
+        match = re.search(r"\{.*\}", article_raw, re.S)
+        if match:
+            return json.loads(match.group(0))
+    except Exception:
+        pass
+
+    return {
+        "title": keyword.title(),
+        "description": "",
+        "category": "AI Tools",
+        "sections": []
+    }
  
 def generate_deep_post(
     *,
