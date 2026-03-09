@@ -2751,7 +2751,7 @@ def generate_deep_post(
     corrective_note: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     planning_raw = openai_generate_text(
-        build_planning_prompt(keyword, avoid_titles, cluster_name, post_type, corrective_note=""),
+        build_planning_prompt(keyword, avoid_titles, cluster_name, post_type),
         model=MODEL_PLANNER,
         temperature=0.55,
     )
