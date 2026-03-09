@@ -45,8 +45,8 @@ MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "9000"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "900"))
-MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "12"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "5"))
+MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "100"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "25"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
