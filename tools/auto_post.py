@@ -43,10 +43,10 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "50000"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "500"))
-MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "15"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "2"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
+MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
+MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "4"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
@@ -64,9 +64,9 @@ TOPIC_SIM_THRESHOLD = float(os.environ.get("TOPIC_SIM_THRESHOLD", "0.70"))
 MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
  
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
-GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "8"))
-GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "8"))
-GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "0.5"))
+GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "4"))
+GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "4"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "0.42"))
  
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
@@ -2486,7 +2486,7 @@ def quality_check_post(
         return False, "thin-section"
     
     avg_section_len = sum(len((s.get("body") or "").strip()) for s in sections) / max(len(sections), 1)
-    if avg_section_len < 1200:
+    if avg_section_len < 1000:
         return False, "thin-section"
 
     if len((tldr or "").strip()) < 220:
@@ -2563,12 +2563,23 @@ def quality_check_post(
     if post_type == "pillar" and internal_link_hits < 1:
         return False, "missing-cluster-hooks" 
     if mode == "workflow":
-        if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-            return False, "missing-template-checklist"
-        if "tradeoff" not in joined and "trade-off" not in joined:
-            return False, "missing-tradeoff"
-        if "when not to use this" not in joined and "do not use this setup" not in joined:
-            return False, "missing-limitations"
+    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
+        return False, "missing-template-checklist"
+    if "tradeoff" not in joined and "trade-off" not in joined:
+        return False, "missing-tradeoff"
+
+    limitation_signals = [
+        "when not to use this",
+        "do not use this setup",
+        "not ideal for",
+        "should avoid",
+        "avoid this if",
+        "this may not work",
+        "less useful if",
+        "not the best choice",
+    ]
+    if not any(x in joined for x in limitation_signals):
+        return False, "missing-limitations"
 
     if intent_type == "comparison":
         required = ["price", "free plan", "best for", "not ideal"]
