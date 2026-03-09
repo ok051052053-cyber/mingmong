@@ -3224,7 +3224,7 @@ def render_related_guides_html(related_posts: List[dict]) -> str:
         + "</div></section>"
     )
  
- def render_conversion_cta_html(category: str, keyword: str = "") -> str:
+def render_conversion_cta_html(category: str, keyword: str = "") -> str:
     cat = (category or "").strip()
 
     if cat == "Software Reviews":
