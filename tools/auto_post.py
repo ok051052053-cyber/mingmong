@@ -1207,6 +1207,10 @@ Current cluster:
 {cluster_name}
  
 Need:
+- prefer keywords that a newer site could realistically target
+- avoid broad money keywords and broad investing keywords
+- prefer specific search situations over broad education topics
+- every keyword should imply a concrete article angle not a category page
 - at least 5 of the keywords must be clear cluster articles that support one broader pillar
 - include a mix of:
   pillar-supporting beginner questions
