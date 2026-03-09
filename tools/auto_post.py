@@ -3331,7 +3331,7 @@ def normalize_existing_post(p: dict) -> dict:
  
     return p
  
- def first_non_empty_image(image_paths: List[str]) -> str:
+def first_non_empty_image(image_paths: List[str]) -> str:
     for p in image_paths:
         if isinstance(p, str) and p.strip():
             return p.strip()
