@@ -3986,10 +3986,11 @@ effective_category = pick_category(
            cluster_name=cluster_name,
            post_type=post_type,
 )
-    for keyword in keywords:
-        tried_keywords.add(normalize_keyword(keyword))
-        if not keyword:
-            continue
+for keyword in keywords:
+    
+    tried_keywords.add(normalize_keyword(keyword))
+    if not keyword:
+        continue
  
         created_iso = now_utc_iso()
         log("MAIN", f"Selected keyword='{keyword}' cluster='{effective_cluster_name}' post_type='{post_type}'")
