@@ -3944,7 +3944,7 @@ def add_post_to_index(
         "problem": planning.get("problem", ""),
         "outcome": planning.get("outcome", ""),
         "angle": planning.get("angle", ""),
-                "intent_type": planning.get("intent_type", ""),
+        "intent_type": planning.get("intent_type", ""),
         "search_intent_summary": planning.get("search_intent_summary", ""),
         "faq_questions": planning.get("faq_questions", []),
         "tldr_focus": planning.get("tldr_focus", []),
