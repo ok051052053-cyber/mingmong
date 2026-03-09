@@ -2561,25 +2561,27 @@ def quality_check_post(
         return False, "missing-cta"
 
     if post_type == "pillar" and internal_link_hits < 1:
-        return False, "missing-cluster-hooks" 
-    if mode == "workflow":
-    if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-        return False, "missing-template-checklist"
-    if "tradeoff" not in joined and "trade-off" not in joined:
-        return False, "missing-tradeoff"
+        return False, "missing-cluster-hooks"
 
-    limitation_signals = [
-        "when not to use this",
-        "do not use this setup",
-        "not ideal for",
-        "should avoid",
-        "avoid this if",
-        "this may not work",
-        "less useful if",
-        "not the best choice",
-    ]
-    if not any(x in joined for x in limitation_signals):
-        return False, "missing-limitations"
+    if mode == "workflow":
+        if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
+            return False, "missing-template-checklist"
+
+        if "tradeoff" not in joined and "trade-off" not in joined:
+            return False, "missing-tradeoff"
+
+        limitation_signals = [
+            "when not to use this",
+            "do not use this setup",
+            "not ideal for",
+            "should avoid",
+            "avoid this if",
+            "this may not work",
+            "less useful if",
+            "not the best choice",
+        ]
+        if not any(x in joined for x in limitation_signals):
+            return False, "missing-limitations"
 
     if intent_type == "comparison":
         required = ["price", "free plan", "best for", "not ideal"]
