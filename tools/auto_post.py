@@ -101,10 +101,10 @@ IMAGE_SOURCE_PRIORITY = [
 RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
  
 CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
-CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "8"))
+CLUSTER_BATCH = int(os.environ.get("CLUSTER_BATCH", "12"))
 CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
-PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "10"))
+PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "6"))
  
 SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "4"))
 SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "6"))
