@@ -1207,6 +1207,20 @@ Current cluster:
 {cluster_name}
  
 Need:
+- at least 5 of the keywords must be clear cluster articles that support one broader pillar
+- include a mix of:
+  pillar-supporting beginner questions
+  comparison keywords
+  mistake keywords
+  allocation or setup keywords
+- the keywords should be able to internally link to each other naturally
+- avoid isolated topics that do not support a content cluster
+- for investing prefer cluster chains like:
+  simple portfolio
+  portfolio allocation
+  first etf
+  monthly investing
+  beginner mistakes
 - exactly {CLUSTER_BATCH} keyword ideas
 - long-tail keywords only
 - practical search intent only
