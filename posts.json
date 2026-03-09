@@ -1,5 +1,34 @@
 [
   {
+    "title": "Beginner Investors: Your Roadmap to a Simple Long-Term Portfolio",
+    "slug": "beginner-investors-your-roadmap-to-a-simple-long-term-portfolio",
+    "category": "Investing",
+    "description": "Master the basics of building a long-term investment portfolio in simple, actionable steps designed for beginner investors.",
+    "date": "2026-03-09T22:31:22Z",
+    "updated": "2026-03-09T22:31:22Z",
+    "thumbnail": "assets/posts/beginner-investors-your-roadmap-to-a-simple-long-term-portfolio/1.jpg",
+    "image": "assets/posts/beginner-investors-your-roadmap-to-a-simple-long-term-portfolio/1.jpg",
+    "url": "posts/beginner-investors-your-roadmap-to-a-simple-long-term-portfolio.html",
+    "keyword": "how to start building a simple long term portfolio",
+    "cluster": "Investing",
+    "post_type": "pillar",
+    "pillar_slug": "beginner-investors-your-roadmap-to-a-simple-long-term-portfolio",
+    "audience": "US and EU investors looking to build a long-term portfolio",
+    "problem": "Many new investors feel overwhelmed and uncertain about how to create a long-term investment strategy.",
+    "outcome": "Clear steps to build a simple, diversified long-term investment portfolio that grows over time.",
+    "angle": "Breaking down complex investment concepts into actionable steps for beginner investors.",
+    "intent_type": "howto",
+    "search_intent_summary": "Learn how to build a straightforward investment portfolio for long-term growth.",
+    "faq_questions": [
+      "How much should I invest to start a long-term portfolio?",
+      "What are the best investment vehicles for beginners?"
+    ],
+    "tldr_focus": [
+      "Identify common pitfalls that confuse new investors.",
+      "Learn an actionable, three-step method to build your portfolio."
+    ]
+  },
+  {
     "title": "Top Client Retention Systems Every Freelancer Should Use",
     "slug": "top-client-retention-systems-every-freelancer-should-use",
     "category": "AI Tools",
@@ -59,7 +88,7 @@
   {
     "title": "Smart Side Hustles for Professionals: Earn After Work Hours",
     "slug": "smart-side-hustles-for-professionals-earn-after-work-hours",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Explore practical side hustles tailored for busy professionals to effectively maximize earnings after regular work hours.",
     "date": "2026-03-08T14:39:22Z",
     "updated": "2026-03-08T14:39:22Z",
@@ -97,7 +126,7 @@
   {
     "title": "Freelance Designers: A Communication System to Enhance Clarity",
     "slug": "freelance-designers-a-communication-system-to-enhance-clarity",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Discover practical strategies for freelance designers to improve client communication and minimize misunderstandings throughout the project lifecycle.",
     "date": "2026-03-08T10:20:06Z",
     "updated": "2026-03-08T10:20:06Z",
@@ -116,7 +145,7 @@
   {
     "title": "Freelance Consultants: Clarity in Crafting Client Proposals",
     "slug": "freelance-consultants-clarity-in-crafting-client-proposals",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Transform your proposal process with a structured approach that enhances clarity and increases client engagement.",
     "date": "2026-03-08T09:32:44Z",
     "updated": "2026-03-08T09:32:44Z",
@@ -135,7 +164,7 @@
   {
     "title": "Freelance Designers: Efficient Client Onboarding Strategies",
     "slug": "freelance-designers-efficient-client-onboarding-strategies",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Discover how to build an effective client onboarding workflow that boosts your efficiency and enhances client satisfaction as a freelance designer.",
     "date": "2026-03-08T09:18:30Z",
     "updated": "2026-03-08T09:18:30Z",
@@ -154,7 +183,7 @@
   {
     "title": "Freelance Writers: Simplifying Client Handoffs for Better Workflow",
     "slug": "freelance-writers-simplifying-client-handoffs-for-better-workflow",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Discover how freelance writers can create a client handoff system that ensures smooth transitions and enhances workflow without confusion.",
     "date": "2026-03-08T07:46:23Z",
     "updated": "2026-03-08T07:46:23Z",
@@ -211,7 +240,7 @@
   {
     "title": "Freelancers Creating Impact: A Budget-Friendly Marketing Plan Template",
     "slug": "freelancers-creating-impact-a-budget-friendly-marketing-plan-template",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Unlock effective marketing strategies with our budget-friendly template designed for solo service providers aiming to attract clients without overspending.",
     "date": "2026-03-08T05:21:15Z",
     "updated": "2026-03-08T05:21:15Z",
@@ -243,7 +272,7 @@
   {
     "title": "A Custom Workflow for Freelance Writers Who Want to Streamline Multiple Project Management",
     "slug": "a-custom-workflow-for-freelance-writers-who-want-to-streamline-multiple",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Discover a tailored workflow designed for freelance writers to efficiently manage multiple projects and meet deadlines without stress.",
     "date": "2026-03-08T02:36:30Z",
     "updated": "2026-03-08T02:36:30Z",
@@ -259,7 +288,7 @@
   {
     "title": "How Freelance Writers Can Manage Follow-Up Emails Efficiently with an Automation Framework",
     "slug": "how-freelance-writers-can-manage-follow-up-emails-efficiently-with-an-au",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Discover how freelance writers can streamline their follow-up emails using automation, ensuring timely responses while reducing stress.",
     "date": "2026-03-08T02:10:26Z",
     "updated": "2026-03-08T02:10:26Z",
@@ -275,7 +304,7 @@
   {
     "title": "A Proposal and Invoicing Workflow for Freelance Writers Who Want to Reduce Administrative Stress",
     "slug": "a-proposal-and-invoicing-workflow-for-freelance-writers-who-want-to-redu",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Discover how freelance writers can streamline their proposal drafting and invoicing processes, saving time and ensuring timely payments.",
     "date": "2026-03-07T17:13:39Z",
     "updated": "2026-03-07T17:13:39Z",
@@ -291,7 +320,7 @@
   {
     "title": "A Task Management Framework for Freelance Consultants Who Want to Streamline Client Deliverables",
     "slug": "a-task-management-framework-for-freelance-consultants-who-want-to-stream",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Learn how to organize and prioritize tasks across multiple clients with an effective framework that enhances your productivity.",
     "date": "2026-03-07T11:47:47Z",
     "updated": "2026-03-07T11:47:47Z",
@@ -307,7 +336,7 @@
   {
     "title": "A Productivity Checklist for Freelance Consultants Who Want to Manage Administrative Tasks Efficiently",
     "slug": "a-productivity-checklist-for-freelance-consultants-who-want-to-manage-ad",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Unlock your focus with a productivity checklist designed for freelance consultants managing administrative tasks, enhancing workflow and project attention.",
     "date": "2026-03-07T10:48:00Z",
     "updated": "2026-03-07T10:48:00Z",
@@ -323,7 +352,7 @@
   {
     "title": "A Project Management Framework for Freelance Consultants Who Want to Transform Client Requirements into Tangible Tasks",
     "slug": "a-project-management-framework-for-freelance-consultants-who-want-to-tra",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Transform client requirements into actionable tasks with effective project management strategies to enhance workflow and client satisfaction.",
     "date": "2026-03-07T08:48:13Z",
     "updated": "2026-03-07T08:48:13Z",
@@ -355,7 +384,7 @@
   {
     "title": "A Task Prioritization Framework for Freelance Writers Who Want to Overcome Tight Deadlines",
     "slug": "a-task-prioritization-framework-for-freelance-writers-who-want-to-overco",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Discover a structured approach that helps freelance writers manage their tasks efficiently and meet deadlines without compromising quality.",
     "date": "2026-03-07T06:52:52Z",
     "updated": "2026-03-07T06:52:52Z",
@@ -387,7 +416,7 @@
   {
     "title": "Maximizing Your Earnings: Top Productivity Tools for Creators",
     "slug": "maximizing-your-earnings-top-productivity-tools-for-creators",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Explore essential productivity tools designed for creators seeking to boost efficiency and maximize income through effective workflows and strategies.",
     "date": "2026-03-07T00:44:14Z",
     "updated": "2026-03-07T00:44:14Z",
@@ -403,7 +432,7 @@
   {
     "title": "Effective Tools for Blog Writing: Maximizing Your Creator Revenue",
     "slug": "effective-tools-for-blog-writing-maximizing-your-creator-revenue",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Explore powerful tools that enhance blog writing, drive engagement, and increase your monetization potential as a creator.",
     "date": "2026-03-07T00:43:44Z",
     "updated": "2026-03-07T00:43:44Z",
@@ -483,7 +512,7 @@
   {
     "title": "The Complete Blueprint for Earning Money Through Digital Products Without Spending a Dime",
     "slug": "the-complete-blueprint-for-earning-money-through-digital-products-withou",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Discover effective strategies for monetizing digital products without upfront costs. This guide helps creators navigate the landscape of free resources and platforms.",
     "date": "2026-03-06T10:08:48Z",
     "updated": "2026-03-06T10:08:48Z",
@@ -499,7 +528,7 @@
   {
     "title": "Your Ultimate Guide to Creator Business Tools for Beginners",
     "slug": "your-ultimate-guide-to-creator-business-tools-for-beginners",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Unlock your potential with this comprehensive guide on essential business tools for creators. Learn to monetize and manage your creative ventures effectively.",
     "date": "2026-03-06T10:08:17Z",
     "updated": "2026-03-06T10:08:17Z",
@@ -547,7 +576,7 @@
   {
     "title": "The Definitive Guide to Free Tools for Freelancers: Maximize Your Efficiency",
     "slug": "the-definitive-guide-to-free-tools-for-freelancers-maximize-your-efficie",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Explore free tools that can streamline your freelance operations, save time, and enhance productivity. Learn how to leverage technology for success.",
     "date": "2026-03-06T05:41:52Z",
     "updated": "2026-03-06T05:41:52Z",
@@ -563,7 +592,7 @@
   {
     "title": "The Ultimate Guide to the Best Apps for Freelancers Tracking Their Work",
     "slug": "the-ultimate-guide-to-the-best-apps-for-freelancers-tracking-their-work",
-    "category": "Freelance Systems",
+    "category": "Productivity",
     "description": "Discover the essential apps freelancers need to track time, manage projects, and optimize productivity effectively.",
     "date": "2026-03-06T05:40:28Z",
     "updated": "2026-03-06T05:40:28Z",
@@ -672,7 +701,7 @@
   {
     "title": "Best Newsletter Platforms for Creators",
     "slug": "best-newsletter-platforms-for-creators",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "Explore the top newsletter platforms tailored for creators seeking to engage audiences and monetize their content efficiently.",
     "date": "2026-03-05T09:52:04Z",
     "updated": "2026-03-05T09:52:04Z",
@@ -801,7 +830,7 @@
   {
     "title": "The Best Newsletter Platforms for Creators: A Practical Guide",
     "slug": "the-best-newsletter-platforms-for-creators-a-practical-guide",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "The Best Newsletter Platforms for Creators: A Practical Guide",
     "date": "2026-03-05",
     "updated": "2026-03-05",
@@ -983,7 +1012,7 @@
   {
     "title": "Step-by-Step Guide: How to Sell Notion Templates in the US",
     "description": "Learn how to create and sell Notion templates effectively with this comprehensive step-by-step guide tailored for young professionals in the US.",
-    "category": "Creator Income",
+    "category": "Make Money",
     "date": "2026-03-04T00:38:39Z",
     "slug": "how-to-sell-notion-templates-in-the-us-step-by-step",
     "thumbnail": "assets/posts/how-to-sell-notion-templates-in-the-us-step-by-step/1.jpg",
@@ -1008,7 +1037,7 @@
   {
     "title": "How to Sell Digital Products on Gumroad: A Comprehensive Guide",
     "slug": "how-to-sell-digital-products-on-gumroad-a-comprehensive-guide",
-    "category": "Creator Income",
+    "category": "Make Money",
     "description": "How to Sell Digital Products on Gumroad: A Comprehensive Guide",
     "date": "2026-03-04",
     "updated": "2026-03-04",
@@ -1148,7 +1177,7 @@
     "slug": "step-by-step-guide-to-selling-notion-templates-in-the-us",
     "title": "Step-by-Step Guide to Selling Notion Templates in the US",
     "description": "A practical guide to how to sell notion templates in the us step by step for US. Clear steps, comparisons, pricing signals, and workflows you can copy.",
-    "category": "Creator Income",
+    "category": "Make Money",
     "date": "2026-03-03",
     "views": 0,
     "thumbnail": "assets/posts/step-by-step-guide-to-selling-notion-templates-in-the-us/1.jpg",
