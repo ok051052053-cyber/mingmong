@@ -3954,51 +3954,54 @@ def main() -> int:
     base_keywords = load_keywords()
     posts = load_posts_index()
     redirects = load_redirects()
- 
+
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
     existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
- 
-    keyword_pool, cluster_name, post_type, current_pillar_slug = build_keyword_pool(base_keywords, existing_titles, posts)
+
+    keyword_pool, cluster_name, post_type, current_pillar_slug = build_keyword_pool(
+        base_keywords,
+        existing_titles,
+        posts,
+    )
     if not keyword_pool:
         log("MAIN", "No keyword pool available")
         return 0
- 
+
     used_texts_raw = load_json(USED_TEXTS_JSON, {})
     used_texts = ensure_used_texts_schema(used_texts_raw)
     used_fps = set(used_texts.get("fingerprints") or [])
- 
+
     made = 0
     tries = 0
     tried_keywords = set()
- 
+
     while made < POSTS_PER_RUN and tries < MAX_KEYWORD_TRIES:
         tries += 1
- 
+
         remaining_keywords = [k for k in keyword_pool if normalize_keyword(k) not in tried_keywords]
         if not remaining_keywords:
             log("MAIN", "Keyword pool exhausted for this run")
             break
- 
+
         keyword = random.choice(remaining_keywords).strip()
         effective_cluster_name = cluster_name
-effective_category = pick_category(
-           keyword=keyword,
-           cluster_name=cluster_name,
-           post_type=post_type,
-)
-for keyword in keywords:
-    
-    tried_keywords.add(normalize_keyword(keyword))
-    if not keyword:
-        continue
- 
+        effective_category = pick_category(
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
+
+        tried_keywords.add(normalize_keyword(keyword))
+        if not keyword:
+            continue
+
         created_iso = now_utc_iso()
         log("MAIN", f"Selected keyword='{keyword}' cluster='{effective_cluster_name}' post_type='{post_type}'")
- 
+
         data = None
         planning = {}
         corrective_note = ""
- 
+
         for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
             try:
                 log("PLAN", f"Attempt {attempt} generating planning")
@@ -4009,8 +4012,7 @@ for keyword in keywords:
                     avoid_titles=existing_titles,
                     corrective_note=corrective_note,
                 )
-              
- 
+
                 if post_semantically_too_close(keyword, cand_planning, posts):
                     log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
                     corrective_note = """
@@ -4020,9 +4022,9 @@ Retry correction:
 - Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
 """
                     continue
- 
+
                 cand_title = cand["title"]
- 
+
                 if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                     log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
                     corrective_note = """
@@ -4032,13 +4034,17 @@ Retry correction:
 - Do not resemble existing titles
 """
                     continue
- 
-                ok, reason = quality_check_post(cand, keyword=keyword)
+
+                ok, reason = quality_check_post(
+                    cand,
+                    keyword=keyword,
+                    post_type=post_type,
+                )
                 if not ok:
                     log("QUALITY", f"Quality check failed on attempt {attempt}: reason='{reason}'")
                     corrective_note = build_retry_corrections(reason, cand_planning)
                     continue
- 
+
                 fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
                 if fp in used_fps:
                     log("DUP", f"Fingerprint duplicate on attempt {attempt}")
@@ -4049,57 +4055,53 @@ Retry correction:
 - Make the article materially different
 """
                     continue
- 
+
                 data = cand
                 planning = cand_planning
                 used_fps.add(fp)
                 break
- 
+
             except Exception as e:
                 import traceback
                 log("GEN", f"Attempt {attempt} crashed for keyword='{keyword}': {e}")
                 traceback.print_exc()
                 corrective_note = "Retry correction: follow the required structure more strictly and keep the article less generic."
                 continue
- 
+
         if not data:
             log("MAIN", f"Failed to generate a unique post for keyword='{keyword}'")
             continue
- 
+
         title = data["title"]
         description = data["description"] or planning.get("description") or short_desc(title)
-        category = data["category"] or planning.get("category") or pick_category(
-            keyword=keyword,
-            cluster_name=effective_cluster_name,
-            post_type=post_type,
-        )
+        category = data["category"] or planning.get("category") or effective_category
         sections = data["sections"]
         tldr = data["tldr"]
         faq = data["faq"]
         editorial_note = data.get("editorial_note", "")
- 
+
         if category not in ALLOWED_CATEGORIES:
-            category = pick_category(keyword=keyword, cluster_name=effective_cluster_name, post_type=post_type)
- 
+            category = effective_category
+
         slug = build_clean_slug(title, keyword)
         if slug in existing_slugs:
             slug = f"{slug}-{int(time.time())}"
- 
+
         old_slug = ""
         for p in posts[:100]:
             if isinstance(p, dict) and normalize_keyword(p.get("title", "")) == normalize_keyword(title):
                 old_slug = (p.get("slug") or "").strip()
                 break
- 
+
         if old_slug and old_slug != slug:
             redirects[f"/posts/{old_slug}.html"] = f"/posts/{slug}.html"
- 
+
         pillar_slug = current_pillar_slug
         if post_type == "pillar":
             pillar_slug = slug
- 
+
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
- 
+
         related_posts = select_related_posts(
             posts,
             current_slug=slug,
@@ -4108,7 +4110,7 @@ Retry correction:
             pillar_slug=current_pillar_slug if post_type != "pillar" else "",
             limit=RELATED_POST_LIMIT,
         )
- 
+
         html_out = render_post_html(
             title=title,
             description=description,
@@ -4126,10 +4128,10 @@ Retry correction:
             editorial_note=editorial_note,
             keyword=keyword,
         )
- 
+
         html_path = POSTS_DIR / f"{slug}.html"
         safe_write(html_path, html_out)
- 
+
         add_post_to_index(
             posts,
             title=title,
@@ -4146,11 +4148,11 @@ Retry correction:
         )
         existing_slugs.add(slug)
         existing_titles.insert(0, title)
- 
+
         used_texts["fingerprints"] = sorted(list(used_fps))
         save_json(USED_TEXTS_JSON, used_texts)
         save_redirects(redirects)
- 
+
         log("DONE", f"Generated HTML: posts/{slug}.html")
         log("DONE", f"Source keyword: {keyword}")
         log("DONE", f"Topic cluster: {effective_cluster_name}")
@@ -4160,21 +4162,11 @@ Retry correction:
         log("DONE", f"Problem: {planning.get('problem', '')}")
         log("DONE", f"Angle: {planning.get('angle', '')}")
         made += 1
- 
+
     if made == 0:
         log("MAIN", "No posts generated this run. Exiting 0 so workflow stays green.")
         return 0
- 
+
     save_posts_index(posts)
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
- 
- 
-if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except Exception as e:
-        import traceback
-        print("[FATAL] Unhandled exception:")
-        traceback.print_exc()
-        raise
