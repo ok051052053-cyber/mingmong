@@ -453,18 +453,24 @@ def _get_openai_client() -> OpenAI:
  
 def openai_generate_text(prompt: str, model: str, temperature: float = 0.5) -> str:
     client = _get_openai_client()
- 
+    prompt_len = len(prompt)
+
+    started = time.time()
     try:
         res = client.responses.create(
             model=model,
             input=prompt,
         )
         text = (getattr(res, "output_text", None) or "").strip()
+        elapsed = round(time.time() - started, 2)
+        log("OPENAI", f"responses.create model={model} prompt_len={prompt_len} output_len={len(text)} elapsed={elapsed}s")
         if text:
             return text
     except Exception as e:
-        log("OPENAI", f"responses.create failed on model={model}: {e}")
- 
+        elapsed = round(time.time() - started, 2)
+        log("OPENAI", f"responses.create failed model={model} elapsed={elapsed}s error={e}")
+
+    started = time.time()
     try:
         res = client.chat.completions.create(
             model=model,
@@ -481,9 +487,13 @@ def openai_generate_text(prompt: str, model: str, temperature: float = 0.5) -> s
             ],
             temperature=temperature,
         )
-        return (res.choices[0].message.content or "").strip()
+        text = (res.choices[0].message.content or "").strip()
+        elapsed = round(time.time() - started, 2)
+        log("OPENAI", f"chat.completions.create model={model} prompt_len={prompt_len} output_len={len(text)} elapsed={elapsed}s")
+        return text
     except Exception as e:
-        raise RuntimeError(f"OpenAI call failed on model={model}: {e}")
+        elapsed = round(time.time() - started, 2)
+        raise RuntimeError(f"OpenAI call failed on model={model} elapsed={elapsed}s: {e}")
  
  
 # =========================================================
