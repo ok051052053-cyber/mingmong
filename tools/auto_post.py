@@ -2392,7 +2392,11 @@ workflow, checklist, mistake, tradeoff, decision, step
     """
  
 
-def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
+def quality_check_post(
+    data: Dict[str, Any],
+    keyword: str = "",
+    post_type: str = "normal",
+) -> Tuple[bool, str]:
     title = data.get("title", "")
     tldr = data.get("tldr", "")
     sections = data.get("sections", [])
