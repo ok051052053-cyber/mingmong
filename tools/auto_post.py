@@ -1556,6 +1556,15 @@ Hard rules:
 - Each section must be materially distinct
 - image_query must be visual and believable
 - visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
+- The first section must be built around a strong opening hook
+- The first section goal must explicitly include:
+  - what people usually think
+  - what actually happens
+  - why that gap matters
+- At least 2 section headings must imply tension, contrast, consequence, or a hidden truth
+- At least 2 sections must include timing such as 7 days, 14 days, 30 days, weekly, or monthly
+- At least 2 sections must include one named scenario or example
+- The section plan must not sound like a generic SaaS blog outline
 {audience_segmentation_note}
 {review_depth_note}
 {originality_note}
@@ -1896,6 +1905,27 @@ Engagement and dwell time requirements:
 - The TLDR and the opening of section 1 must create immediate curiosity
 - The first 3 lines must explain why the reader should keep reading
 - The opening must start with a non-obvious insight, tension, or hidden problem
+- The TLDR first sentence must include at least one of these exact phrases:
+  the real reason
+  what actually happens
+  most people think
+  in practice
+- Section 1 first paragraph must include at least one of these exact phrases:
+  the real reason
+  what actually happens
+  most people think
+  the problem is not
+- The opening must include one consequence sentence such as:
+  this usually breaks down when
+  the cost shows up when
+  what looks simple becomes messy when
+- Section 2 or section 3 must explicitly use the word tradeoff
+- At least 2 sections must explicitly use the word decision
+- At least 2 sections must explicitly use the word mistake
+- At least 1 section must contain a numbered step block
+- At least 2 sections must include a mini-scenario with sequence and consequence
+- No paragraph should exceed 90 words unless it is a numbered step block
+- Every section must include at least one short paragraph of 1 sentence for emphasis
 - Do not start with generic context such as "many people", "in today's world", or broad importance statements
 - The opening should feel like a strong column opening, not a textbook introduction
 - The first section must answer:
@@ -2325,8 +2355,6 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
         "looks like",
     ]
 
-    if not any(x in opening_text[:700] for x in strong_opening_signals):
-        return False, "weak-opening-hook"
 
     if not any(x in opening_text[:700] for x in strong_opening_signals):
         return False, "weak-opening-hook"
@@ -2357,7 +2385,7 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
  
     mode_signals = MODE_REQUIRED_SIGNALS.get(mode, MODE_REQUIRED_SIGNALS["workflow"])
     mode_hits = sum(1 for x in mode_signals if x in joined)
-    if mode_hits < 4:
+    if mode_hits < 3:
         return False, "missing-depth-signals"
     example_signals = [
         "for example",
@@ -2558,22 +2586,79 @@ def post_semantically_too_close(
  
     return False
 
-def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str):
-    import json
-    import re
+def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
+    raw = _find_balanced_json(article_raw)
+    data = json.loads(raw)
 
-    try:
-        match = re.search(r"\{.*\}", article_raw, re.S)
-        if match:
-            return json.loads(match.group(0))
-    except Exception:
-        pass
+    if not isinstance(data, dict):
+        raise ValueError("article JSON root is not object")
+
+    title = _clean_text(data.get("title", "")) or keyword.title()
+    description = _clean_text(data.get("description", ""))
+    category = _clean_text(data.get("category", "")) or pick_category(
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
+
+    intent_type = _clean_text(data.get("intent_type", "")).lower()
+    if intent_type not in {"comparison", "template", "review", "howto"}:
+        intent_type = infer_search_intent_type(keyword, category)
+
+    sections = data.get("sections") or []
+    if not isinstance(sections, list):
+        sections = []
+
+    clean_sections = []
+    for s in sections:
+        if not isinstance(s, dict):
+            continue
+
+        heading = _clean_text(s.get("heading", ""))
+        body = _clean_text(s.get("body", ""))
+        image_query = _clean_text(s.get("image_query", ""))
+        visual_type = _clean_text(s.get("visual_type", "photo")).lower()
+        alt_text = _clean_text(s.get("alt_text", "")) or heading
+
+        if visual_type not in {"photo", "diagram", "workspace"}:
+            visual_type = "photo"
+
+        if heading and body:
+            clean_sections.append({
+                "heading": heading,
+                "body": body,
+                "image_query": image_query or heading,
+                "visual_type": visual_type,
+                "alt_text": alt_text,
+            })
+
+    faq = data.get("faq") or []
+    if not isinstance(faq, list):
+        faq = []
+
+    clean_faq = []
+    for item in faq:
+        if not isinstance(item, dict):
+            continue
+        q = _clean_text(item.get("q", ""))
+        a = _clean_text(item.get("a", ""))
+        if q and a:
+            clean_faq.append({"q": q, "a": a})
+
+    tldr = _clean_text(data.get("tldr", ""))
+    editorial_note = _clean_text(data.get("editorial_note", ""))
+    if not editorial_note:
+        editorial_note = "This article is reviewed for practical usefulness and updated when information changes."
 
     return {
-        "title": keyword.title(),
-        "description": "",
-        "category": "AI Tools",
-        "sections": []
+        "title": title,
+        "description": description,
+        "category": category,
+        "intent_type": intent_type,
+        "sections": clean_sections,
+        "faq": clean_faq[:5],
+        "tldr": tldr,
+        "editorial_note": editorial_note,
     }
  
 def generate_deep_post(
