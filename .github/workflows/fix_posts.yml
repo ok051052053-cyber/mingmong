@@ -19,6 +19,10 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies
+        run: |
+          pip install requests python-slugify openai
+
       - name: Run fix script
         run: python scripts/fix_posts.py
 
@@ -26,6 +30,6 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add posts.json
-          git commit -m "auto fix posts.json" || echo "No changes"
+          git add -A
+          git commit -m "auto fix posts and thumbnails" || echo "No changes"
           git push
