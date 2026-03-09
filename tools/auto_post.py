@@ -1301,8 +1301,8 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 # =========================================================
 def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
     avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:40]]) if avoid_titles else "- none"
-category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-intent_type = infer_search_intent_type(keyword, category_hint)
+    category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    intent_type = infer_search_intent_type(keyword, category_hint)
 
 INTENT_BLUEPRINTS = {
     "comparison": [
@@ -1453,14 +1453,14 @@ Hard rules:
 {post_guidance}
 """.strip()
 
- 
 
+def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
     raw = _find_balanced_json(text)
     data = json.loads(raw)
- 
+
     if not isinstance(data, dict):
         raise ValueError("planning JSON root is not object")
- 
+
     audience = _clean_text(data.get("audience", ""))
     problem = _clean_text(data.get("problem", ""))
     outcome = _clean_text(data.get("outcome", ""))
@@ -1471,30 +1471,27 @@ Hard rules:
     intent = _clean_text(data.get("intent", post_type or "cluster"))
     search_intent_summary = _clean_text(data.get("search_intent_summary", ""))
     intent_type = _clean_text(data.get("intent_type", "")).lower()
-    if intent_type not in {"comparison", "template", "review", "howto"}:
-        intent_type = infer_search_intent_type(keyword, category)
 
-
-    intent_type = _clean_text(data.get("intent_type", "")).lower()
-    if intent_type not in {"comparison", "template", "review", "howto"}:
-        intent_type = infer_search_intent_type(keyword, category)
- 
-    if not audience or not problem or not outcome or not angle or not title:
-        raise ValueError("planning fields missing")
- 
     if category not in ALLOWED_CATEGORIES:
         category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
- 
+
+    if intent_type not in {"comparison", "template", "review", "howto"}:
+        intent_type = infer_search_intent_type(keyword, category)
+
+    if not audience or not problem or not outcome or not angle or not title:
+        raise ValueError("planning fields missing")
+
     section_plan = data.get("section_plan") or []
     if not isinstance(section_plan, list):
         raise ValueError("section_plan must be a list")
     if len(section_plan) < SECTION_COUNT_MIN or len(section_plan) > SECTION_COUNT_MAX:
         raise ValueError(f"section_plan must be between {SECTION_COUNT_MIN} and {SECTION_COUNT_MAX}")
- 
+
     clean_sections = []
     for s in section_plan:
         if not isinstance(s, dict):
             raise ValueError("section item must be object")
+
         heading = _clean_text(s.get("heading", ""))
         goal = _clean_text(s.get("goal", ""))
         section_role = _clean_text(s.get("section_role", "")).lower()
@@ -1502,10 +1499,11 @@ Hard rules:
         visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
         alt_hint = _clean_text(s.get("alt_hint", ""))
         must_include = s.get("must_include") or []
+
         if not isinstance(must_include, list):
             must_include = []
         must_include = [_clean_text(x) for x in must_include if isinstance(x, str) and _clean_text(x)]
- 
+
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "diagram"
         if section_role not in {"problem", "insight", "solution", "example", "decision", "checklist", "ending"}:
@@ -1513,7 +1511,7 @@ Hard rules:
 
         if not heading or not goal or not image_query or len(must_include) < 2:
             raise ValueError("section_plan item missing required fields")
- 
+
         clean_sections.append({
             "heading": heading,
             "goal": goal,
@@ -1523,17 +1521,17 @@ Hard rules:
             "must_include": must_include[:6],
             "alt_hint": alt_hint or heading,
         })
- 
+
     faq_questions = data.get("faq_questions") or []
     if not isinstance(faq_questions, list):
         faq_questions = []
     faq_questions = [_clean_text(x) for x in faq_questions if isinstance(x, str) and _clean_text(x)][:5]
- 
+
     tldr_focus = data.get("tldr_focus") or []
     if not isinstance(tldr_focus, list):
         tldr_focus = []
     tldr_focus = [_clean_text(x) for x in tldr_focus if isinstance(x, str) and _clean_text(x)][:5]
- 
+
     return {
         "audience": audience,
         "problem": problem,
@@ -1545,7 +1543,6 @@ Hard rules:
         "intent": intent or post_type,
         "intent_type": intent_type,
         "search_intent_summary": search_intent_summary or angle,
-        "intent_type": intent_type,
         "section_plan": clean_sections,
         "faq_questions": faq_questions,
         "tldr_focus": tldr_focus,
@@ -1569,26 +1566,8 @@ def infer_search_intent_type(keyword: str, category: str = "") -> str:
 
     return "howto"
  
- 
-def infer_content_mode(category: str, keyword: str, post_type: str) -> str:
-    k = (keyword or "").lower()
-    c = (category or "").lower()
- 
-    if c == "investing":
-        return "investing"
- 
-    if c in {"software reviews"}:
-        return "review"
- 
-    if c in {"make money", "side hustles"}:
-        return "money"
- 
-    if any(x in k for x in [" vs ", "review", "worth it", "alternatives", "best "]):
-        return "review"
- 
-    return "workflow"
 
- def infer_search_intent_type(keyword: str, category: str = "") -> str:
+def infer_search_intent_type(keyword: str, category: str = "") -> str:
     k = (keyword or "").lower().strip()
     c = (category or "").lower().strip()
 
