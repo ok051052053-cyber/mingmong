@@ -2466,7 +2466,18 @@ def quality_check_post(
 
     if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
         return False, "thin-section"
- 
+    
+    avg_section_len = sum(len((s.get("body") or "").strip()) for s in sections) / max(len(sections), 1)
+    if avg_section_len < 1200:
+        return False, "thin-section"
+
+    if len((tldr or "").strip()) < 220:
+        return False, "weak-opening-hook"
+
+    if len(faq) < 3:
+        return False, "bad-faq"
+
+
     section_headings = [_norm_title(s.get("heading", "")) for s in sections]
     if len(set(section_headings)) < len(section_headings):
         return False, "duplicate-headings"
