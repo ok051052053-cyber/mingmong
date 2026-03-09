@@ -40,7 +40,7 @@ SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
+MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "9000"))
@@ -1120,23 +1120,55 @@ def save_keywords(keywords: List[str]) -> None:
 def expand_keywords_from_google(seeds: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     if not GOOGLE_SUGGEST_ENABLED:
         return []
- 
+
     pool: List[str] = []
     base_seeds = [s for s in seeds if isinstance(s, str) and s.strip()][:GOOGLE_SUGGEST_MAX_SEEDS]
- 
+
     for seed in base_seeds:
-        variants = [
-            seed,
-            f"how to {seed}",
-            f"{seed} review",
-            f"{seed} for beginners",
-            f"{seed} worth it",
-            f"{seed} vs alternatives",
-            f"{seed} mistakes",
-        ]
+        seed = _clean_text(seed)
+        if not seed:
+            continue
+
+        seed_word_count = len(normalize_keyword(seed).split())
+        variants = [seed]
+
+        if seed_word_count <= 6:
+            variants.extend([
+                f"how to {seed}",
+                f"{seed} review",
+                f"{seed} for beginners",
+                f"{seed} worth it",
+                f"{seed} vs alternatives",
+                f"{seed} mistakes",
+            ])
+        elif seed_word_count <= 10:
+            variants.extend([
+                f"{seed} review",
+                f"{seed} for beginners",
+                f"{seed} worth it",
+                f"{seed} mistakes",
+            ])
+        else:
+            variants.extend([
+                f"{seed} review",
+                f"{seed} mistakes",
+            ])
+
+        seen_queries = set()
+        clean_variants = []
         for q in variants:
+            q = _clean_text(q)
+            if not q:
+                continue
+            nq = normalize_keyword(q)
+            if nq in seen_queries:
+                continue
+            seen_queries.add(nq)
+            clean_variants.append(q)
+
+        for q in clean_variants:
             pool.extend(fetch_google_suggest(q))
- 
+
     return dedupe_keywords(pool, existing_titles, existing_keywords)
  
  
@@ -1335,6 +1367,16 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
             merged_all = dedupe_keywords(clean_base + cluster_keywords + google_keywords, existing_titles, existing_keywords)
             merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
+
+            target_category = cluster_to_category(cluster_name)
+            merged_all = [
+                kw for kw in merged_all
+                if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
+            ]
+
+            if merged_all:
+                save_keywords(merged_all)
+                return merged_all, cluster_name, "normal", current_pillar_slug
 
             target_category = cluster_to_category(cluster_name)
             merged_all = [
@@ -3940,6 +3982,7 @@ def main() -> int:
             break
  
         keyword = random.choice(remaining_keywords).strip()
+        effective_cluster_name = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
         effective_category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
         effective_cluster_name = effective_category
         tried_keywords.add(normalize_keyword(keyword))
@@ -4024,7 +4067,7 @@ Retry correction:
         description = data["description"] or planning.get("description") or short_desc(title)
         category = data["category"] or planning.get("category") or pick_category(
             keyword=keyword,
-            cluster_name=cluster_name,
+            cluster_name=effective_cluster_name,
             post_type=post_type,
         )
         sections = data["sections"]
@@ -4033,7 +4076,7 @@ Retry correction:
         editorial_note = data.get("editorial_note", "")
  
         if category not in ALLOWED_CATEGORIES:
-            category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+            category = pick_category(keyword=keyword, cluster_name=effective_cluster_name, post_type=post_type)
  
         slug = build_clean_slug(title, keyword)
         if slug in existing_slugs:
@@ -4058,7 +4101,7 @@ Retry correction:
             posts,
             current_slug=slug,
             category=category,
-            cluster=cluster_name,
+            cluster=effective_cluster_name,
             pillar_slug=current_pillar_slug if post_type != "pillar" else "",
             limit=RELATED_POST_LIMIT,
         )
@@ -4093,7 +4136,7 @@ Retry correction:
             image_paths=image_paths,
             created_iso=created_iso,
             keyword=keyword,
-            cluster=cluster_name,
+            cluster=effective_cluster_name,
             post_type=post_type,
             pillar_slug=pillar_slug,
             planning=planning,
@@ -4107,7 +4150,7 @@ Retry correction:
  
         log("DONE", f"Generated HTML: posts/{slug}.html")
         log("DONE", f"Source keyword: {keyword}")
-        log("DONE", f"Topic cluster: {cluster_name}")
+        log("DONE", f"Topic cluster: {effective_cluster_name}")
         log("DONE", f"Category: {category}")
         log("DONE", f"Post type: {post_type}")
         log("DONE", f"Audience: {planning.get('audience', '')}")
