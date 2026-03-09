@@ -947,7 +947,15 @@ def filter_keywords_by_opportunity(keywords: List[str], existing_titles: List[st
             ranked.append((score, kw))
  
     ranked.sort(key=lambda x: x[0], reverse=True)
-    return [kw for _, kw in ranked]
+
+    result = [kw for _, kw in ranked]
+
+    # fallback
+    if not result:
+        log("KW", "All keywords filtered out. Falling back to original list.")
+        return keywords[:min(len(keywords), 20)]
+
+    return result
  
  
 # =========================================================
