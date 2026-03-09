@@ -2168,6 +2168,12 @@ Engagement and dwell time requirements:
 - Add one clear next-step CTA near the end of the article
 
 Mode specific requirements:
+- For investing articles:
+  - include at least one sample allocation with percentages
+  - include at least one monthly contribution example
+  - include at least one beginner mistake tied to a number or timing
+  - include at least one platform or ETF selection decision point when relevant
+  - include one sentence that clearly says this is educational content not personalized financial advice
 {mode_rules}
 
 {corrective_note.strip() if corrective_note else ""}
