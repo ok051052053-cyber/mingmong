@@ -234,7 +234,73 @@ BANNED_SHALLOW_ADVICE = [
     "improve efficiency",
     "boost productivity",
 ]
- 
+
+REVIEW_COMPARISON_REQUIRED = [
+    "price",
+    "free plan",
+    "setup difficulty",
+    "automation",
+    "best for",
+    "not ideal for",
+]
+
+FREELANCER_SEGMENTS = [
+    "solo freelancer",
+    "designer",
+    "developer",
+    "copywriter",
+    "consultant",
+    "video editor",
+    "virtual assistant",
+    "coach",
+]
+
+REALISM_SIGNALS = [
+    "in practice",
+    "what happened when",
+    "where this breaks down",
+    "setup friction",
+    "hidden cost",
+    "manual workaround",
+    "handoff issue",
+    "client delay",
+    "approval bottleneck",
+    "renewal risk",
+]
+
+COMMERCIAL_DEPTH_SIGNALS = [
+    "pricing reality",
+    "free plan",
+    "paid plan",
+    "upgrade point",
+    "budget",
+    "monthly cost",
+    "annual cost",
+    "worth paying for",
+    "best value",
+    "overkill",
+]
+
+CTA_SIGNALS = [
+    "start with",
+    "compare",
+    "read the full",
+    "use this checklist",
+    "next step",
+    "before you choose",
+]
+
+INTERNAL_LINK_INTENT_SIGNALS = [
+    "vs",
+    "alternatives",
+    "best for",
+    "pricing",
+    "free plan",
+    "template",
+    "checklist",
+    "workflow",
+]
+
 SECTION_BLUEPRINTS = [
     [
         "who this is for and the exact problem",
@@ -1304,6 +1370,43 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     intent_type = infer_search_intent_type(keyword, category_hint)
 
+    audience_segmentation_note = """
+- For freelancer topics do not treat all freelancers as one group
+- Split recommendations by at least 2 concrete freelancer types
+- Examples: solo freelancer, designer, developer, consultant, writer, video editor
+- The article must help a reader identify "this is for me" quickly
+"""
+
+    review_depth_note = """
+- If the article mentions software tools it must not read like a vague roundup
+- Do not just name tools as examples
+- Force a real buying or selection decision
+- Include at least:
+  - price reality
+  - free plan status
+  - setup difficulty
+  - automation depth
+  - client communication fit
+  - invoicing or portal fit when relevant
+- The structure must answer:
+  - who should pick what
+  - when to avoid a tool
+  - what becomes painful after setup
+"""
+
+    originality_note = """
+- Include at least 2 realism anchors in the plan
+- Realism anchors can include:
+  setup friction
+  client delay
+  approval bottleneck
+  renewal risk
+  hidden cost
+  manual workaround
+- Avoid generic SaaS blog structure
+- The article should feel like it has seen messy real client work
+"""
+ 
     INTENT_BLUEPRINTS = {
         "comparison": [
             "quick verdict and who each option is for",
@@ -1408,6 +1511,15 @@ Hard rules:
 - Avoid fake sophistication
 - Avoid shallow SEO filler
 - Avoid generic software roundup structure
+- Do not write a generic roundup that only mentions tool names
+- If software is mentioned the article must create a real selection decision
+- For freelancer software topics segment the audience into at least 2 concrete freelancer types
+- The article must include at least 2 realism anchors such as setup friction, hidden cost, approval bottleneck, or renewal risk
+- The article must create commercial depth, not just awareness
+- The reader should be able to answer:
+  what should I choose
+  what should I avoid
+  what will break later
 - The article must go one level deeper than a standard blog post
 - The article structure must follow this logic:
   problem -> insight -> solution
@@ -1444,7 +1556,9 @@ Hard rules:
 - Each section must be materially distinct
 - image_query must be visual and believable
 - visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
-
+{audience_segmentation_note}
+{review_depth_note}
+{originality_note}
 {post_guidance}
 """.strip()
 
@@ -1685,6 +1799,14 @@ Hard rules:
   Explanation sentence two.
 - Keep each numbered step as its own separate block
 - Use the section_plan exactly as the structural backbone
+- If the article mentions tools or software, do not stop at naming them
+- Every mentioned tool must have a role in a decision, comparison, or tradeoff
+- Do not write "tools like X, Y, Z" unless you explain who each one is actually for
+- Force product differentiation
+- Force user-type differentiation
+- Force operational detail
+- If the title implies "top" or "best", the article must clearly rank, filter, or recommend by use case
+- The reader must not finish the article asking "so which one should I use"
 - Preserve the same number of sections as in section_plan
 - Each section must be materially useful
 - Total text must be at least {MIN_CHARS} characters
@@ -1703,8 +1825,12 @@ Intent specific requirements:
 - intent_type is {intent_type}
 - If intent_type is comparison:
   - include a comparison table in HTML-ready plain text form
-  - compare by price, free plan, setup difficulty, automation, best for, not ideal for
+  - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
   - include a clear winner for at least 2 user types
+  - include one "overkill" option and explain why
+  - include one "best free starting point"
+  - include one "best paid upgrade" case
+  - include one section that explains what changes after 30 days of real use
 - If intent_type is template:
   - include one copyable template, checklist, script, or sequence
   - include one example of customization
@@ -1717,7 +1843,13 @@ Intent specific requirements:
     Main strength
     Main weakness
     My verdict
-  - do not sound like a generic roundup
+  - the article must feel like an actual review or decision guide not a summary
+  - include at least 3 concrete tools if the topic is a roundup
+  - for each tool explain:
+    what it does well
+    where it starts to feel heavy or weak
+    which freelancer type should use it
+  - include at least one sentence about hidden cost, setup friction, or long-term workflow pain
 - If intent_type is howto:
   - include one weekly workflow
   - include one 30-day cadence or review cycle
@@ -1734,6 +1866,18 @@ Experience block requirements:
   Not worth it if
 - Even if the article is AI-assisted, it must read like it has observed real friction, setup pain, and tradeoffs
 - Do not write like a neutral encyclopedia
+- Include at least 2 lines that sound like observed real behavior
+- Good examples:
+  clients stop replying after the proposal stage
+  the tool feels fine until approvals start
+  solo freelancers often overbuild too early
+  the free plan works until follow-up automation matters
+- Avoid fake first-person claims if they are not grounded
+- Instead use grounded observational language such as:
+  in practice
+  what usually happens
+  where this breaks down
+  what changes once client volume increases
 
 Engagement and dwell time requirements:
 - The TLDR and the opening of section 1 must create immediate curiosity
@@ -1782,6 +1926,9 @@ Engagement and dwell time requirements:
 - Do not end with generic summary language
 - The final paragraph should feel memorable and reflective
 - The final lines should make the reader reconsider their current setup, behavior, or assumption
+- Include one short buyer-intent block that helps a reader choose now not later
+- Include one "if you only want the short answer" style decision moment inside the body without using that exact phrase
+- Add one clear next-step CTA near the end of the article
 
 Mode specific requirements:
 {mode_rules}
@@ -1867,6 +2014,65 @@ def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
     audience = (planning.get("audience") or "beginners").strip()
     category = (planning.get("category") or "").strip()
     mode = infer_content_mode(category, planning.get("title", ""), planning.get("intent", "cluster"))
+
+    if reason == "missing-segmentation":
+        return """
+    Retry correction:
+    - Do not treat freelancers as one generic group
+    - Split recommendations by at least 2 concrete freelancer types
+    - Use examples such as solo freelancer, designer, developer, consultant, or writer
+    """
+
+    if reason == "missing-realism":
+        return """
+    Retry correction:
+    - Add grounded realism
+    - Include setup friction, hidden cost, approval bottleneck, renewal risk, or client delay
+    - Make the article feel observed not abstract
+    """
+
+    if reason == "missing-commercial-depth":
+        return """
+    Retry correction:
+    - Increase buying depth
+    - Include pricing reality, free plan, upgrade point, budget tradeoff, and best value logic
+    - Help the reader choose not just understand
+    """
+
+    if reason == "missing-cta":
+        return """
+    Retry correction:
+    - Add a clear next-step CTA near the end
+    - Use phrases like:
+      start with
+      compare
+      read the full
+      before you choose
+    """
+
+    if reason == "missing-cluster-hooks":
+        return """
+    Retry correction:
+    - Add stronger expansion hooks for related content
+    - Mention comparison angles, alternatives, pricing, free plans, workflows, or templates
+    - Make the article naturally lead into follow-up reads
+    """
+
+    if reason == "missing-review-comparison-depth":
+        return """
+    Retry correction:
+    - Strengthen the review comparison depth
+    - Explicitly compare price, free plan, setup difficulty, and automation
+    - Make each tool choice feel meaningfully different
+    """
+
+    if reason == "title-body-mismatch":
+        return """
+    Retry correction:
+    - The body must fulfill the promise of the title
+    - If the title says top, best, systems, or tools then rank, filter, or recommend clearly
+    - Do not leave the reader without a direct recommendation
+    """
  
     if reason == "missing-audience-framing":
         return f"""
@@ -2082,6 +2288,12 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
         [s.get("heading", "") + "\n" + s.get("body", "") for s in sections] +
         [item.get("q", "") + "\n" + item.get("a", "") for item in faq]
     ).lower()
+
+    segment_hits = sum(1 for x in FREELANCER_SEGMENTS if x in joined)
+    realism_hits = sum(1 for x in REALISM_SIGNALS if x in joined)
+    commercial_hits = sum(1 for x in COMMERCIAL_DEPTH_SIGNALS if x in joined)
+    cta_hits = sum(1 for x in CTA_SIGNALS if x in joined)
+    internal_link_hits = sum(1 for x in INTERNAL_LINK_INTENT_SIGNALS if x in joined)
  
     if len(joined) < MIN_CHARS:
         return False, "too-short"
@@ -2102,17 +2314,6 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
 
     if not any(x in opening_text[:700] for x in strong_opening_signals):
         return False, "weak-opening-hook"
-    opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
-
-    strong_opening_signals = [
-        "the real reason.",
-        "most people think",
-        "what actually happens",
-        "the problem is not",
-        "even when",
-        "hidden reason",
-        "looks like",
-    ]
 
     if not any(x in opening_text[:700] for x in strong_opening_signals):
         return False, "weak-opening-hook"
@@ -2181,6 +2382,22 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
  
     if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
         return False, "missing-mistakes"
+
+    if "freelancer" in joined:
+        if segment_hits < 2:
+            return False, "missing-segmentation"
+
+    if realism_hits < 2:
+        return False, "missing-realism"
+
+    if commercial_hits < 3:
+        return False, "missing-commercial-depth"
+
+    if cta_hits < 1:
+        return False, "missing-cta"
+
+    if internal_link_hits < 2:
+        return False, "missing-cluster-hooks"
  
     if mode == "workflow":
         if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
@@ -2226,6 +2443,10 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
             return False, "missing-depth-signals"
         if "best for" not in joined or "not ideal" not in joined:
             return False, "missing-limitations"
+        required_review_compare = ["price", "free plan", "setup difficulty", "automation"]
+        review_compare_hits = sum(1 for x in required_review_compare if x in joined)
+        if review_compare_hits < 3:
+            return False, "missing-review-comparison-depth"
  
     if mode == "investing":
         if "risk" not in joined or "volatility" not in joined or "long term" not in joined:
@@ -2262,6 +2483,19 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     if not any(x in last_body[-700:] for x in ending_signals):
         return False, "missing-reflective-ending"
 
+    title_lower = (title or "").lower()
+    if any(x in title_lower for x in ["top ", "best ", "systems", "tools"]):
+        recommendation_signals = [
+            "best for",
+            "not ideal for",
+            "my verdict",
+            "winner",
+            "best free",
+            "best paid",
+        ]
+        if sum(1 for x in recommendation_signals if x in joined) < 3:
+            return False, "title-body-mismatch"
+ 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
     if nk and nt and nk == nt:
@@ -2351,7 +2585,23 @@ def generate_deep_post(
 # Images and visuals
 # =========================================================
 def sanitize_query_for_image(q: str) -> str:
-    q = (q or "").strip()
+    q = (q or "").strip().lower()
+
+    replacements = {
+        "client retention system": "crm dashboard freelancer",
+        "client retention": "freelancer crm dashboard",
+        "decision framework": "comparison chart software dashboard",
+        "practical approach": "freelancer workflow dashboard",
+        "template checklist": "checklist notebook desk",
+        "follow-up automation": "crm automation dashboard",
+        "offboarding": "client handoff checklist desk",
+        "reactivation": "email follow up workspace",
+    }
+
+    for src, dst in replacements.items():
+        if src in q:
+            q = q.replace(src, dst)
+
     q = re.sub(
         r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to)\b",
         "",
@@ -2359,7 +2609,7 @@ def sanitize_query_for_image(q: str) -> str:
         flags=re.IGNORECASE,
     )
     q = re.sub(r"\s+", " ", q).strip()
-    return q or "workspace desk laptop"
+    return q or "freelancer workspace crm dashboard"
  
  
 def normalize_asset_id(source: str, raw_id: str) -> str:
@@ -2974,7 +3224,44 @@ def render_related_guides_html(related_posts: List[dict]) -> str:
         + "</div></section>"
     )
  
- 
+ def render_conversion_cta_html(category: str, keyword: str = "") -> str:
+    cat = (category or "").strip()
+
+    if cat == "Software Reviews":
+        title = "Choose faster"
+        desc = "Use this article to narrow the field then compare your top options by price, setup friction, and upgrade risk."
+        links = [
+            ("Best free tools for solo freelancers", "../category.html?cat=Software%20Reviews"),
+            ("Compare similar software guides", "../category.html?cat=Software%20Reviews"),
+        ]
+    elif cat == "Productivity":
+        title = "Turn this into a workflow"
+        desc = "Do not stop at ideas. Pick one workflow, test it for 14 days, then keep only what reduces friction."
+        links = [
+            ("See more workflow guides", "../category.html?cat=Productivity"),
+            ("Browse practical checklists", "../category.html?cat=Productivity"),
+        ]
+    else:
+        title = "Next step"
+        desc = "Use the article as a decision point, not just reading material. Your next system matters more than more browsing."
+        links = [
+            ("Read related guides", "../index.html"),
+            ("Browse more categories", "../category.html"),
+        ]
+
+    items = "".join(
+        f'<a class="cta-link" href="{href}">{html_escape(label)}</a>'
+        for label, href in links
+    )
+
+    return (
+        '<section class="conversion-cta">'
+        f'<h2>{html_escape(title)}</h2>'
+        f'<p>{html_escape(desc)}</p>'
+        f'<div class="cta-links">{items}</div>'
+        '</section>'
+    )
+    
 # =========================================================
 # Slug and redirects
 # =========================================================
@@ -3204,6 +3491,7 @@ def render_post_html(
     related_posts: List[dict],
     post_type: str,
     editorial_note: str,
+    keyword: str,
 ) -> str:
     canonical = f"{SITE_URL}/posts/{slug}.html"
     og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
@@ -3244,6 +3532,7 @@ def render_post_html(
     related_html = render_related_guides_html(related_posts)
     if related_html:
         blocks.append(related_html)
+        blocks.append(render_conversion_cta_html(category, keyword))
  
     blocks.append("""
 <div class="post-search-block">
@@ -3449,6 +3738,10 @@ def add_post_to_index(
         "problem": planning.get("problem", ""),
         "outcome": planning.get("outcome", ""),
         "angle": planning.get("angle", ""),
+                "intent_type": planning.get("intent_type", ""),
+        "search_intent_summary": planning.get("search_intent_summary", ""),
+        "faq_questions": planning.get("faq_questions", []),
+        "tldr_focus": planning.get("tldr_focus", []),
     })
  
  
@@ -3620,6 +3913,7 @@ Retry correction:
             related_posts=related_posts,
             post_type=post_type,
             editorial_note=editorial_note,
+            keyword=keyword,
         )
  
         html_path = POSTS_DIR / f"{slug}.html"
