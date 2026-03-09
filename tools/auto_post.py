@@ -1568,6 +1568,16 @@ Schema:
 }}
 
 Hard rules:
+- The article must naturally create at least 2 follow-up reading moments
+- These should reference related decision points such as:
+  alternatives
+  vs comparisons
+  pricing
+  beginner mistakes
+  setup checklist
+  portfolio allocation
+- At least 2 sections must include a line that naturally leads to a related article topic
+- These follow-up hooks must sound useful not promotional
 - intent_type must match the keyword
 - comparison articles must prioritize selection criteria and tradeoffs
 - template articles must include a reusable asset
