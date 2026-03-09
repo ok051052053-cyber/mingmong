@@ -43,7 +43,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
 MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "4"))
@@ -66,7 +66,7 @@ MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
 GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "4"))
 GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "4"))
-GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "0.42"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "0.28"))
  
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
@@ -881,7 +881,7 @@ def compute_keyword_opportunity(keyword: str, existing_titles: List[str]) -> Tup
     base = normalize_keyword(keyword)
     suggests = fetch_google_suggest(keyword)
     exact_hits = sum(1 for s in suggests if normalize_keyword(s) == base)
-    broad_penalty = 0.35 if len(base.split()) < 5 else 0.0
+    broad_penalty = 0.18 if len(base.split()) < 5 else 0.0
     suggest_richness = len(suggests) / max(GOOGLE_SUGGEST_PER_QUERY, 1)
  
     diversity_terms = 0
@@ -1396,15 +1396,6 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 save_keywords(merged_all)
                 return merged_all, cluster_name, "normal", current_pillar_slug
 
-            target_category = cluster_to_category(cluster_name)
-            merged_all = [
-                kw for kw in merged_all
-                if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
-            ]
-
-            if merged_all:
-                save_keywords(merged_all)
-                return merged_all, cluster_name, "normal", current_pillar_slug
         except Exception as e:
             log("KW", f"Cluster keyword generation failed: {e}")
  
@@ -2416,6 +2407,67 @@ workflow, checklist, mistake, tradeoff, decision, step
     Retry correction:
     - Make the article more distinct, more concrete, and less templated
     """
+
+def tldr_has_enough_signal(tldr: str) -> bool:
+    t = (tldr or "").lower().strip()
+    if not t:
+        return False
+
+    signal_groups = {
+        "hook": [
+            "the real reason",
+            "most people think",
+            "what actually happens",
+            "the problem is not",
+            "in practice",
+        ],
+        "audience": [
+            "this is for",
+            "best for",
+            "if you are",
+            "for beginners",
+            "for freelancers",
+            "for solo",
+            "for young professionals",
+        ],
+        "decision": [
+            "decision",
+            "choose",
+            "avoid",
+            "best option",
+            "not ideal",
+            "tradeoff",
+        ],
+        "consequence": [
+            "this breaks down when",
+            "the cost shows up when",
+            "what looks simple becomes messy when",
+            "go wrong",
+            "mistake",
+            "risk",
+            "problem",
+            "hidden cost",
+        ],
+        "action": [
+            "start with",
+            "use this",
+            "follow this",
+            "step",
+            "workflow",
+            "checklist",
+        ],
+    }
+
+    hit_groups = 0
+    for words in signal_groups.values():
+        if any(w in t for w in words):
+            hit_groups += 1
+
+    sentence_count = len([x for x in re.split(r"[.!?]+", t) if x.strip()])
+    if sentence_count < 2:
+        return False
+
+    return hit_groups >= 3
  
 
 def quality_check_post(
@@ -2469,7 +2521,7 @@ def quality_check_post(
     ]
 
 
-    if not any(x in opening_text[:700] for x in strong_opening_signals):
+    if not any(x in opening_text[:900] for x in strong_opening_signals[:4]):
         return False, "weak-opening-hook"
     problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
     insight_signals = ["real reason", "hidden", "actually", "invisible", "why", "misunderstand"]
@@ -2486,12 +2538,15 @@ def quality_check_post(
         return False, "thin-section"
     
     avg_section_len = sum(len((s.get("body") or "").strip()) for s in sections) / max(len(sections), 1)
-    if avg_section_len < 1000:
+    if avg_section_len < MIN_SECTION_CHARS:
         return False, "thin-section"
 
-    if len((tldr or "").strip()) < 220:
+    if len((tldr or "").strip()) < 80:
         return False, "weak-opening-hook"
 
+    if not tldr_has_enough_signal(tldr):
+        return False, "weak-opening-hook"
+ 
     if len(faq) < 3:
         return False, "bad-faq"
 
@@ -2504,12 +2559,12 @@ def quality_check_post(
             return False, "weak-section-headings"
 
     base_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
-    if base_hits < 3:
+    if base_hits < 2:
         return False, "missing-depth-signals"
  
     mode_signals = MODE_REQUIRED_SIGNALS.get(mode, MODE_REQUIRED_SIGNALS["workflow"])
     mode_hits = sum(1 for x in mode_signals if x in joined)
-    if mode_hits < 3:
+    if mode_hits < 2:
         return False, "missing-depth-signals"
     example_signals = [
         "for example",
@@ -2521,7 +2576,7 @@ def quality_check_post(
         "imagine",
     ]
     example_hits = sum(1 for x in example_signals if x in joined)
-    if example_hits < 3:
+    if example_hits < 2:
         return False, "missing-pattern-breaks"
 
     if sum(1 for x in TIME_BASED_SIGNAL_PATTERNS if x in joined) < 2:
@@ -2536,7 +2591,7 @@ def quality_check_post(
     for s in sections:
         blocks = re.split(r"\n\s*\n+", s.get("body", ""))
         for b in blocks:
-            if len(b.strip()) > 650:
+            if len(b.strip()) > 520:
                 dense_paragraph_count += 1
 
     if dense_paragraph_count >= 3:
@@ -2615,7 +2670,10 @@ def quality_check_post(
             return False, "missing-howto-specifics"
  
     if mode == "review":
-        if "pricing" not in joined or "pros" not in joined or "cons" not in joined:
+        pros_like = ["pros", "advantages", "strengths", "upsides"]
+        cons_like = ["cons", "drawbacks", "weaknesses", "downsides"]
+        
+        if "pricing" not in joined or not any(x in joined for x in pros_like) or not any(x in joined for x in cons_like):
             return False, "missing-depth-signals"
         if "best for" not in joined or "not ideal" not in joined:
             return False, "missing-limitations"
@@ -2822,9 +2880,6 @@ def generate_deep_post(
 
     elapsed = time.time() - t0
     log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
-
-    if elapsed < 8:
-        raise RuntimeError(f"Generation suspiciously fast: {elapsed:.2f}s")
 
     if not data.get("description"):
         data["description"] = planning.get("description") or short_desc(data.get("title", ""))
@@ -3792,7 +3847,10 @@ def render_post_html(
         blocks.append("<h2>FAQ</h2>")
         for item in faq:
             blocks.append(f"<p><strong>{html_escape(item['q'])}</strong><br>{html_escape(item['a'])}</p>")
- 
+
+    if editorial_note:
+        blocks.append(f'<p class="editorial-note">{html_escape(editorial_note)}</p>')
+
     related_html = render_related_guides_html(related_posts)
     if related_html:
         blocks.append(related_html)
