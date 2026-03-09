@@ -1582,6 +1582,9 @@ Schema:
 }}
 
 Hard rules:
+- The article must fit into a broader topic cluster
+- The plan should identify at least 2 adjacent follow-up topics a reader would logically need next
+- These adjacent topics should be reflected in section goals or must_include points
 - At least 2 sections must include a concrete number, cost, percentage, amount, or time example
 - At least 1 section must include a realistic beginner scenario with money, timing, and consequence
 - For investing topics include practical realism such as:
