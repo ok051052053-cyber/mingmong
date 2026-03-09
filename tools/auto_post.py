@@ -1304,39 +1304,39 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     intent_type = infer_search_intent_type(keyword, category_hint)
 
-INTENT_BLUEPRINTS = {
-    "comparison": [
-        "quick verdict and who each option is for",
-        "comparison table with real selection criteria",
-        "where each tool wins and breaks down",
-        "best fit by user type or budget",
-        "final decision and what to do next",
-    ],
-    "template": [
-        "the situation this template solves",
-        "copyable template or checklist",
-        "how to customize it without breaking it",
-        "example scenario and common mistake",
-        "when not to use this template",
-    ],
-    "review": [
-        "quick verdict and target user",
-        "pricing reality and setup difficulty",
-        "main strengths and where it breaks down",
-        "best for and not ideal for",
-        "final recommendation",
-    ],
-    "howto": [
-        "why the problem keeps happening",
-        "the hidden reason common advice fails",
-        "the exact system or workflow",
-        "example scenario with timing",
-        "mistakes tradeoffs and final decision",
-    ],
-}
+    INTENT_BLUEPRINTS = {
+        "comparison": [
+            "quick verdict and who each option is for",
+            "comparison table with real selection criteria",
+            "where each tool wins and breaks down",
+            "best fit by user type or budget",
+            "final decision and what to do next",
+        ],
+        "template": [
+            "the situation this template solves",
+            "copyable template or checklist",
+            "how to customize it without breaking it",
+            "example scenario and common mistake",
+            "when not to use this template",
+        ],
+        "review": [
+            "quick verdict and target user",
+            "pricing reality and setup difficulty",
+            "main strengths and where it breaks down",
+            "best for and not ideal for",
+            "final recommendation",
+        ],
+        "howto": [
+            "why the problem keeps happening",
+            "the hidden reason common advice fails",
+            "the exact system or workflow",
+            "example scenario with timing",
+            "mistakes tradeoffs and final decision",
+        ],
+    }
 
-blueprint = INTENT_BLUEPRINTS.get(intent_type, INTENT_BLUEPRINTS["howto"])
-section_count = len(blueprint)
+    blueprint = INTENT_BLUEPRINTS.get(intent_type, INTENT_BLUEPRINTS["howto"])
+    section_count = len(blueprint)
 
     post_guidance = """
 This is a pillar guide.
@@ -1444,11 +1444,6 @@ Hard rules:
 - Each section must be materially distinct
 - image_query must be visual and believable
 - visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
-- intent_type must match the keyword
-- comparison articles must prioritize selection criteria and tradeoffs
-- template articles must include a reusable asset
-- review articles must feel like real reviews not generic summaries
-- howto articles must include timing and a repeatable workflow
 
 {post_guidance}
 """.strip()
@@ -1547,24 +1542,6 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         "faq_questions": faq_questions,
         "tldr_focus": tldr_focus,
     }
-
-def infer_search_intent_type(keyword: str, category: str = "") -> str:
-    k = (keyword or "").lower().strip()
-    c = (category or "").lower().strip()
-
-    if " vs " in k or "versus" in k or "alternative" in k or "alternatives" in k or "compare" in k:
-        return "comparison"
-
-    if "template" in k or "checklist" in k or "script" in k or "email example" in k:
-        return "template"
-
-    if "best " in k or "review" in k or "worth it" in k or c == "software reviews":
-        return "review"
-
-    if "how to" in k or "system" in k or "workflow" in k or "process" in k:
-        return "howto"
-
-    return "howto"
  
 
 def infer_search_intent_type(keyword: str, category: str = "") -> str:
