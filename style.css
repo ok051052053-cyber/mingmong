@@ -503,8 +503,8 @@ a:hover{text-decoration:underline}
   }
   .post-main{min-width:0}
   .post-aside{
-    position:sticky;
-    top:96px;
+    position:static;
+    top:auto;
     align-self:start;
   }
 
@@ -1407,3 +1407,4 @@ textarea:focus-visible{
     margin:12px 0 16px;
   }
 }
+
