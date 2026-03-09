@@ -4219,3 +4219,6 @@ Retry correction:
     save_posts_index(posts)
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
