@@ -1675,7 +1675,20 @@ def infer_search_intent_type(keyword: str, category: str = "") -> str:
         return "howto"
 
     return "howto"
- 
+
+def infer_content_mode(category: str, text: str, intent: str = "cluster") -> str:
+    joined = f"{category} {text} {intent}".lower()
+
+    if any(x in joined for x in ["template", "checklist", "workflow", "system", "process"]):
+        return "workflow"
+    if any(x in joined for x in ["tool", "software", "app", "platform", "compare", "comparison"]):
+        return "review"
+    if any(x in joined for x in ["invest", "stock", "stocks", "etf", "etfs", "portfolio", "dividend"]):
+        return "investing"
+    if any(x in joined for x in ["make money", "income", "side hustle", "monetization"]):
+        return "money"
+    return "workflow"
+
 def build_mode_rules(mode: str) -> str:
     if mode == "review":
         return """
