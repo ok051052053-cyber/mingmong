@@ -1,92 +1,31 @@
-import json
-from pathlib import Path
+name: Fix Posts
 
+on:
+  workflow_dispatch:
 
-ROOT = Path(__file__).resolve().parents[1]
-POSTS_JSON = ROOT / "posts.json"
-ASSETS_POSTS_DIR = ROOT / "assets" / "posts"
+permissions:
+  contents: write
 
+jobs:
+  fix:
+    runs-on: ubuntu-latest
 
-def load_json(path: Path, default):
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return default
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-def save_json(path: Path, obj) -> None:
-    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+      - name: Run fix script
+        run: python scripts/fix_posts.py
 
-
-def find_existing_thumb_for_slug(slug: str) -> str:
-    if not slug:
-        return ""
-
-    folder = ASSETS_POSTS_DIR / slug
-    if not folder.exists() or not folder.is_dir():
-        return ""
-
-    candidates = []
-
-    for ext in ("jpg", "jpeg", "png", "webp", "svg"):
-        for i in range(1, 10):
-            p = folder / f"{i}.{ext}"
-            if p.exists() and p.is_file():
-                candidates.append(p)
-
-    if not candidates:
-        for p in sorted(folder.glob("*")):
-            if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".svg"}:
-                candidates.append(p)
-
-    if not candidates:
-        return ""
-
-    candidates = sorted(candidates, key=lambda x: x.name)
-    best = candidates[0]
-    return f"assets/posts/{slug}/{best.name}"
-
-
-def main():
-    posts = load_json(POSTS_JSON, [])
-    if not isinstance(posts, list):
-        print("posts.json is not a list")
-        return
-
-    repaired = 0
-    checked = 0
-
-    for post in posts:
-        if not isinstance(post, dict):
-            continue
-
-        checked += 1
-        slug = (post.get("slug") or "").strip()
-        thumb = (post.get("thumbnail") or "").strip()
-        image = (post.get("image") or "").strip()
-
-        thumb_missing = not thumb
-        image_missing = not image
-
-        thumb_broken = bool(thumb) and not (ROOT / thumb).exists()
-        image_broken = bool(image) and not (ROOT / image).exists()
-
-        if thumb_missing or image_missing or thumb_broken or image_broken:
-            recovered = find_existing_thumb_for_slug(slug)
-            if recovered:
-                post["thumbnail"] = recovered
-                post["image"] = recovered
-                repaired += 1
-                print(f"[FIXED] {slug} -> {recovered}")
-            else:
-                print(f"[SKIP] {slug} -> no image found")
-
-    save_json(POSTS_JSON, posts)
-    print(f"Checked: {checked}")
-    print(f"Repaired: {repaired}")
-
-
-if __name__ == "__main__":
-    main()
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add posts.json
+          git commit -m "auto fix posts.json" || echo "No changes"
+          git push
