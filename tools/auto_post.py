@@ -2149,6 +2149,14 @@ def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
     category = (planning.get("category") or "").strip()
     mode = infer_content_mode(category, planning.get("title", ""), planning.get("intent", "cluster"))
 
+    if reason == "bad-faq":
+        return """
+    Retry correction:
+    - Add 3 to 5 realistic FAQ questions
+    - The FAQ should reflect actual follow-up questions a reader would ask before taking action
+    - Avoid generic FAQ filler
+    """
+ 
     if reason == "missing-segmentation":
         return """
     Retry correction:
