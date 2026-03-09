@@ -3331,7 +3331,12 @@ def normalize_existing_post(p: dict) -> dict:
  
     return p
  
- 
+ def first_non_empty_image(image_paths: List[str]) -> str:
+    for p in image_paths:
+        if isinstance(p, str) and p.strip():
+            return p.strip()
+    return ""
+    
 # =========================================================
 # HTML rendering helpers
 # =========================================================
@@ -3494,7 +3499,8 @@ def render_post_html(
     keyword: str,
 ) -> str:
     canonical = f"{SITE_URL}/posts/{slug}.html"
-    og_image = f"{SITE_URL}/{image_paths[0]}" if image_paths else ""
+    primary_image = first_non_empty_image(image_paths)
+    og_image = f"{SITE_URL}/{primary_image}" if primary_image else ""
  
     blocks = []
     blocks.append("<h2>TL;DR</h2>")
@@ -3719,7 +3725,7 @@ def add_post_to_index(
     pillar_slug: str,
     planning: Dict[str, Any],
 ) -> None:
-    thumb = image_paths[0] if image_paths else ""
+    thumb = first_non_empty_image(image_paths)
     posts.insert(0, {
         "title": title,
         "slug": slug,
