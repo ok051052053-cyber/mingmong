@@ -1294,6 +1294,20 @@ Site focus:
 6. side hustles for ordinary workers
  
 Need:
+- prioritize low to medium competition long-tail queries
+- prefer search queries with clear beginner constraints
+- prefer keywords with one of these modifiers when natural:
+  with 100 dollars
+  monthly
+  for beginners
+  first time
+  simple
+  small budget
+  under 30
+  without picking stocks
+- avoid broad educational head terms even if they sound useful
+- avoid inspirational titles
+- avoid vague guide-like phrases
 - exactly 14 keyword ideas
 - long-tail keywords only
 - practical search intent only
