@@ -106,8 +106,8 @@ CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
 PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "10"))
  
-SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "5"))
-SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "8"))
+SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "4"))
+SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "6"))
  
 SEARCH_JS_VERSION = hashlib.sha1(str(int(time.time() // 3600)).encode("utf-8")).hexdigest()[:8]
 BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.random()}".encode("utf-8")).hexdigest()[:10]
@@ -642,6 +642,9 @@ def is_search_intent_keyword(keyword: str) -> bool:
     words = k.split()
     if len(words) < 4 or len(words) > 18:
         return False
+
+    if len(words) < 5 and not any(tok in k for tok in ["vs", "best", "review"]):
+        return False
  
     if re.search(r"\b(2019|2020|2021|2022|2023|2024)\b", k):
         return False
@@ -688,6 +691,14 @@ def is_search_intent_keyword(keyword: str) -> bool:
         "invoicing",
         "budget app",
         "alternatives",
+        "template",
+        "script",
+        "email example",
+        "alternatives",
+        "pricing",
+        "free plan",
+        "client retention",
+        "repeat clients",
     ]
     if not any(tok in k for tok in intent_tokens):
         return False
@@ -1290,9 +1301,42 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 # =========================================================
 def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
     avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:40]]) if avoid_titles else "- none"
-    category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
-    blueprint = random.choice(SECTION_BLUEPRINTS)
-    section_count = min(max(len(blueprint), SECTION_COUNT_MIN), SECTION_COUNT_MAX)
+category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+intent_type = infer_search_intent_type(keyword, category_hint)
+
+INTENT_BLUEPRINTS = {
+    "comparison": [
+        "quick verdict and who each option is for",
+        "comparison table with real selection criteria",
+        "where each tool wins and breaks down",
+        "best fit by user type or budget",
+        "final decision and what to do next",
+    ],
+    "template": [
+        "the situation this template solves",
+        "copyable template or checklist",
+        "how to customize it without breaking it",
+        "example scenario and common mistake",
+        "when not to use this template",
+    ],
+    "review": [
+        "quick verdict and target user",
+        "pricing reality and setup difficulty",
+        "main strengths and where it breaks down",
+        "best for and not ideal for",
+        "final recommendation",
+    ],
+    "howto": [
+        "why the problem keeps happening",
+        "the hidden reason common advice fails",
+        "the exact system or workflow",
+        "example scenario with timing",
+        "mistakes tradeoffs and final decision",
+    ],
+}
+
+blueprint = INTENT_BLUEPRINTS.get(intent_type, INTENT_BLUEPRINTS["howto"])
+section_count = len(blueprint)
 
     post_guidance = """
 This is a pillar guide.
@@ -1332,6 +1376,7 @@ Schema:
   "description": "155-170 chars meta description not equal to title",
   "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
   "intent": "pillar|cluster",
+  "intent_type": "comparison|template|review|howto",
   "search_intent_summary": "one sentence",
   "section_plan": [
     {{
@@ -1355,6 +1400,11 @@ Schema:
 }}
 
 Hard rules:
+- intent_type must match the keyword
+- comparison articles must prioritize selection criteria and tradeoffs
+- template articles must include a reusable asset
+- review articles must feel like real reviews not generic summaries
+- howto articles must include timing and a repeatable workflow
 - Avoid fake sophistication
 - Avoid shallow SEO filler
 - Avoid generic software roundup structure
@@ -1394,6 +1444,11 @@ Hard rules:
 - Each section must be materially distinct
 - image_query must be visual and believable
 - visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
+- intent_type must match the keyword
+- comparison articles must prioritize selection criteria and tradeoffs
+- template articles must include a reusable asset
+- review articles must feel like real reviews not generic summaries
+- howto articles must include timing and a repeatable workflow
 
 {post_guidance}
 """.strip()
@@ -1415,6 +1470,14 @@ Hard rules:
     category = _clean_text(data.get("category", ""))
     intent = _clean_text(data.get("intent", post_type or "cluster"))
     search_intent_summary = _clean_text(data.get("search_intent_summary", ""))
+    intent_type = _clean_text(data.get("intent_type", "")).lower()
+    if intent_type not in {"comparison", "template", "review", "howto"}:
+        intent_type = infer_search_intent_type(keyword, category)
+
+
+    intent_type = _clean_text(data.get("intent_type", "")).lower()
+    if intent_type not in {"comparison", "template", "review", "howto"}:
+        intent_type = infer_search_intent_type(keyword, category)
  
     if not audience or not problem or not outcome or not angle or not title:
         raise ValueError("planning fields missing")
@@ -1454,7 +1517,7 @@ Hard rules:
         clean_sections.append({
             "heading": heading,
             "goal": goal,
-"section_role": section_role,
+            "section_role": section_role,
             "image_query": image_query,
             "visual_type": visual_type,
             "must_include": must_include[:6],
@@ -1480,11 +1543,31 @@ Hard rules:
         "description": description or short_desc(f"{angle}. {outcome}"),
         "category": category,
         "intent": intent or post_type,
+        "intent_type": intent_type,
         "search_intent_summary": search_intent_summary or angle,
+        "intent_type": intent_type,
         "section_plan": clean_sections,
         "faq_questions": faq_questions,
         "tldr_focus": tldr_focus,
     }
+
+def infer_search_intent_type(keyword: str, category: str = "") -> str:
+    k = (keyword or "").lower().strip()
+    c = (category or "").lower().strip()
+
+    if " vs " in k or "versus" in k or "alternative" in k or "alternatives" in k or "compare" in k:
+        return "comparison"
+
+    if "template" in k or "checklist" in k or "script" in k or "email example" in k:
+        return "template"
+
+    if "best " in k or "review" in k or "worth it" in k or c == "software reviews":
+        return "review"
+
+    if "how to" in k or "system" in k or "workflow" in k or "process" in k:
+        return "howto"
+
+    return "howto"
  
  
 def infer_content_mode(category: str, keyword: str, post_type: str) -> str:
@@ -1504,7 +1587,24 @@ def infer_content_mode(category: str, keyword: str, post_type: str) -> str:
         return "review"
  
     return "workflow"
- 
+
+ def infer_search_intent_type(keyword: str, category: str = "") -> str:
+    k = (keyword or "").lower().strip()
+    c = (category or "").lower().strip()
+
+    if " vs " in k or "versus" in k or "alternative" in k or "alternatives" in k or "compare" in k:
+        return "comparison"
+
+    if "template" in k or "checklist" in k or "script" in k or "email example" in k:
+        return "template"
+
+    if "best " in k or "review" in k or "worth it" in k or c == "software reviews":
+        return "review"
+
+    if "how to" in k or "system" in k or "workflow" in k or "process" in k:
+        return "howto"
+
+    return "howto"
  
 def build_mode_rules(mode: str) -> str:
     if mode == "review":
@@ -1565,6 +1665,7 @@ def build_article_prompt(
     corrective_note: str = "",
 ) -> str:
     category = planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    intent_type = planning.get("intent_type") or infer_search_intent_type(keyword, category)
     mode = infer_content_mode(
         category,
         planning.get("search_intent_summary", "") or planning.get("title", ""),
@@ -1598,6 +1699,7 @@ Schema:
   "title": "string",
   "description": "string",
   "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
+  "intent_type": "comparison|template|review|howto",
   "sections": [
     {{
       "heading": "string",
@@ -1640,6 +1742,42 @@ Hard rules:
 - FAQ must have 3 to 5 realistic follow-up questions
 - TLDR must be 2 to 4 sentences
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
+
+Intent specific requirements:
+- intent_type is {intent_type}
+- If intent_type is comparison:
+  - include a comparison table in HTML-ready plain text form
+  - compare by price, free plan, setup difficulty, automation, best for, not ideal for
+  - include a clear winner for at least 2 user types
+- If intent_type is template:
+  - include one copyable template, checklist, script, or sequence
+  - include one example of customization
+  - include one misuse case
+- If intent_type is review:
+  - include these exact labels in natural text:
+    Best for
+    Pricing reality
+    Setup difficulty
+    Main strength
+    Main weakness
+    My verdict
+  - do not sound like a generic roundup
+- If intent_type is howto:
+  - include one weekly workflow
+  - include one 30-day cadence or review cycle
+  - include one specific scenario with consequence
+
+Experience block requirements:
+- Include at least 2 grounded realism blocks that feel like direct usage insight
+- Use headings or labels such as:
+  What happened when I used this
+  Where this breaks down
+  In practice
+  Scenario
+  Best fit if you are
+  Not worth it if
+- Even if the article is AI-assisted, it must read like it has observed real friction, setup pain, and tradeoffs
+- Do not write like a neutral encyclopedia
 
 Engagement and dwell time requirements:
 - The TLDR and the opening of section 1 must create immediate curiosity
@@ -1808,127 +1946,162 @@ workflow, checklist, mistake, tradeoff, decision, step
  
     if reason == "missing-template-checklist":
         return """
-Retry correction:
-- Include a clearly reusable checklist, framework, or summary format
-"""
+    Retry correction:
+    - Include a clearly reusable checklist, framework, or summary format
+    """
+
+    if reason == "missing-comparison-signals":
+        return """
+    Retry correction:
+    - Add stronger comparison logic
+    - Include price, free plan, best for, and not ideal for
+    - Make the article help the reader choose not just browse
+    """
+
+    if reason == "missing-template-signals":
+        return """
+    Retry correction:
+    - Add a real reusable template or checklist
+    - Show one example and one customization case
+    """
+
+    if reason == "missing-review-format":
+        return """
+    Retry correction:
+    - Use these exact labels in natural prose:
+      Best for
+      Pricing reality
+      Setup difficulty
+      Main strength
+      Main weakness
+      My verdict
+    """
+
+    if reason == "missing-howto-specifics":
+        return """
+    Retry correction:
+    - Add a weekly workflow
+    - Add a 30 day review cycle
+    - Add one scenario with a concrete consequence
+    """
  
     if reason == "missing-mistakes":
         return """
-Retry correction:
-- Include at least two concrete mistakes or one common pitfall section
-"""
+    Retry correction:
+    - Include at least two concrete mistakes or one common pitfall section
+    """
  
     if reason == "missing-tradeoff":
         return """
-Retry correction:
-- Use the exact word tradeoff and explain at least one tradeoff
-"""
+    Retry correction:
+    - Use the exact word tradeoff and explain at least one tradeoff
+    """
  
     if reason == "missing-limitations":
         return """
-Retry correction:
-- Include 'when not to use this' or explain who should avoid this
-"""
+    Retry correction:
+    - Include 'when not to use this' or explain who should avoid this
+    """
  
     if reason == "thin-section":
         return """
-Retry correction:
-- Expand the weaker sections with examples, edge cases, and decision logic
-"""
+    Retry correction:
+    - Expand the weaker sections with examples, edge cases, and decision logic
+    """
  
     if reason == "weak-opening-hook":
         return """
-Retry correction:
-- Rewrite the opening to create immediate curiosity
-- Start with a non-obvious insight or hidden problem
-- Use phrases like:
-  the real reason
-  most people think
-  what actually happens
-  the problem is not
-- Do not start with broad general context
-"""
+    Retry correction:
+    - Rewrite the opening to create immediate curiosity
+    - Start with a non-obvious insight or hidden problem
+    - Use phrases like:
+      the real reason
+      most people think
+      what actually happens
+      the problem is not
+    - Do not start with broad general context
+    """
 
     if reason == "missing-problem-stage":
         return """
-Retry correction:
-- Make the article structure clearly begin with a visible problem
-- Show what is going wrong before moving into solutions
-"""
+    Retry correction:
+    - Make the article structure clearly begin with a visible problem
+    - Show what is going wrong before moving into solutions
+    """
    
     if reason == "missing-insight-stage":
         return """
-Retry correction:
-- Add a hidden reason, misunderstanding, or overlooked mechanism
-- The second stage should reveal why the obvious explanation is incomplete
-"""
+    Retry correction:
+    - Add a hidden reason, misunderstanding, or overlooked mechanism
+    - The second stage should reveal why the obvious explanation is incomplete
+    """
 
     if reason == "missing-solution-stage":
         return """
-Retry correction:
-- Add a practical system, workflow, or process after the problem and insight stages
-- The article must clearly move into solution mode
-"""
+    Retry correction:
+    - Add a practical system, workflow, or process after the problem and insight stages
+    - The article must clearly move into solution mode
+    """
 
     if reason == "weak-section-headings":
         return """
-Retry correction:
-- Rewrite the section headings to create curiosity
-- Avoid generic headings like practical approach or decision framework
-- Use headings that imply hidden reasons, mistakes, tension, contrast, or decision moments
-"""
+    Retry correction:
+    - Rewrite the section headings to create curiosity
+    - Avoid generic headings like practical approach or decision framework
+    - Use headings that imply hidden reasons, mistakes, tension, contrast, or decision moments
+    """
 
     if reason == "missing-pattern-breaks":
         return """
-Retry correction:
-- Add at least 2 mini-scenarios or example blocks
-- Break the article rhythm with short story-like examples
-- Use labels such as Example, Scenario, In practice, or Edge case
-"""
+    Retry correction:
+    - Add at least 2 mini-scenarios or example blocks
+    - Break the article rhythm with short story-like examples
+    - Use labels such as Example, Scenario, In practice, or Edge case
+    """
 
     if reason == "not-specific-enough":
         return """
-Retry correction:
-- Add specific numbers and timing
-- Use concrete actions such as 7 days, 14 days, 30 days, weekly, or monthly
-- Replace abstract advice with measurable steps
-"""
+    Retry correction:
+    - Add specific numbers and timing
+    - Use concrete actions such as 7 days, 14 days, 30 days, weekly, or monthly
+    - Replace abstract advice with measurable steps
+    """
 
     if reason == "too-dense":
         return """
-Retry correction:
-- Rewrite the article with shorter paragraphs
-- Most paragraphs should be 1 to 3 sentences
-- Use shorter sentences and more visual breaks
-- Keep the article long but easier to scan
-"""
+    Retry correction:
+    - Rewrite the article with shorter paragraphs
+    - Most paragraphs should be 1 to 3 sentences
+    - Use shorter sentences and more visual breaks
+    - Keep the article long but easier to scan
+    """
 
     if reason == "weak-ending":
         return """
-Retry correction:
-- Rewrite the ending so it does not sound like a generic summary
-- End with a sharper reflection, decision question, or strategic takeaway
-"""
+    Retry correction:
+    - Rewrite the ending so it does not sound like a generic summary
+    - End with a sharper reflection, decision question, or strategic takeaway
+    """
 
     if reason == "missing-reflective-ending":
         return """
-Retry correction:
-- The final paragraph must leave the reader thinking
-- Use a strong closing question, contrast, or implication
-- Make the ending memorable rather than merely complete
-"""
+    Retry correction:
+    - The final paragraph must leave the reader thinking
+    - Use a strong closing question, contrast, or implication
+    - Make the ending memorable rather than merely complete
+    """
 
     if reason == "shallow-advice":
         return """
-Retry correction:
-- Remove shallow advice such as choose the right tool or compare features
-- Go deeper into behavioral causes, systems, timing, and decision logic
-"""
+    Retry correction:
+    - Remove shallow advice such as choose the right tool or compare features
+    - Go deeper into behavioral causes, systems, timing, and decision logic
+    """
 
     return """
-Retry correction:
-- Make the article more distinct, more concrete, and less templated
-"""
+    Retry correction:
+    - Make the article more distinct, more concrete, and less templated
+    """
  
 
 def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, str]:
@@ -1938,6 +2111,9 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
     faq = data.get("faq", [])
     category = data.get("category", "")
     mode = infer_content_mode(category, keyword or title, "cluster")
+    intent_type = data.get("intent_type", "")
+    if not intent_type:
+        intent_type = infer_search_intent_type(keyword or title, category)
  
     if is_generic_title(title):
         return False, "generic-title"
@@ -2057,6 +2233,37 @@ def quality_check_post(data: Dict[str, Any], keyword: str = "") -> Tuple[bool, s
             return False, "missing-tradeoff"
         if "when not to use this" not in joined and "do not use this setup" not in joined:
             return False, "missing-limitations"
+
+    if intent_type == "comparison":
+        required = ["price", "free plan", "best for", "not ideal"]
+        hits = sum(1 for x in required if x in joined)
+        if hits < 3:
+            return False, "missing-comparison-signals"
+
+    if intent_type == "template":
+        template_signals = ["template", "checklist", "copy", "example", "customize"]
+        hits = sum(1 for x in template_signals if x in joined)
+        if hits < 3:
+            return False, "missing-template-signals"
+
+    if intent_type == "review":
+        review_labels = [
+            "best for",
+            "pricing reality",
+            "setup difficulty",
+            "main strength",
+            "main weakness",
+            "my verdict",
+        ]
+        hits = sum(1 for x in review_labels if x in joined)
+        if hits < 4:
+            return False, "missing-review-format"
+
+    if intent_type == "howto":
+        howto_signals = ["weekly", "30 days", "workflow", "step", "mistake"]
+        hits = sum(1 for x in howto_signals if x in joined)
+        if hits < 3:
+            return False, "missing-howto-specifics"
  
     if mode == "review":
         if "pricing" not in joined or "pros" not in joined or "cons" not in joined:
