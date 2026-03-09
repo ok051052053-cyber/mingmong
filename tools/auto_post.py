@@ -1904,6 +1904,18 @@ Schema:
 }}
 
 Hard rules:
+- Include at least 2 natural internal-link hook moments inside the body
+- These hooks should mention related article angles such as:
+  comparison
+  alternatives
+  pricing
+  checklist
+  beginner mistakes
+  portfolio allocation
+- Do not write raw URLs
+- Write them as natural lines such as:
+  before you choose a platform compare fees and beginner features
+  if portfolio allocation still feels unclear review a simple 3 fund example next
 - Do not use markdown bold like **text**
 - Do not place multiple numbered items in one paragraph
 - When using numbered steps, format them like:
