@@ -1568,6 +1568,21 @@ Schema:
 }}
 
 Hard rules:
+- Titles must match a real beginner search query closely
+- Prefer concrete patterns like:
+  how to start X with Y
+  simple X for beginners
+  X vs Y for beginners
+  how much to invest in X
+  best X for beginners with a constraint
+- Avoid abstract title words such as:
+  roadmap
+  blueprint
+  framework
+  journey
+  path
+  strategy
+- The title should feel like something a real person would type into Google
 - The article must naturally create at least 2 follow-up reading moments
 - These should reference related decision points such as:
   alternatives
