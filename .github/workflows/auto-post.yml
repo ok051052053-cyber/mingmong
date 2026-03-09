@@ -65,11 +65,11 @@ jobs:
           POSTS_PER_RUN: "1"
           MODEL: "gpt-4o-mini"
 
-          MIN_CHARS: "4200"
-          MIN_SECTION_CHARS: "420"
+          MIN_CHARS: "9000"
+          MIN_SECTION_CHARS: "900"
 
-          MAX_KEYWORD_TRIES: "12"
-          MAX_GENERATE_ATTEMPTS: "6"
+          MAX_KEYWORD_TRIES: "100"
+          MAX_GENERATE_ATTEMPTS: "10"
 
           TITLE_SIM_THRESHOLD: "0.88"
           KEYWORD_SIM_THRESHOLD: "0.82"
