@@ -3963,7 +3963,7 @@ def main() -> int:
                     avoid_titles=existing_titles,
                     corrective_note=corrective_note,
                 )
-                )
+              
  
                 if post_semantically_too_close(keyword, cand_planning, posts):
                     log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
