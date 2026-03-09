@@ -41,7 +41,7 @@ POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
-MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4.1-mini")).strip()
+MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "9000"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "900"))
@@ -1335,6 +1335,13 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
             merged_all = dedupe_keywords(clean_base + cluster_keywords + google_keywords, existing_titles, existing_keywords)
             merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
+
+            target_category = cluster_to_category(cluster_name)
+            merged_all = [
+                kw for kw in merged_all
+                if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
+            ]
+
             if merged_all:
                 save_keywords(merged_all)
                 return merged_all, cluster_name, "normal", current_pillar_slug
@@ -1343,6 +1350,13 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
  
         fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
         fallback = filter_keywords_by_opportunity(fallback, existing_titles)
+
+        target_category = cluster_to_category(cluster_name)
+        fallback = [
+            kw for kw in fallback
+            if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
+        ]
+
         return fallback, cluster_name, "normal", current_pillar_slug
  
     auto_keywords: List[str] = []
@@ -1565,6 +1579,16 @@ Hard rules:
 - At least 2 sections must include timing such as 7 days, 14 days, 30 days, weekly, or monthly
 - At least 2 sections must include one named scenario or example
 - The section plan must not sound like a generic SaaS blog outline
+- Each section must include at least one concrete operational detail
+- At least 2 sections must include a specific time marker such as 7 days, 14 days, 30 days, weekly, or monthly
+- At least 2 sections must include an example scenario with sequence and consequence
+- The audience must be named directly in section 1
+- Section 1 must clearly state who this article is for
+- Avoid generic titles such as:
+  The best way to...
+  A complete guide to...
+  Effective strategies for...
+- Titles must include a real audience, real constraint, or real decision
 {audience_segmentation_note}
 {review_depth_note}
 {originality_note}
@@ -1905,6 +1929,23 @@ Engagement and dwell time requirements:
 - The TLDR and the opening of section 1 must create immediate curiosity
 - The first 3 lines must explain why the reader should keep reading
 - The opening must start with a non-obvious insight, tension, or hidden problem
+- The TLDR first sentence must include at least one of these exact phrases:
+  the real reason
+  what actually happens
+  most people think
+  in practice
+- Section 1 first paragraph must include at least one of these exact phrases:
+  the real reason
+  what actually happens
+  most people think
+  the problem is not
+- At least 2 sections must explicitly use the word tradeoff
+- At least 2 sections must explicitly use the word decision
+- At least 2 sections must explicitly use the word mistake
+- At least 2 sections must include a short scenario with sequence and consequence
+- At least 2 sections must include concrete numbers such as 7 days, 14 days, 30 days, weekly, or monthly
+- Section 1 must explicitly say who this article is for
+- Avoid generic titles and generic section headings
 - The TLDR first sentence must include at least one of these exact phrases:
   the real reason
   what actually happens
@@ -3899,12 +3940,14 @@ def main() -> int:
             break
  
         keyword = random.choice(remaining_keywords).strip()
+        effective_category = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+        effective_cluster_name = effective_category
         tried_keywords.add(normalize_keyword(keyword))
         if not keyword:
             continue
  
         created_iso = now_utc_iso()
-        log("MAIN", f"Selected keyword='{keyword}' cluster='{cluster_name}' post_type='{post_type}'")
+        log("MAIN", f"Selected keyword='{keyword}' cluster='{effective_cluster_name}' post_type='{post_type}'")
  
         data = None
         planning = {}
@@ -3915,10 +3958,11 @@ def main() -> int:
                 log("PLAN", f"Attempt {attempt} generating planning")
                 cand, cand_planning = generate_deep_post(
                     keyword=keyword,
-                    cluster_name=cluster_name,
+                    cluster_name=effective_cluster_name,
                     post_type=post_type,
                     avoid_titles=existing_titles,
                     corrective_note=corrective_note,
+                )
                 )
  
                 if post_semantically_too_close(keyword, cand_planning, posts):
