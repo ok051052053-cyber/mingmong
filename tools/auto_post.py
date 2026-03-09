@@ -2762,30 +2762,38 @@ def generate_deep_post(
     avoid_titles: List[str],
     corrective_note: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    t0 = time.time()
+
     planning_raw = openai_generate_text(
         build_planning_prompt(keyword, avoid_titles, cluster_name, post_type),
         model=MODEL_PLANNER,
         temperature=0.55,
     )
     planning = parse_planning_json(planning_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
- 
+
     article_raw = openai_generate_text(
         build_article_prompt(keyword, cluster_name, post_type, planning, corrective_note=corrective_note),
         model=MODEL_WRITER,
         temperature=0.6,
     )
     data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
- 
+
+    elapsed = time.time() - t0
+    log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
+
+    if elapsed < 8:
+        raise RuntimeError(f"Generation suspiciously fast: {elapsed:.2f}s")
+
     if not data.get("description"):
         data["description"] = planning.get("description") or short_desc(data.get("title", ""))
- 
+
     if not data.get("category"):
         data["category"] = planning.get("category") or pick_category(
             keyword=keyword,
             cluster_name=cluster_name,
             post_type=post_type,
         )
- 
+
     return data, planning
  
  
