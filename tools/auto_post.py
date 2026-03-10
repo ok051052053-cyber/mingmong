@@ -2301,6 +2301,19 @@ Formatting rules:
 - Use plain text only
 - Emphasis should be written using normal words, not markdown formatting
 
+Formatting rules:
+- Do not use markdown symbols such as *, **, or _
+- Do not wrap emphasis words in markdown
+- Use plain text labels only
+
+- Use simple labels such as:
+  Best for:
+  Tradeoff:
+  Decision:
+
+- Do not wrap them in markdown symbols
+- Write them as normal text lines
+
 Mode specific requirements:
 {mode_rules}
 """.strip()
