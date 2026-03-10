@@ -4026,7 +4026,10 @@ def render_post_html(
 ) -> str:
     canonical = f"{SITE_URL}/posts/{slug}.html"
     primary_image = first_non_empty_image(image_paths)
-    og_image = f"{SITE_URL}/{primary_image}" if primary_image else ""
+    if primary_image.startswith("http://") or primary_image.startswith("https://"):
+        og_image = primary_image
+    else:
+        og_image = f"{SITE_URL}/{primary_image}" if primary_image else ""
  
     blocks = []
     blocks.append("<h2>TL;DR</h2>")
