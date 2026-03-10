@@ -1980,6 +1980,31 @@ Section heading rules:
 - Section 6 must leave the reader with a concrete next decision
 """
 
+def build_article_prompt(
+    keyword: str,
+    cluster_name: str,
+    post_type: str,
+    planning: Dict[str, Any],
+) -> str:
+    category = planning.get("category") or pick_category(
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
+    intent_type = planning.get("intent_type") or infer_search_intent_type(keyword, category)
+    mode = infer_content_mode(
+        category,
+        planning.get("search_intent_summary", "") or planning.get("title", ""),
+        planning.get("intent", "cluster"),
+    )
+    mode_rules = build_mode_rules(mode)
+
+    if mode == "investing":
+        structure_rules = INVESTING_STRUCTURE_RULES
+    elif mode == "review":
+        structure_rules = REVIEW_STRUCTURE_RULES
+    else:
+        structure_rules = WORKFLOW_STRUCTURE_RULES
  
     table_rules = """
 Table rules:
