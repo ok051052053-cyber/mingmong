@@ -2240,10 +2240,8 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
-    {mode_rules}
-
     table_rules = build_table_rules(post_type, mode)
-    {table_rules}
+ 
     if mode == "investing":
         structure_rules = INVESTING_STRUCTURE_RULES
     elif mode == "review":
@@ -2252,15 +2250,14 @@ def build_article_prompt(
         structure_rules = WORKFLOW_STRUCTURE_RULES
 
     visual_rules = """
-visual_rules = """
-Visual rules:
-- Use photo or workspace for normal sections when an image helps.
-- Do NOT use SVG infographic tables.
-- Do NOT force diagram visuals for comparison sections.
-- If a section includes an HTML comparison table, do not add an image to that section.
-- Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
-- Use real product names, not placeholders like Option A or Option B.
-"""
+    Visual rules:
+    - Use photo or workspace for normal sections when an image helps.
+    - Do NOT use SVG infographic tables.
+    - Do NOT force diagram visuals for comparison sections.
+    - If a section includes an HTML comparison table, do not add an image to that section.
+    - Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
+    - Use real product names, not placeholders like Option A or Option B.
+    """
 
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
