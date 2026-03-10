@@ -2463,6 +2463,11 @@ Readability and engagement rules:
   Where this breaks down
 
 Step formatting rules:
+- If a section includes numbered steps, each step must begin on its own new line.
+- Each step must start with a number and a period.
+- Use a clean continuous sequence such as 1. 2. 3. 4.
+- Do not restart numbering in the same sequence.
+- Do not place step 2 or step 3 inside the same paragraph as step 1.
 - If a section includes numbered steps, format them as a clean 1–4 step sequence.
 - Do not mix numbered steps inside normal paragraphs.
 - Each step must start on a new line.
@@ -3764,6 +3769,8 @@ def paragraphs_to_html(text: str) -> str:
         return ""
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r'(?<!\n)(\s+)(\d+\.\s+)', r'\n\2', text)
+
     blocks = re.split(r"\n\s*\n+", text)
 
     out = []
@@ -3778,6 +3785,8 @@ def paragraphs_to_html(text: str) -> str:
 
         numbered_items = []
         bullet_items = []
+        is_numbered_block = True
+        is_bullet_block = True
 
         for ln in lines:
             m_num = re.match(r"^\s*(\d+)\.\s+(.*)$", ln)
@@ -3785,15 +3794,20 @@ def paragraphs_to_html(text: str) -> str:
 
             if m_num:
                 numbered_items.append(m_num.group(2).strip())
-            elif m_bullet:
-                bullet_items.append(m_bullet.group(1).strip())
+            else:
+                is_numbered_block = False
 
-        if len(numbered_items) == len(lines) and numbered_items:
+            if m_bullet:
+                bullet_items.append(m_bullet.group(1).strip())
+            else:
+                is_bullet_block = False
+
+        if is_numbered_block and numbered_items:
             items = "".join(f"<li>{html_escape(item)}</li>" for item in numbered_items)
             out.append(f"<ol>{items}</ol>")
             continue
 
-        if len(bullet_items) == len(lines) and bullet_items:
+        if is_bullet_block and bullet_items:
             items = "".join(f"<li>{html_escape(item)}</li>" for item in bullet_items)
             out.append(f"<ul>{items}</ul>")
             continue
