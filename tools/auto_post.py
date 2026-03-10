@@ -4050,14 +4050,14 @@ def render_post_html(
         section_body_html = body_to_html(sec["body"])
  
         if img_path:
-            img_rel = f"../{img_path}"
+            img_src = img_path if img_path.startswith("http://") or img_path.startswith("https://") else f"../{img_path}"
 
             if is_diagram:
                 blocks.append(
                     f'''
     <div class="section-media-block section-media-block-diagram">
       <figure class="section-hero-visual">
-        <img src="{img_rel}" alt="{alt}" loading="lazy">
+        <img src="{img_src}" alt="{alt}" loading="lazy">
         <figcaption>{alt}</figcaption>
       </figure>
       {section_body_html}
@@ -4069,7 +4069,7 @@ def render_post_html(
                     f'''
     <div class="section-media-block">
       <figure class="section-float">
-        <img src="{img_rel}" alt="{alt}" loading="lazy">
+        <img src="{img_src}" alt="{alt}" loading="lazy">
         <figcaption>{alt}</figcaption>
       </figure>
       {section_body_html}
