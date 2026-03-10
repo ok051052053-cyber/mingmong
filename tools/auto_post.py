@@ -2010,12 +2010,8 @@ table_rules = """
 Table rules:
 - Do NOT use HTML tables.
 - Use Markdown table format only.
-- Example:
-
-| Tool | Price | Best For |
-|------|------|---------|
-| ExampleTool | $10 | freelancers |
-
+- Tables must be valid Markdown tables.
+- Each row must contain the same number of columns.
 """
 
     return f"""
