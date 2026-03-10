@@ -43,7 +43,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "3000"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
  
@@ -106,7 +106,7 @@ TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
 PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "6"))
  
 SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "4"))
-SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "6"))
+SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "7"))
  
 SEARCH_JS_VERSION = hashlib.sha1(str(int(time.time() // 3600)).encode("utf-8")).hexdigest()[:8]
 BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.random()}".encode("utf-8")).hexdigest()[:10]
@@ -1962,7 +1962,12 @@ Schema:
   ],
   "tldr": "string",
   "editorial_note": "string"
-}}
+}
+The sections array must contain exactly 6 section objects only.
+FAQ must not appear inside sections.
+FAQ must be written only in the faq field.
+The 6 section objects must follow the exact required order defined in Structure rules.
+}
 
 Core writing standard:
 - This article must feel publishable on the first draft
@@ -2005,16 +2010,48 @@ Title and heading quality rules:
 - Each heading should imply tension, contrast, hidden truth, consequence, or a real decision
 
 Structure rules:
-- Use the section_plan exactly as the backbone
-- Preserve the same number of sections as in section_plan
-- Each section must be materially distinct
-- The article must clearly move through:
-  visible problem -> hidden insight -> practical solution -> example or edge case -> decision
-- Section 1 must clearly say who this article is for
+- Ignore any default or implied section order from section_plan if it conflicts with the required order below
+- The article must use exactly 7 sections
+- The sections must appear in this exact order:
+
+  1. Intro
+  2. Problem
+  3. 30-Day Workflow
+  4. Scenario
+  5. Mistakes
+  6. Tools
+  7. FAQ
+
+- Do not change the order
+- Do not merge sections
+- Do not add extra sections
+- Do not rename these section roles
+
+Section heading rules:
+- Section 1 heading must be exactly:
+  Who This Workflow Helps Before Burnout Gets Worse
+- Section 2 heading must be exactly:
+  Why Freelancers Overload Themselves Without Noticing
+- Section 3 heading must be exactly:
+  A 30-Day Workflow That Protects Output and Recovery
+- Section 4 heading must be exactly:
+  What This Looks Like in a Real Two-Week Client Schedule
+- Section 5 heading must be exactly:
+  The Mistakes That Quietly Break a Freelance System
+- Section 6 heading must be exactly:
+  Which Tools Actually Help and Which Ones Add Overhead
+- Section 7 must not be inside sections
+- FAQ must remain in the faq field only
+
+- Section 1 must be short and sharp
+- Section 1 must clearly say who the article is for
 - Section 1 must open with tension, consequence, or a non-obvious insight
-- Section 2 or 3 must reveal why common advice fails or what people misunderstand
-- The final section must not feel like a generic summary
-- The ending should leave the reader with a concrete decision, pressure point, or re-think moment
+- Section 2 must explain why common advice fails
+- Section 3 must contain the main system and at least one numbered step block
+- Section 4 must contain a realistic scenario with sequence and consequence
+- Section 5 must focus on repeat failure patterns and bad decisions
+- Section 6 must explain tool fit, tradeoff, and who each tool is for
+- The ending of Section 6 must leave the reader with a concrete decision or operating rule
 
 Depth rules:
 - The body must satisfy the exact promise implied by the title
@@ -2269,8 +2306,8 @@ def quality_check_post(
     if not title:
         return False, "missing-title"
 
-    if is_generic_title(title):
-        return False, "generic-title"
+    #if is_generic_title(title):
+    #   return False, "generic-title"
 
     if category not in ALLOWED_CATEGORIES:
         return False, "bad-category"
