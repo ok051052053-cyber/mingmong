@@ -3029,6 +3029,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                 ]).strip()
 
                 out.append({
+                    "download_location": (links.get("download_location") or "").strip(),
                     "source": "unsplash",
                     "id": normalize_asset_id("unsplash", pid),
                     "raw_id": pid,
@@ -3036,7 +3037,6 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     "height": h,
                     "score": score_query_match(query, desc) + min(likes / 500.0, 0.4),
                     "hotlink_url": hotlink_url,
-                    "download_location": download_location,
                     "page_url": page_link,
                     "creator_name": user_name,
                     "creator_url": user_link,
@@ -3286,7 +3286,29 @@ def search_source(source: str, query: str, page: int = 1) -> List[dict]:
         return wikimedia_search(query, page=page)
     return []
  
- 
+
+def trigger_unsplash_download(asset: dict) -> None:
+    if (asset.get("source") or "").strip().lower() != "unsplash":
+        return
+
+    download_location = (asset.get("download_location") or "").strip()
+    if not download_location:
+        log("IMG", f"Unsplash download trigger skipped: missing download_location for id='{asset.get('id', '')}'")
+        return
+
+    try:
+        headers = {
+            "Accept-Version": "v1",
+            "Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}",
+            "User-Agent": "MingMongBot/1.0 (https://mingmonglife.com)",
+        }
+        r = requests.get(download_location, headers=headers, timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        log("IMG", f"Unsplash download triggered for id='{asset.get('id', '')}'")
+    except Exception as e:
+        log("IMG", f"Unsplash download trigger failed for id='{asset.get('id', '')}': {e}")
+
+
 def download_asset(asset: dict, out_path: Path) -> None:
     url = asset.get("download_url") or ""
     if not url:
