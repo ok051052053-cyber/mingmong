@@ -43,7 +43,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
  
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "220"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "2200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "420"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
  
