@@ -1943,31 +1943,31 @@ Planning JSON:
 Output must be valid JSON only.
 
 Schema:
-{{
+{
   "title": "string",
   "description": "string",
   "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
   "intent_type": "comparison|template|review|howto",
   "sections": [
-    {{
+    {
       "heading": "string",
       "image_query": "string",
       "visual_type": "photo|diagram|workspace",
       "alt_text": "string",
       "body": "string"
-    }}
+    }
   ],
   "faq": [
-    {{"q":"string","a":"string"}}
+    {"q":"string","a":"string"}
   ],
   "tldr": "string",
   "editorial_note": "string"
-}}
+}
+
 The sections array must contain exactly 6 section objects only.
 FAQ must not appear inside sections.
 FAQ must be written only in the faq field.
 The 6 section objects must follow the exact required order defined in Structure rules.
-}
 
 Core writing standard:
 - This article must feel publishable on the first draft
