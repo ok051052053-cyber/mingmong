@@ -2392,6 +2392,10 @@ TLDR rules:
 - TLDR must not sound abstract or editorial
 - TLDR should read like a fast answer box, not a summary paragraph
 
+Reader takeaway rule:
+- At the end of the article include one short paragraph that clearly states the key takeaway for the reader.
+- This paragraph should summarize the main decision in plain language.
+
 Depth rules:
 - The body must satisfy the exact promise implied by the title
 - If the title includes beginner, simple, first, monthly, or small amount, explain that constraint directly
@@ -2418,6 +2422,11 @@ Depth rules:
 - No empty motivational filler
 - No vague lines like improve efficiency, streamline workflow, or choose the right tool unless followed by exact operational detail
 
+Concrete example rule:
+- At least 2 sections must include a concrete real-world example with numbers.
+- Examples should include specific products, companies, tools, or dollar amounts.
+- Avoid vague examples such as "a typical user" or "many people".
+
 Anti-repetition rules:
 - Do not repeat the same point across multiple sections
 - Do not repeat the same keyword unnaturally
@@ -2425,6 +2434,11 @@ Anti-repetition rules:
 - Do not let multiple sections say the same thing with slightly different words
 - If a point has already been made, move forward instead of rephrasing it
 - Each section must introduce at least one fresh decision point, friction point, or practical angle
+
+Sentence variation rule:
+- Avoid repeating the same sentence structure more than twice in a row.
+- Mix short and medium sentences.
+- Occasionally use a one-sentence paragraph for emphasis.
 
 Readability and engagement rules:
 - Intro must stay under 120 words
