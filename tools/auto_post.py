@@ -2867,19 +2867,19 @@ def sanitize_query_for_image(q: str) -> str:
     q = (q or "").strip().lower()
 
     replacements = {
-        "client retention system": "crm dashboard freelancer",
+        "client retention system": "crm dashboard laptop",
         "client retention": "freelancer crm dashboard",
-        "decision framework": "comparison chart software dashboard",
-        "practical approach": "workspace planning notebook laptop",
+        "decision framework": "comparison chart laptop",
+        "practical approach": "workspace planning desk",
         "template checklist": "checklist notebook desk",
         "follow-up automation": "crm automation dashboard",
-        "offboarding": "client handoff checklist desk",
+        "offboarding": "client handoff desk",
         "reactivation": "email follow up workspace",
-        "simple long term portfolio": "investment portfolio chart laptop desk",
-        "beginner portfolio allocation": "portfolio allocation chart spreadsheet",
-        "monthly investing plan": "budget spreadsheet laptop coffee desk",
-        "etf comparison": "etf comparison chart laptop screen",
-        "risk tolerance": "investment risk chart notebook desk",
+        "simple long term portfolio": "investment portfolio laptop",
+        "beginner portfolio allocation": "portfolio allocation chart",
+        "monthly investing plan": "budget spreadsheet laptop",
+        "etf comparison": "etf comparison chart",
+        "risk tolerance": "investment risk chart",
     }
 
     for src, dst in replacements.items():
@@ -2887,13 +2887,18 @@ def sanitize_query_for_image(q: str) -> str:
             q = q.replace(src, dst)
 
     q = re.sub(
-        r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to)\b",
+        r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to|why|what|when|best|mistake|tradeoff|decision|quick answer)\b",
         "",
         q,
         flags=re.IGNORECASE,
     )
+    q = re.sub(r"[^a-z0-9\s]", " ", q)
     q = re.sub(r"\s+", " ", q).strip()
-    return q or "workspace planning notebook laptop"
+
+    words = q.split()[:5]
+    q = " ".join(words)
+
+    return q or "modern office workspace laptop"
  
 
 def build_image_query_candidates(query: str, heading: str = "", visual_type: str = "photo") -> List[str]:
