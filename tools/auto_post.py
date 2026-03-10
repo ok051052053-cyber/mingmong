@@ -1998,7 +1998,13 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
-
+     if mode == "investing":
+        structure_rules = INVESTING_STRUCTURE_RULES
+    elif mode == "review":
+        structure_rules = REVIEW_STRUCTURE_RULES
+    else:
+        structure_rules = WORKFLOW_STRUCTURE_RULES
+     
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
@@ -2101,49 +2107,7 @@ Title and heading quality rules:
   tradeoffs and limitations
 - Each heading should imply tension, contrast, hidden truth, consequence, or a real decision
 
-Structure rules:
-- Ignore any default or implied section order from section_plan if it conflicts with the required order below
-- The article must use exactly 7 sections
-- The sections must appear in this exact order:
-
-  1. Intro
-  2. Problem
-  3. 30-Day Workflow
-  4. Scenario
-  5. Mistakes
-  6. Tools
-  7. FAQ
-
-- Do not change the order
-- Do not merge sections
-- Do not add extra sections
-- Do not rename these section roles
-
-Section heading rules:
-- Section 1 heading must be exactly:
-  Who This Workflow Helps Before Burnout Gets Worse
-- Section 2 heading must be exactly:
-  Why Freelancers Overload Themselves Without Noticing
-- Section 3 heading must be exactly:
-  A 30-Day Workflow That Protects Output and Recovery
-- Section 4 heading must be exactly:
-  What This Looks Like in a Real Two-Week Client Schedule
-- Section 5 heading must be exactly:
-  The Mistakes That Quietly Break a Freelance System
-- Section 6 heading must be exactly:
-  Which Tools Actually Help and Which Ones Add Overhead
-- Section 7 must not be inside sections
-- FAQ must remain in the faq field only
-
-- Section 1 must be short and sharp
-- Section 1 must clearly say who the article is for
-- Section 1 must open with tension, consequence, or a non-obvious insight
-- Section 2 must explain why common advice fails
-- Section 3 must contain the main system and at least one numbered step block
-- Section 4 must contain a realistic scenario with sequence and consequence
-- Section 5 must focus on repeat failure patterns and bad decisions
-- Section 6 must explain tool fit, tradeoff, and who each tool is for
-- The ending of Section 6 must leave the reader with a concrete decision or operating rule
+{structure_rules}
 
 Depth rules:
 - The body must satisfy the exact promise implied by the title
