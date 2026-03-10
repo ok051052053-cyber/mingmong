@@ -2902,44 +2902,22 @@ def build_image_query_candidates(query: str, heading: str = "", visual_type: str
 
     candidates = []
 
-    for item in [
-        base,
-        f"{base} {heading_clean}".strip(),
-        heading_clean,
-        f"{base} office",
-        f"{base} workspace",
-        f"{base} laptop",
-        f"{base} desk",
-        f"{heading_clean} office".strip(),
-        f"{heading_clean} workspace".strip(),
-    ]:
-        item = re.sub(r"\s+", " ", (item or "").strip())
-        if item and item not in candidates:
-            candidates.append(item)
+    def add(q: str) -> None:
+        q = re.sub(r"\s+", " ", (q or "").strip())
+        if q and q not in candidates:
+            candidates.append(q)
 
-    generic_by_visual = {
-        "photo": [
-            "modern office workspace laptop",
-            "business desk laptop notebook",
-            "professional workspace meeting desk",
-        ],
-        "workspace": [
-            "workspace desk laptop notebook",
-            "home office desk setup",
-            "productivity workspace computer desk",
-        ],
-        "diagram": [
-            "business analytics dashboard screen",
-            "comparison dashboard laptop screen",
-            "data chart laptop desk",
-        ],
-    }
+    add(base)
+    add(heading_clean)
 
-    for item in generic_by_visual.get((visual_type or "photo").lower(), []):
-        if item not in candidates:
-            candidates.append(item)
+    if (visual_type or "").lower() == "diagram":
+        add("business dashboard laptop")
+    elif (visual_type or "").lower() == "workspace":
+        add("workspace desk laptop notebook")
+    else:
+        add("modern office workspace laptop")
 
-    return candidates
+    return candidates[:3]
  
 
 def normalize_asset_id(source: str, raw_id: str) -> str:
