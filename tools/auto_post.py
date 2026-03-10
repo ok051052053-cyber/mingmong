@@ -3286,8 +3286,88 @@ def download_asset(asset: dict, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(r.content)
  
- 
-def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "Comparison Guide") -> None:
+
+import math
+from html import escape as escape_xml
+
+
+def estimate_text_width(text: str, font_size: int = 12) -> float:
+    text = str(text or "")
+    wide = sum(1 for ch in text if ord(ch) > 127)
+    narrow = len(text) - wide
+    return narrow * font_size * 0.56 + wide * font_size * 0.9
+
+
+def wrap_text_to_width(text: str, max_width: float, font_size: int = 12) -> list[str]:
+    text = str(text or "").strip()
+    if not text:
+        return [""]
+
+    words = text.split()
+    if not words:
+        return [""]
+
+    lines = []
+    current = words[0]
+
+    for word in words[1:]:
+        trial = f"{current} {word}"
+        if estimate_text_width(trial, font_size) <= max_width:
+            current = trial
+        else:
+            lines.append(current)
+            current = word
+
+    lines.append(current)
+
+    # 긴 단어 하나가 max_width를 넘는 경우 강제 분할
+    final_lines = []
+    for line in lines:
+        if estimate_text_width(line, font_size) <= max_width:
+            final_lines.append(line)
+            continue
+
+        chunk = ""
+        for ch in line:
+            trial = chunk + ch
+            if estimate_text_width(trial, font_size) <= max_width:
+                chunk = trial
+            else:
+                if chunk:
+                    final_lines.append(chunk)
+                chunk = ch
+        if chunk:
+            final_lines.append(chunk)
+
+    return final_lines
+
+
+def svg_text_block(x: float, y: float, lines: list[str], font_size: int = 12,
+                   fill: str = "#1F2937", weight: str = "500",
+                   line_gap: float = 1.35, anchor: str = "start") -> str:
+    parts = [
+        f'<text x="{x}" y="{y}" font-size="{font_size}" '
+        f'font-weight="{weight}" fill="{fill}" text-anchor="{anchor}" '
+        f'font-family="Inter, Arial, sans-serif">'
+    ]
+
+    for i, line in enumerate(lines):
+        dy = "0" if i == 0 else str(font_size * line_gap)
+        parts.append(f'<tspan x="{x}" dy="{dy}">{escape_xml(line)}</tspan>')
+
+    parts.append("</text>")
+    return "".join(parts)
+
+
+def create_svg_visual(
+    out_path: Path,
+    title: str,
+    subtitle: str,
+    badge: str = "Comparison Guide",
+    columns: Optional[List[str]] = None,
+    rows: Optional[List[Tuple[str, str, str, str]]] = None,
+    takeaway: str = "",
+) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     def esc(x: str) -> str:
@@ -3316,15 +3396,64 @@ def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "C
             lines.append(current)
 
         return lines[:max_lines]
-
+    columns = columns or ["Feature", "Option A", "Option B", "Option C"]
+    rows = rows or [
+        ("Setup", "Easy", "Balanced", "Heavy"),
+        ("Price", "Low", "Mid", "Higher"),
+        ("Best for", "Simple needs", "Most users", "Advanced use"),
+        ("Tradeoff", "Limited depth", "Best balance", "More friction"),
+        ("Upgrade path", "Basic", "Strong", "Powerful"),
+        ("Decision", "Start cheap", "Default choice", "Only if needed"),
+    ]
+    takeaway = takeaway or (
+        "Option B is the safest default for most readers because it balances setup, cost, and long-term usability."
+    )
+ 
     title = (title or "Comparison visual").strip()[:80]
     subtitle = (subtitle or "A cleaner way to compare options").strip()[:120]
 
     title_lines = wrap_text(title, max_len=20, max_lines=3)
     subtitle_lines = wrap_text(subtitle, max_len=32, max_lines=3)
 
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1500" viewBox="0 0 1000 1500" role="img" aria-label="{esc(title)}">
-  <defs>
+    table_x = 120
+    table_y = 500
+    table_width = 760
+
+    table_block, table_height = render_svg_table(
+        x=table_x,
+        y=table_y,
+        headers=columns,
+        rows=rows,
+        table_width=table_width,
+    )
+
+    takeaway_y = table_y + table_height + 28
+    takeaway_width = 760
+    takeaway_lines = wrap_text_to_width(takeaway, takeaway_width - 60, 20)
+    takeaway_text = "".join(
+        f'<tspan x="150" dy="0">{esc(takeaway_lines[0])}</tspan>'
+        if i == 0 else
+        f'<tspan x="150" dy="28">{esc(line)}</tspan>'
+        for i, line in enumerate(takeaway_lines)
+    )
+
+    takeaway_height = 90 + max(0, len(takeaway_lines) - 1) * 28
+
+    takeaway_block = f'''
+      <rect x="120" y="{takeaway_y}" width="{takeaway_width}" height="{takeaway_height}" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="150" y="{takeaway_y + 38}" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Quick takeaway</text>
+      <text x="150" y="{takeaway_y + 78}" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">{takeaway_text}</text>
+    '''
+
+    card_height = (takeaway_y + takeaway_height + 45) - 470
+ 
+    total_height = max(1500, takeaway_y + takeaway_height + 140)
+
+    outer_height = total_height - 120
+
+    footer_y = takeaway_y + takeaway_height + 85
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{total_height}" viewBox="0 0 1000 {total_height}" role="img" aria-label="{esc(title)}">  <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f8fbff"/>
       <stop offset="100%" stop-color="#eef2ff"/>
@@ -3348,8 +3477,8 @@ def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "C
   <circle cx="150" cy="1350" r="190" fill="#ddd6fe" opacity="0.28"/>
   <circle cx="930" cy="1320" r="120" fill="#bfdbfe" opacity="0.22"/>
 
-  <rect x="60" y="60" width="880" height="1380" rx="40" fill="#ffffff" filter="url(#shadow)"/>
-
+  <rect x="60" y="60" width="880" height="{outer_height}" rx="40" fill="#ffffff" filter="url(#shadow)"/>
+  
   <rect x="60" y="60" width="880" height="360" rx="40" fill="url(#hero)"/>
 
   <rect x="100" y="105" width="250" height="48" rx="24" fill="#e0e7ff" opacity="0.95"/>
@@ -3363,64 +3492,13 @@ def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "C
   <text x="100" y="417" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[1] if len(subtitle_lines) > 1 else "")}</text>
   <text x="100" y="449" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[2] if len(subtitle_lines) > 2 else "")}</text>
 
-  <rect x="100" y="470" width="800" height="860" rx="30" fill="url(#card)" stroke="#e2e8f0"/>
+  <rect x="100" y="470" width="800" height="{card_height}" rx="30" fill="url(#card)" stroke="#e2e8f0"/>
+  
+    {table_block}
 
-  <text x="130" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Feature</text>
-  <text x="430" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Option A</text>
-  <text x="650" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#4f46e5" font-weight="700">Option B</text>
-  <text x="835" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700" text-anchor="end">Option C</text>
+    {takeaway_block}
 
-  <line x1="120" y1="560" x2="880" y2="560" stroke="#cbd5e1" stroke-width="2"/>
-
-  <rect x="610" y="495" width="110" height="34" rx="17" fill="#eef2ff"/>
-  <text x="665" y="518" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#4338ca" font-weight="700" text-anchor="middle">Best Fit</text>
-
-  <text x="130" y="620" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Setup</text>
-  <text x="430" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Easy</text>
-  <text x="650" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Balanced</text>
-  <text x="835" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Heavy</text>
-
-  <line x1="120" y1="655" x2="880" y2="655" stroke="#e2e8f0" stroke-width="2"/>
-
-  <text x="130" y="715" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Price</text>
-  <text x="430" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Low</text>
-  <text x="650" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Mid</text>
-  <text x="835" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Higher</text>
-
-  <line x1="120" y1="750" x2="880" y2="750" stroke="#e2e8f0" stroke-width="2"/>
-
-  <text x="130" y="810" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Best for</text>
-  <text x="430" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Simple needs</text>
-  <text x="650" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Most users</text>
-  <text x="835" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Advanced use</text>
-
-  <line x1="120" y1="845" x2="880" y2="845" stroke="#e2e8f0" stroke-width="2"/>
-
-  <text x="130" y="905" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Tradeoff</text>
-  <text x="430" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Limited depth</text>
-  <text x="650" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Best balance</text>
-  <text x="835" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">More friction</text>
-
-  <line x1="120" y1="940" x2="880" y2="940" stroke="#e2e8f0" stroke-width="2"/>
-
-  <text x="130" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Upgrade path</text>
-  <text x="430" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Basic</text>
-  <text x="650" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Strong</text>
-  <text x="835" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Powerful</text>
-
-  <line x1="120" y1="1035" x2="880" y2="1035" stroke="#e2e8f0" stroke-width="2"/>
-
-  <text x="130" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Decision</text>
-  <text x="430" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Start cheap</text>
-  <text x="650" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Default choice</text>
-  <text x="835" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Only if needed</text>
-
-  <rect x="120" y="1170" width="760" height="115" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
-  <text x="150" y="1220" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Quick takeaway</text>
-  <text x="150" y="1260" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Option B is the safest default for most readers because it balances setup, cost, and long-term usability.</text>
-
-  <text x="100" y="1378" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#64748b">Generated by {esc(SITE_NAME)} · Pinterest-style comparison graphic</text>
-</svg>"""
+  <text x="100" y="{footer_y}" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#64748b">Generated by {esc(SITE_NAME)} · Pinterest-style comparison graphic</text></svg>"""
 
     out_path.write_text(svg, encoding="utf-8") 
 
