@@ -2109,6 +2109,25 @@ Title and heading quality rules:
 
 {structure_rules}
 
+Opening rules:
+- Intro must stay under 80 words
+- The first 2 sentences must answer the reader's question directly
+- The opening must mention at least one concrete example, stock, tool, amount, or decision
+- Do not begin with broad context or abstract statements
+- The opening should feel like a direct answer, not a warm-up
+
+Length rules:
+- Aim for 4500 to 7000 characters for most articles
+- Keep sections focused and avoid filler
+- Do not add generic explanations just to increase length
+
+TLDR rules:
+- TLDR must be 3 to 5 short lines
+- TLDR must answer the core query immediately
+- TLDR must include at least one concrete recommendation, number, or named example
+- TLDR must not sound abstract or editorial
+- TLDR should read like a fast answer box, not a summary paragraph
+
 Depth rules:
 - The body must satisfy the exact promise implied by the title
 - If the title includes beginner, simple, first, monthly, or small amount, explain that constraint directly
