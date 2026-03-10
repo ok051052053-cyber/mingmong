@@ -1901,7 +1901,84 @@ def build_mode_rules(mode: str) -> str:
 - Do not use markdown bold like **text**
 - When writing numbered steps, put each step on its own block
 """
- 
+
+INVESTING_STRUCTURE_RULES = """
+Structure rules:
+- The article must use exactly 6 sections
+- FAQ must not be inside sections
+- FAQ must remain only in the faq field
+- The sections must appear in this exact order:
+
+  1. Quick Answer
+  2. Why Most Beginners Pick the Wrong AI Stocks
+  3. A 30-Day Screening Process
+  4. A Simple Beginner Example With Numbers
+  5. Mistakes That Cost Real Money
+  6. Which Tools or ETFs Make This Simpler
+
+Section heading rules:
+- Section 1 must directly answer what a beginner should start with
+- Section 2 must explain the main misunderstanding or trap
+- Section 3 must include a repeatable monthly workflow
+- Section 4 must include a realistic amount and allocation example
+- Section 5 must explain specific loss-causing mistakes
+- Section 6 must compare tools, ETFs, or research sources by fit and tradeoff
+
+Section body rules:
+- Section 1 must be short, direct, and concrete
+- Section 1 must mention at least one named stock, ETF, amount, or beginner constraint
+- Section 3 must contain at least one numbered process
+- Section 4 must show sequence, numbers, and consequence
+- Section 5 must include at least 2 common beginner mistakes
+- Section 6 must explain what to use first and what to ignore for now
+"""
+
+REVIEW_STRUCTURE_RULES = """
+Structure rules:
+- The article must use exactly 6 sections
+- FAQ must not be inside sections
+- FAQ must remain only in the faq field
+- The sections must appear in this exact order:
+
+  1. Quick Verdict
+  2. Who Each Option Is Actually For
+  3. Where the Differences Start to Matter
+  4. A Real Setup or Buying Scenario
+  5. Mistakes and Overkill Choices
+  6. Final Recommendation by User Type
+
+Section heading rules:
+- Section 1 must directly answer the comparison or buying question
+- Section 2 must split users into concrete user types
+- Section 3 must explain practical tradeoffs
+- Section 4 must show a realistic use case or setup path
+- Section 5 must explain what people choose badly and why
+- Section 6 must tell the reader what to pick based on need and budget
+"""
+
+WORKFLOW_STRUCTURE_RULES = """
+Structure rules:
+- The article must use exactly 6 sections
+- FAQ must not be inside sections
+- FAQ must remain only in the faq field
+- The sections must appear in this exact order:
+
+  1. Quick Answer
+  2. Why the Default Approach Fails
+  3. The Core Workflow
+  4. A Real Example or Scenario
+  5. Mistakes and Tradeoffs
+  6. What to Use Next
+
+Section heading rules:
+- Section 1 must clearly say who this is for
+- Section 2 must explain why common advice fails
+- Section 3 must contain the main workflow or system
+- Section 4 must show sequence and consequence
+- Section 5 must explain repeat mistakes and tradeoffs
+- Section 6 must leave the reader with a concrete next decision
+"""
+
  
 def build_article_prompt(
     keyword: str,
