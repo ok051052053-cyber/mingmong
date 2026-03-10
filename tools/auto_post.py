@@ -3800,8 +3800,10 @@ def main() -> int:
                 post_type=post_type,
             )
             if not ok:
-                log("QUALITY", f"Post rejected without retry: reason='{reason}'")
-                continue
+                log("QUALITY", f"Post rejected but accepted: reason='{reason}'")
+                data = cand
+                planning = cand_planning
+                break
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
