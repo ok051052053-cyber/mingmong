@@ -3483,31 +3483,23 @@ def ensure_minimum_image_paths(
  
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     query_candidates = build_image_query_candidates(query, heading, visual_type)
-    all_candidates: List[dict] = []
 
-    for candidate_query in query_candidates:
+    for candidate_query in query_candidates[:3]:
         for source in IMAGE_SOURCE_PRIORITY:
-            for page in [1, 2, 3]:
+            for page in [1]:
                 results = search_source(source, candidate_query, page=page)
                 if not results:
                     continue
 
-                for asset in results:
-                    if asset["id"] in used_ids:
-                        continue
+                filtered = [asset for asset in results if asset["id"] not in used_ids]
+                if filtered:
+                    filtered.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+                    best = filtered[0]
+                    log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{candidate_query}'")
+                    return best
 
-                    boosted = dict(asset)
-                    boosted["score"] = boosted.get("score", 0.0) + score_query_match(candidate_query, query) + 0.15
-                    all_candidates.append(boosted)
-
-    if not all_candidates:
-        log("IMG", f"No asset found for query='{query}' heading='{heading}'")
-        return None
-
-    all_candidates.sort(key=lambda x: x["score"], reverse=True)
-    best = all_candidates[0]
-    log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{query}' heading='{heading}'")
-    return best
+    log("IMG", f"No asset found for query='{query}' heading='{heading}'")
+    return None
     
  
 def build_image_asset_for_section(
