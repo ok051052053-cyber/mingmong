@@ -2592,24 +2592,26 @@ Investing requirements:
 - include at least one beginner mistake tied to a number or timing
 - include at least one platform or ETF selection decision point when relevant
 
+
 Formatting rules:
 - Do not use markdown symbols such as *, **, or _
 - Do not use bullet symbols like * or -
 - Use plain text only
 - Emphasis should be written using normal words, not markdown formatting
-
-Formatting rules:
-- Do not use markdown symbols such as *, **, or _
 - Do not wrap emphasis words in markdown
 - Use plain text labels only
-
 - Use simple labels such as:
   Best for:
   Tradeoff:
   Decision:
-
 - Do not wrap them in markdown symbols
 - Write them as normal text lines
+
+Step formatting rules:
+- If a section includes numbered steps, each step must begin on its own new line.
+- Each step must start with a number and a period.
+- Use a clean continuous sequence such as 1. 2. 3. 4.
+- Do not mix numbered steps into normal paragraphs.
 
 Mode specific requirements:
 {mode_rules}
@@ -3759,42 +3761,48 @@ def soften_dense_paragraphs(text: str) -> str:
 def paragraphs_to_html(text: str) -> str:
     text = soften_dense_paragraphs((text or "").strip())
     if not text:
-        return "" 
+        return ""
+
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     blocks = re.split(r"\n\s*\n+", text)
- 
+
     out = []
     for block in blocks:
         block = block.strip()
         if not block:
             continue
- 
+
         lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
         if not lines:
             continue
- 
-        if all(re.match(r"^\d+\.\s+", ln) for ln in lines):
-            items = []
-            for ln in lines:
-                m = re.match(r"^\d+\.\s+(.*)$", ln)
-                if m:
-                    items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
-            out.append("<ol>" + "".join(items) + "</ol>")
+
+        numbered_items = []
+        bullet_items = []
+
+        for ln in lines:
+            m_num = re.match(r"^\s*(\d+)\.\s+(.*)$", ln)
+            m_bullet = re.match(r"^\s*[-*]\s+(.*)$", ln)
+
+            if m_num:
+                numbered_items.append(m_num.group(2).strip())
+            elif m_bullet:
+                bullet_items.append(m_bullet.group(1).strip())
+
+        if len(numbered_items) == len(lines) and numbered_items:
+            items = "".join(f"<li>{html_escape(item)}</li>" for item in numbered_items)
+            out.append(f"<ol>{items}</ol>")
             continue
- 
-        if all(re.match(r"^[-*]\s+", ln) for ln in lines):
-            items = []
-            for ln in lines:
-                m = re.match(r"^[-*]\s+(.*)$", ln)
-                if m:
-                    items.append(f"<li>{html_escape(m.group(1).strip())}</li>")
-            out.append("<ul>" + "".join(items) + "</ul>")
+
+        if len(bullet_items) == len(lines) and bullet_items:
+            items = "".join(f"<li>{html_escape(item)}</li>" for item in bullet_items)
+            out.append(f"<ul>{items}</ul>")
             continue
- 
+
         para = " ".join(lines)
         out.append(f"<p>{html_escape(para)}</p>")
- 
+
     return "\n".join(out)
+ 
  
 def body_to_html(text: str) -> str:
     text = (text or "").strip()
