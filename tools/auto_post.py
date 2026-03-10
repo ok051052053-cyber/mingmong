@@ -2182,6 +2182,46 @@ Section heading rules:
 - Section 6 must leave the reader with a concrete next decision
 """
 
+
+def build_table_rules(post_type: str, mode: str) -> str:
+    pt = (post_type or "").strip().lower()
+    md = (mode or "").strip().lower()
+
+    if pt == "comparison" or md == "comparison":
+        return """
+HTML table rules:
+- For comparison-style sections, include exactly 1 HTML table in the most relevant section only.
+- Do NOT use Markdown tables.
+- Do NOT use SVG tables.
+- Use real product or software names.
+- Never use placeholders like Option A, Option B, Option C.
+- Place the table between normal paragraphs.
+- The table must be wrapped like this:
+  <div class="table-wrap"><table class="cmp-table">...</table></div>
+- Use this structure only:
+  <table class="cmp-table">
+    <thead>
+      <tr><th>Feature</th><th>Real Name 1</th><th>Real Name 2</th><th>Real Name 3</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Feature row</td><td>Value</td><td>Value</td><td>Value</td></tr>
+    </tbody>
+  </table>
+- Keep the table to 4 columns total.
+- Keep the table to 4 to 6 body rows.
+- The first column must be Feature.
+- The other columns must be real products, tools, apps, platforms, or methods that match the article topic.
+- Add one short paragraph before the table and one short paragraph after the table.
+- Only include a table when it genuinely improves comparison clarity.
+"""
+    return """
+Table rules:
+- Do not include any HTML table unless the article clearly needs one.
+- Do not include Markdown tables.
+- Do not include SVG table instructions.
+"""
+
+
 def build_article_prompt(
     keyword: str,
     cluster_name: str,
@@ -2200,7 +2240,10 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
+    {mode_rules}
 
+    table_rules = build_table_rules(post_type, mode)
+    {table_rules}
     if mode == "investing":
         structure_rules = INVESTING_STRUCTURE_RULES
     elif mode == "review":
@@ -2209,14 +2252,14 @@ def build_article_prompt(
         structure_rules = WORKFLOW_STRUCTURE_RULES
 
     visual_rules = """
+visual_rules = """
 Visual rules:
-- Do NOT generate Markdown tables.
-- Do NOT generate HTML tables.
-- Never print comparison data as a text table.
-- If comparison data is needed, represent it as a visual comparison graphic.
-- Use visual_type: diagram for comparison visuals.
-- image_query should describe a clean infographic-style comparison image.
-- body text must explain the decision logic clearly instead of printing a table.
+- Use photo or workspace for normal sections when an image helps.
+- Do NOT use SVG infographic tables.
+- Do NOT force diagram visuals for comparison sections.
+- If a section includes an HTML comparison table, do not add an image to that section.
+- Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
+- Use real product names, not placeholders like Option A or Option B.
 """
 
     return f"""
@@ -2243,9 +2286,6 @@ photo = real-world photography
 workspace = desk or workflow setup
 diagram = infographic, comparison chart, or conceptual visual
 
-If the article contains a tool or product comparison,
-use visual_type: diagram for the section explaining the comparison.
-Do not use photo for the main comparison section.
 
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
@@ -2459,36 +2499,24 @@ Required natural language signals:
 Intent specific requirements:
 - intent_type is {intent_type}
 - If intent_type is comparison:
+  - include exactly 1 HTML table only when it genuinely improves clarity
   - do not generate a Markdown table
-  - do not generate an HTML table
-  - never print comparison data in table form
-  - the comparison must appear only as a visual infographic image
-  - visual_type must be diagram for the main comparison section
-  - the comparison infographic must replace the normal section image
-  - the section body should explain only the decision logic and tradeoffs
-  - use image_query to describe a clean comparison infographic  - Do not generate Markdown tables
-  - Do not generate HTML tables
-  - The comparison must appear only as a visual infographic image
-  - visual_type must be diagram
-  - The comparison infographic replaces the normal section image
-  - The section body must only explain the decision logic
-  - never print comparison data in table form
-  - Do not print comparison rows or columns in text.
-  - image_query must describe a comparison infographic such as:
-    software comparison infographic
-    tool comparison chart
-    pricing comparison infographic
-  - The comparison section body must only explain the decision logic.
-  - All structured comparison data must appear in the infographic image.  - the comparison diagram must replace the normal section image
-  - place the comparison diagram in the section where comparison decisions are explained
-  - do not use photo for the main comparison section
-  - use image_query to describe a clean infographic-style comparison image
-  - explain the comparison in body text with clear decision logic
-  - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
-  - include a clear winner for at least 2 user types
+  - do not use placeholder labels like Option A, Option B, or Option C
+  - use real product, software, tool, app, platform, or method names
+  - write the actual HTML table inside the section body
+  - wrap the table like:
+    <div class="table-wrap"><table class="cmp-table">...</table></div>
+  - keep the table to 4 columns total
+  - keep the table to 4 to 6 rows in the tbody
+  - place one short paragraph before the table
+  - place one short paragraph after the table
+  - do not describe the table abstractly
+  - the section with the HTML table should not rely on an image
+  - compare using practical factors such as price, free plan, setup difficulty, automation, communication fit, best for, and not ideal for when relevant
+  - include a clear best fit for at least 2 user types
   - include one overkill option and explain why
-  - include one best free starting point
-  - include one best paid upgrade case
+  - include one best free starting point when relevant
+  - include one best paid upgrade case when relevant
   - include one section that explains what changes after 30 days of real use
 - If intent_type is template:
   - include one copyable template, checklist, script, or sequence
@@ -2566,6 +2594,10 @@ Formatting rules:
 
 Mode specific requirements:
 {mode_rules}
+
+Table requirements:
+{table_rules}
+
 """.strip()
  
 def is_generic_title(title: str) -> bool:
@@ -3298,49 +3330,6 @@ def estimate_text_width(text: str, font_size: int = 12) -> float:
     return narrow * font_size * 0.56 + wide * font_size * 0.9
 
 
-def wrap_text_to_width(text: str, max_width: float, font_size: int = 12) -> list[str]:
-    text = str(text or "").strip()
-    if not text:
-        return [""]
-
-    words = text.split()
-    if not words:
-        return [""]
-
-    lines = []
-    current = words[0]
-
-    for word in words[1:]:
-        trial = f"{current} {word}"
-        if estimate_text_width(trial, font_size) <= max_width:
-            current = trial
-        else:
-            lines.append(current)
-            current = word
-
-    lines.append(current)
-
-    # 긴 단어 하나가 max_width를 넘는 경우 강제 분할
-    final_lines = []
-    for line in lines:
-        if estimate_text_width(line, font_size) <= max_width:
-            final_lines.append(line)
-            continue
-
-        chunk = ""
-        for ch in line:
-            trial = chunk + ch
-            if estimate_text_width(trial, font_size) <= max_width:
-                chunk = trial
-            else:
-                if chunk:
-                    final_lines.append(chunk)
-                chunk = ch
-        if chunk:
-            final_lines.append(chunk)
-
-    return final_lines
-
 
 def svg_text_block(x: float, y: float, lines: list[str], font_size: int = 12,
                    fill: str = "#1F2937", weight: str = "500",
@@ -3381,194 +3370,6 @@ def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
         lines.append(current)
 
     return lines
-
-def render_svg_table(
-    x: int,
-    y: int,
-    headers: List[str],
-    rows: List[Tuple[str, str, str, str]],
-    table_width: int,
-):
-    col_count = len(headers)
-    col_width = table_width // col_count
-
-    header_height = 54
-    row_height = 52
-
-    svg = ""
-
-    # header
-    for i, h in enumerate(headers):
-        cx = x + i * col_width
-
-        svg += f"""
-        <rect x="{cx}" y="{y}" width="{col_width}" height="{header_height}" fill="#e0e7ff"/>
-        <text x="{cx + 18}" y="{y + 34}" font-family="Arial, Helvetica, sans-serif"
-              font-size="20" fill="#1e293b" font-weight="700">{html_escape(h)}</text>
-        """
-
-    # rows
-    for r, row in enumerate(rows):
-        for c, cell in enumerate(row):
-
-            cx = x + c * col_width
-            cy = y + header_height + r * row_height
-
-            bg = "#ffffff" if r % 2 == 0 else "#f8fafc"
-
-            svg += f"""
-            <rect x="{cx}" y="{cy}" width="{col_width}" height="{row_height}"
-                  fill="{bg}" stroke="#e2e8f0"/>
-            <text x="{cx + 18}" y="{cy + 32}" font-family="Arial, Helvetica, sans-serif"
-                  font-size="18" fill="#334155">{html_escape(cell)}</text>
-            """
-
-    table_height = header_height + len(rows) * row_height
-
-    return svg, table_height
-
-def create_svg_visual(
-    out_path: Path,
-    title: str,
-    subtitle: str,
-    badge: str = "Comparison Guide",
-    columns: Optional[List[str]] = None,
-    rows: Optional[List[Tuple[str, str, str, str]]] = None,
-    takeaway: str = "",
-) -> None:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    def esc(x: str) -> str:
-        return html_escape(x or "")
-
-    def wrap_text(text: str, max_len: int = 22, max_lines: int = 3) -> List[str]:
-        words = (text or "").split()
-        if not words:
-            return [""]
-
-        lines = []
-        current = ""
-
-        for word in words:
-            test = f"{current} {word}".strip()
-            if len(test) <= max_len:
-                current = test
-            else:
-                if current:
-                    lines.append(current)
-                current = word
-                if len(lines) >= max_lines - 1:
-                    break
-
-        if current and len(lines) < max_lines:
-            lines.append(current)
-
-        return lines[:max_lines]
-    columns = columns or ["Feature", "Option A", "Option B", "Option C"]
-    rows = rows or [
-        ("Setup", "5 min", "10 min", "20+ min"),
-        ("Price", "Free", "$15/mo", "$30/mo"),
-        ("Best for", "Solo users", "Small teams", "Power users"),
-        ("Tradeoff", "Limited depth", "Balanced", "Higher complexity"),
-        ("Upgrade path", "Basic", "Strong", "Full automation"),
-        ("Decision", "Start here", "Best default", "Only if scaling"),
-    ]
-    takeaway = takeaway or (
-        "Option B is the safest default for most readers because it balances setup, cost, and long-term usability."
-    )
- 
-    title = (title or "Comparison visual").strip()[:80]
-    subtitle = (subtitle or "A cleaner way to compare options").strip()[:120]
-
-    title_lines = wrap_text(title, max_len=20, max_lines=3)
-    subtitle_lines = wrap_text(subtitle, max_len=32, max_lines=3)
-
-    table_x = 120
-    table_y = 500
-    table_width = 760
-
-    table_block, table_height = render_svg_table(
-        x=table_x,
-        y=table_y,
-        headers=columns,
-        rows=rows,
-        table_width=table_width,
-    )
-
-    takeaway_y = table_y + table_height + 28
-    takeaway_width = 760
-    takeaway_lines = wrap_text_to_width(takeaway, takeaway_width - 60, 20)
-    takeaway_text = "".join(
-        f'<tspan x="150" dy="0">{esc(takeaway_lines[0])}</tspan>'
-        if i == 0 else
-        f'<tspan x="150" dy="28">{esc(line)}</tspan>'
-        for i, line in enumerate(takeaway_lines)
-    )
-
-    takeaway_height = 90 + max(0, len(takeaway_lines) - 1) * 28
-
-    takeaway_block = f'''
-      <rect x="120" y="{takeaway_y}" width="{takeaway_width}" height="{takeaway_height}" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
-      <text x="150" y="{takeaway_y + 38}" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Quick takeaway</text>
-      <text x="150" y="{takeaway_y + 78}" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">{takeaway_text}</text>
-    '''
-
-    card_height = (takeaway_y + takeaway_height + 45) - 470
- 
-    total_height = max(1500, takeaway_y + takeaway_height + 140)
-
-    outer_height = total_height - 120
-
-    footer_y = takeaway_y + takeaway_height + 85
-
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{total_height}" viewBox="0 0 1000 {total_height}" role="img" aria-label="{esc(title)}">  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f8fbff"/>
-      <stop offset="100%" stop-color="#eef2ff"/>
-    </linearGradient>
-    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#312e81"/>
-      <stop offset="100%" stop-color="#4f46e5"/>
-    </linearGradient>
-    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f8fafc"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#94a3b8" flood-opacity="0.28"/>
-    </filter>
-  </defs>
-
-  <rect width="1000" height="1500" fill="url(#bg)"/>
-
-  <circle cx="860" cy="180" r="180" fill="#c7d2fe" opacity="0.35"/>
-  <circle cx="150" cy="1350" r="190" fill="#ddd6fe" opacity="0.28"/>
-  <circle cx="930" cy="1320" r="120" fill="#bfdbfe" opacity="0.22"/>
-
-  <rect x="60" y="60" width="880" height="{outer_height}" rx="40" fill="#ffffff" filter="url(#shadow)"/>
-  
-  <rect x="60" y="60" width="880" height="360" rx="40" fill="url(#hero)"/>
-
-  <rect x="100" y="105" width="250" height="48" rx="24" fill="#e0e7ff" opacity="0.95"/>
-  <text x="128" y="136" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#312e81" font-weight="700">{esc(badge)}</text>
-
-  <text x="100" y="210" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[0] if len(title_lines) > 0 else "")}</text>
-  <text x="100" y="275" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[1] if len(title_lines) > 1 else "")}</text>
-  <text x="100" y="340" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[2] if len(title_lines) > 2 else "")}</text>
-
-  <text x="100" y="385" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[0] if len(subtitle_lines) > 0 else "")}</text>
-  <text x="100" y="417" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[1] if len(subtitle_lines) > 1 else "")}</text>
-  <text x="100" y="449" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[2] if len(subtitle_lines) > 2 else "")}</text>
-
-  <rect x="100" y="470" width="800" height="{card_height}" rx="30" fill="url(#card)" stroke="#e2e8f0"/>
-  
-    {table_block}
-
-    {takeaway_block}
-
-  <text x="100" y="{footer_y}" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#64748b">Generated by {esc(SITE_NAME)} · Pinterest-style comparison graphic</text></svg>"""
-
-    out_path.write_text(svg, encoding="utf-8") 
 
  
 def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
@@ -3613,21 +3414,11 @@ def build_image_asset_for_section(
     
     alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
-    if (visual_type or "").strip().lower() == "diagram":
-        svg_path = folder / f"{idx}.svg"
-        create_svg_visual(
-            svg_path,
-            title=heading or "Comparison visual",
-            subtitle=image_query or alt_hint or "Clean comparison infographic",
-            badge="Comparison Visual",
-        )
-        rel_path = f"assets/posts/{slug}/{idx}.svg"
-        return rel_path, alt_text, None, used_ids
- 
     clean_query = " ".join([
         (image_query or "").strip(),
         (heading or "").strip(),
     ]).strip() or "modern office workspace laptop notes"
+
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
  
     should_try_external = len(clean_query.split()) >= 1
@@ -3656,6 +3447,7 @@ def build_image_asset_for_section(
                 log("IMG", f"Download failed for '{clean_query}' from {asset.get('source')}: {e}")
  
     return "", alt_text, None, used_ids
+ 
  
 def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
     used_raw = load_json(USED_IMAGES_JSON, {})
@@ -3985,7 +3777,34 @@ def paragraphs_to_html(text: str) -> str:
  
     return "\n".join(out)
  
- 
+def body_to_html(text: str) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    # HTML table이 포함된 경우
+    if "<table" in text.lower() and "</table>" in text.lower():
+        blocks = re.split(r"\n\s*\n+", text)
+        out = []
+
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+
+            if "<table" in block.lower() and "</table>" in block.lower():
+                out.append(block)
+            else:
+                lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+                if lines:
+                    para = " ".join(lines)
+                    out.append(f"<p>{html_escape(para)}</p>")
+
+        return "\n".join(out)
+
+    return paragraphs_to_html(text)
+
+
 def build_json_ld(
     *,
     title: str,
@@ -4086,9 +3905,19 @@ def render_post_html(
         visual_type = (sec.get("visual_type") or "").strip().lower()
         is_diagram = visual_type == "diagram"
 
+        raw_body = sec.get("body", "") or ""
+        has_html_table = "<table" in raw_body.lower() and "</table>" in raw_body.lower()
+
+        if has_html_table:
+            img_path = ""
+
+        has_html_table = "<table" in (sec.get("body") or "").lower() and "</table>" in (sec.get("body") or "").lower()
+        if has_html_table:
+            img_path = ""
+
         blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
 
-        section_body_html = paragraphs_to_html(sec["body"])
+        section_body_html = body_to_html(sec["body"])
  
         if img_path:
             img_rel = f"../{img_path}"
