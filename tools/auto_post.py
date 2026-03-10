@@ -706,7 +706,209 @@ def semantic_overlap_score(a: str, b: str) -> float:
     sig_score = similarity_ratio(sig_a, sig_b)
  
     return round((jaccard * 0.62) + (sig_score * 0.38), 4)
- 
+
+
+def strip_markdown_tables(text: str) -> str:
+    lines = text.splitlines()
+    out = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        next_line = lines[i + 1] if i + 1 < len(lines) else ""
+
+        is_separator = False
+        if "|" in next_line:
+            cleaned = next_line.replace("|", "").replace(":", "").replace("-", "").strip()
+            is_separator = cleaned == ""
+
+        is_table_start = "|" in line and "|" in next_line and is_separator
+
+        if is_table_start:
+            i += 2
+            while i < len(lines) and "|" in lines[i]:
+                i += 1
+            continue
+
+        out.append(line)
+        i += 1
+
+    return "\n".join(out).strip()
+
+
+def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[str, Any]:
+    intent_type = (data.get("intent_type") or "").strip().lower()
+    sections = data.get("sections", [])
+
+    if not isinstance(sections, list):
+        return data
+
+    for s in sections:
+        body = s.get("body", "") or ""
+        s["body"] = strip_markdown_tables(body)
+
+    if intent_type != "comparison":
+        return data
+
+    target_idx = None
+
+    for i, s in enumerate(sections):
+        heading = (s.get("heading", "") or "").lower()
+        body = (s.get("body", "") or "").lower()
+
+        if any(x in heading for x in ["difference", "differences", "compare", "comparison", "vs", "which"]) \
+           or any(x in body for x in [
+               "best for",
+               "not ideal for",
+               "setup difficulty",
+               "free plan",
+               "pricing reality",
+               "price",
+               "automation"
+           ]):
+            target_idx = i
+            break
+
+    if target_idx is None and sections:
+        target_idx = 2
+
+    if target_idx is not None:
+        sec = sections[target_idx]
+        sec["visual_type"] = "diagram"
+        sec["alt_text"] = sec.get("alt_text") or f"{keyword} comparison infographic"
+        sec["image_query"] = f"{keyword} comparison infographic clean minimal chart"
+
+    data["sections"] = sections
+    return data
+
+def has_table_like_text(text: str) -> bool:
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+
+    pipe_lines = [ln for ln in lines if "|" in ln]
+    if len(pipe_lines) >= 2:
+        return True
+
+    for i in range(len(lines) - 1):
+        line = lines[i]
+        next_line = lines[i + 1]
+
+        if "|" in line and "|" in next_line:
+            cleaned = next_line.replace("|", "").replace(":", "").replace("-", "").strip()
+            if cleaned == "":
+                return True
+
+    return False
+
+def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[str, Any]:
+    intent_type = (data.get("intent_type") or "").strip().lower()
+    sections = data.get("sections", [])
+
+    if not isinstance(sections, list):
+        return data
+
+    for s in sections:
+        body = s.get("body", "") or ""
+        s["body"] = strip_markdown_tables(body)
+
+    if intent_type != "comparison":
+        return data
+
+    target_idx = None
+
+    for i, s in enumerate(sections):
+        heading = (s.get("heading", "") or "").lower()
+        body = (s.get("body", "") or "").lower()
+
+        if any(x in heading for x in ["difference", "differences", "compare", "comparison", "vs", "which"]) \
+           or any(x in body for x in [
+               "best for",
+               "not ideal for",
+               "setup difficulty",
+               "free plan",
+               "pricing reality",
+               "price",
+               "automation"
+           ]):
+            target_idx = i
+            break
+
+    if target_idx is None and sections:
+        target_idx = 2
+
+    if target_idx is not None:
+        sec = sections[target_idx]
+        sec["visual_type"] = "diagram"
+        sec["alt_text"] = sec.get("alt_text") or f"{keyword} comparison infographic"
+        sec["image_query"] = f"{keyword} comparison infographic clean minimal chart"
+
+    data["sections"] = sections
+    return data
+
+
+ def strip_markdown_tables(text: str) -> str:
+    lines = text.splitlines()
+    out = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        next_line = lines[i + 1] if i + 1 < len(lines) else ""
+
+        is_separator = False
+        if "|" in next_line:
+            cleaned = next_line.replace("|", "").replace(":", "").replace("-", "").strip()
+            is_separator = cleaned == ""
+
+        is_table_start = "|" in line and "|" in next_line and is_separator
+
+        if is_table_start:
+            i += 2
+            while i < len(lines) and "|" in lines[i]:
+                i += 1
+            continue
+
+        out.append(line)
+        i += 1
+
+    return "\n".join(out).strip()
+
+
+def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[str, Any]:
+    intent_type = (data.get("intent_type") or "").strip().lower()
+    sections = data.get("sections", [])
+
+    if not isinstance(sections, list):
+        return data
+
+    for s in sections:
+        body = s.get("body", "") or ""
+        s["body"] = strip_markdown_tables(body)
+
+    if intent_type != "comparison":
+        return data
+
+    target_idx = None
+
+    for i, s in enumerate(sections):
+        heading = (s.get("heading", "") or "").lower()
+        body = (s.get("body", "") or "").lower()
+
+        if any(x in heading for x in ["difference", "compare", "comparison", "vs", "which"]) \
+           or any(x in body for x in ["best for", "not ideal for", "price", "free plan", "setup difficulty"]):
+            target_idx = i
+            break
+
+    if target_idx is None and sections:
+        target_idx = 2
+
+    if target_idx is not None:
+        sec = sections[target_idx]
+        sec["visual_type"] = "diagram"
+        sec["alt_text"] = sec.get("alt_text") or f"{keyword} comparison infographic"
+        sec["image_query"] = f"{keyword} comparison infographic clean minimal chart"
+
+    data["sections"] = sections
+    return data
  
 # =========================================================
 # Keyword quality
@@ -2005,11 +2207,12 @@ def build_article_prompt(
         structure_rules = REVIEW_STRUCTURE_RULES
     else:
         structure_rules = WORKFLOW_STRUCTURE_RULES
- 
-visual_rules = """
+
+    visual_rules = """
 Visual rules:
 - Do NOT generate Markdown tables.
 - Do NOT generate HTML tables.
+- Never print comparison data as a text table.
 - If comparison data is needed, represent it as a visual comparison graphic.
 - Use visual_type: diagram for comparison visuals.
 - image_query should describe a clean infographic-style comparison image.
@@ -2042,6 +2245,7 @@ diagram = infographic, comparison chart, or conceptual visual
 
 If the article contains a tool or product comparison,
 use visual_type: diagram for the section explaining the comparison.
+Do not use photo for the main comparison section.
 
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
@@ -2076,8 +2280,6 @@ FAQ must be written only in the faq field.
 The 6 section objects must follow the exact required order defined in Structure rules.
 
 Core writing standard:
-- Tables must be valid Markdown tables.
-- Each row must contain the same number of columns.
 - This article must feel publishable on the first draft
 - Do not write a draft that needs a quality checker to fix obvious weaknesses
 - Do not write generic SEO filler
@@ -2259,11 +2461,30 @@ Intent specific requirements:
 - If intent_type is comparison:
   - do not generate a Markdown table
   - do not generate an HTML table
-  - present comparison information through a visual comparison asset using visual_type: diagram
-  - the comparison diagram must replace the normal section image
+  - never print comparison data in table form
+  - the comparison must appear only as a visual infographic image
+  - visual_type must be diagram for the main comparison section
+  - the comparison infographic must replace the normal section image
+  - the section body should explain only the decision logic and tradeoffs
+  - use image_query to describe a clean comparison infographic  - Do not generate Markdown tables
+  - Do not generate HTML tables
+  - The comparison must appear only as a visual infographic image
+  - visual_type must be diagram
+  - The comparison infographic replaces the normal section image
+  - The section body must only explain the decision logic
+  - never print comparison data in table form
+  - Do not print comparison rows or columns in text.
+  - image_query must describe a comparison infographic such as:
+    software comparison infographic
+    tool comparison chart
+    pricing comparison infographic
+  - The comparison section body must only explain the decision logic.
+  - All structured comparison data must appear in the infographic image.  - the comparison diagram must replace the normal section image
+  - place the comparison diagram in the section where comparison decisions are explained
+  - do not use photo for the main comparison section
   - use image_query to describe a clean infographic-style comparison image
-  - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
   - explain the comparison in body text with clear decision logic
+  - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
   - include a clear winner for at least 2 user types
   - include one overkill option and explain why
   - include one best free starting point
@@ -2461,6 +2682,9 @@ def quality_check_post(
         if not heading or not body:
             return False, "missing-section-content"
 
+        if has_table_like_text(body):
+            return False, "table-like-text-detected"
+     
         if len(body) < max(260, MIN_SECTION_CHARS // 2):
             return False, "thin-section"
 
@@ -3063,46 +3287,143 @@ def download_asset(asset: dict, out_path: Path) -> None:
     out_path.write_bytes(r.content)
  
  
-def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "Workflow Visual") -> None:
+def create_svg_visual(out_path: Path, title: str, subtitle: str, badge: str = "Comparison Guide") -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
- 
+
     def esc(x: str) -> str:
-        return html_escape(x)
- 
-    title = title[:72]
-    subtitle = subtitle[:120]
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="{esc(title)}">
+        return html_escape(x or "")
+
+    def wrap_text(text: str, max_len: int = 22, max_lines: int = 3) -> List[str]:
+        words = (text or "").split()
+        if not words:
+            return [""]
+
+        lines = []
+        current = ""
+
+        for word in words:
+            test = f"{current} {word}".strip()
+            if len(test) <= max_len:
+                current = test
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+                if len(lines) >= max_lines - 1:
+                    break
+
+        if current and len(lines) < max_lines:
+            lines.append(current)
+
+        return lines[:max_lines]
+
+    title = (title or "Comparison visual").strip()[:80]
+    subtitle = (subtitle or "A cleaner way to compare options").strip()[:120]
+
+    title_lines = wrap_text(title, max_len=20, max_lines=3)
+    subtitle_lines = wrap_text(subtitle, max_len=32, max_lines=3)
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1500" viewBox="0 0 1000 1500" role="img" aria-label="{esc(title)}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f8fbff"/>
-      <stop offset="100%" stop-color="#eef4ff"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
     </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#94a3b8" flood-opacity="0.28"/>
+    </filter>
   </defs>
-  <rect width="1600" height="900" fill="url(#bg)"/>
-  <rect x="90" y="90" width="1420" height="720" rx="34" fill="#ffffff" stroke="#dbe5f3"/>
-  <rect x="140" y="140" width="260" height="44" rx="22" fill="#eaf2ff"/>
-  <text x="170" y="168" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#2563eb" font-weight="700">{esc(badge)}</text>
- 
-  <text x="140" y="280" font-family="Arial, Helvetica, sans-serif" font-size="52" fill="#0f172a" font-weight="700">{esc(title)}</text>
-  <text x="140" y="350" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#475569">{esc(subtitle)}</text>
- 
-  <rect x="140" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
-  <rect x="560" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
-  <rect x="980" y="430" width="350" height="170" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
- 
-  <text x="175" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Input</text>
-  <text x="595" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Decision</text>
-  <text x="1015" y="500" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Output</text>
- 
-  <line x1="490" y1="515" x2="560" y2="515" stroke="#94a3b8" stroke-width="6"/>
-  <polygon points="560,515 540,503 540,527" fill="#94a3b8"/>
-  <line x1="910" y1="515" x2="980" y2="515" stroke="#94a3b8" stroke-width="6"/>
-  <polygon points="980,515 960,503 960,527" fill="#94a3b8"/>
- 
-  <text x="140" y="705" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#64748b">Generated by {esc(SITE_NAME)}</text>
+
+  <rect width="1000" height="1500" fill="url(#bg)"/>
+
+  <circle cx="860" cy="180" r="180" fill="#c7d2fe" opacity="0.35"/>
+  <circle cx="150" cy="1350" r="190" fill="#ddd6fe" opacity="0.28"/>
+  <circle cx="930" cy="1320" r="120" fill="#bfdbfe" opacity="0.22"/>
+
+  <rect x="60" y="60" width="880" height="1380" rx="40" fill="#ffffff" filter="url(#shadow)"/>
+
+  <rect x="60" y="60" width="880" height="360" rx="40" fill="url(#hero)"/>
+
+  <rect x="100" y="105" width="250" height="48" rx="24" fill="#e0e7ff" opacity="0.95"/>
+  <text x="128" y="136" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#312e81" font-weight="700">{esc(badge)}</text>
+
+  <text x="100" y="210" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[0] if len(title_lines) > 0 else "")}</text>
+  <text x="100" y="275" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[1] if len(title_lines) > 1 else "")}</text>
+  <text x="100" y="340" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">{esc(title_lines[2] if len(title_lines) > 2 else "")}</text>
+
+  <text x="100" y="385" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[0] if len(subtitle_lines) > 0 else "")}</text>
+  <text x="100" y="417" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[1] if len(subtitle_lines) > 1 else "")}</text>
+  <text x="100" y="449" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">{esc(subtitle_lines[2] if len(subtitle_lines) > 2 else "")}</text>
+
+  <rect x="100" y="470" width="800" height="860" rx="30" fill="url(#card)" stroke="#e2e8f0"/>
+
+  <text x="130" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Feature</text>
+  <text x="430" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Option A</text>
+  <text x="650" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#4f46e5" font-weight="700">Option B</text>
+  <text x="835" y="535" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700" text-anchor="end">Option C</text>
+
+  <line x1="120" y1="560" x2="880" y2="560" stroke="#cbd5e1" stroke-width="2"/>
+
+  <rect x="610" y="495" width="110" height="34" rx="17" fill="#eef2ff"/>
+  <text x="665" y="518" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#4338ca" font-weight="700" text-anchor="middle">Best Fit</text>
+
+  <text x="130" y="620" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Setup</text>
+  <text x="430" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Easy</text>
+  <text x="650" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Balanced</text>
+  <text x="835" y="620" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Heavy</text>
+
+  <line x1="120" y1="655" x2="880" y2="655" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="130" y="715" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Price</text>
+  <text x="430" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Low</text>
+  <text x="650" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Mid</text>
+  <text x="835" y="715" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Higher</text>
+
+  <line x1="120" y1="750" x2="880" y2="750" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="130" y="810" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Best for</text>
+  <text x="430" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Simple needs</text>
+  <text x="650" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Most users</text>
+  <text x="835" y="810" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Advanced use</text>
+
+  <line x1="120" y1="845" x2="880" y2="845" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="130" y="905" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Tradeoff</text>
+  <text x="430" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Limited depth</text>
+  <text x="650" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Best balance</text>
+  <text x="835" y="905" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">More friction</text>
+
+  <line x1="120" y1="940" x2="880" y2="940" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="130" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Upgrade path</text>
+  <text x="430" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Basic</text>
+  <text x="650" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Strong</text>
+  <text x="835" y="1000" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Powerful</text>
+
+  <line x1="120" y1="1035" x2="880" y2="1035" stroke="#e2e8f0" stroke-width="2"/>
+
+  <text x="130" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#334155">Decision</text>
+  <text x="430" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Start cheap</text>
+  <text x="650" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#4338ca" font-weight="700">Default choice</text>
+  <text x="835" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569" text-anchor="end">Only if needed</text>
+
+  <rect x="120" y="1170" width="760" height="115" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="150" y="1220" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Quick takeaway</text>
+  <text x="150" y="1260" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569">Option B is the safest default for most readers because it balances setup, cost, and long-term usability.</text>
+
+  <text x="100" y="1378" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#64748b">Generated by {esc(SITE_NAME)} · Pinterest-style comparison graphic</text>
 </svg>"""
-    out_path.write_text(svg, encoding="utf-8")
- 
+
+    out_path.write_text(svg, encoding="utf-8") 
+
  
 def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
     clean_query = sanitize_query_for_image(query)
@@ -3130,9 +3451,7 @@ def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
  
     candidates.sort(key=lambda x: x["score"], reverse=True)
     return candidates[0]
-
-    if "comparison" in heading.lower() or "difference" in heading.lower():
-        visual_type = "diagram"
+    
  
 def build_image_asset_for_section(
     slug: str,
@@ -3145,12 +3464,34 @@ def build_image_asset_for_section(
 ) -> Tuple[str, str, Optional[str], set]:
     folder = ASSETS_POSTS_DIR / slug
     folder.mkdir(parents=True, exist_ok=True)
+
+    if (visual_type or "").strip().lower() == "diagram":
+        svg_path = folder / f"{idx}.svg"
+        create_svg_visual(
+            svg_path,
+            title=heading or "Comparison visual",
+            subtitle=image_query or alt_hint or "Clean comparison infographic",
+            badge="Comparison Visual",
+        )
+        rel_path = f"assets/posts/{slug}/{idx}.svg"
+        return rel_path, alt_text, None, used_ids
  
     clean_query = " ".join([
         (image_query or "").strip(),
         (heading or "").strip(),
     ]).strip() or "modern office workspace laptop notes"
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
+
+    if (visual_type or "").strip().lower() == "diagram":
+        svg_path = folder / f"{idx}.svg"
+        create_svg_visual(
+            svg_path,
+            title=heading or "Comparison visual",
+            subtitle=image_query or alt_hint or "Clean comparison infographic",
+            badge="Comparison Visual",
+        )
+        rel_path = f"assets/posts/{slug}/{idx}.svg"
+        return rel_path, alt_text, None, used_ids 
  
     should_try_external = len(clean_query.split()) >= 1
     if should_try_external:
@@ -3605,15 +3946,31 @@ def render_post_html(
     for i, sec in enumerate(sections):
         img_path = image_paths[i] if i < len(image_paths) else ""
         alt = html_escape(alt_texts[i] if i < len(alt_texts) else sec.get("heading", title))
- 
+        visual_type = (sec.get("visual_type") or "").strip().lower()
+        is_diagram = visual_type == "diagram"
+
         blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
- 
+
         section_body_html = paragraphs_to_html(sec["body"])
  
         if img_path:
             img_rel = f"../{img_path}"
-            blocks.append(
-                f'''
+
+            if is_diagram:
+                blocks.append(
+                    f'''
+    <div class="section-media-block section-media-block-diagram">
+      <figure class="section-hero-visual">
+        <img src="{img_rel}" alt="{alt}" loading="lazy">
+        <figcaption>{alt}</figcaption>
+      </figure>
+      {section_body_html}
+    </div>
+    '''.strip()
+                )
+            else:
+                blocks.append(
+                    f'''
     <div class="section-media-block">
       <figure class="section-float">
         <img src="{img_rel}" alt="{alt}" loading="lazy">
@@ -3622,7 +3979,7 @@ def render_post_html(
       {section_body_html}
     </div>
     '''.strip()
-            )
+                )
         else:
             blocks.append(section_body_html)
  
@@ -3913,6 +4270,8 @@ def main() -> int:
                 post_type=post_type,
                 avoid_titles=existing_titles,
             )
+
+            cand = enforce_comparison_visuals(cand, keyword=keyword)
 
             if post_semantically_too_close(keyword, cand_planning, posts):
                 log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
