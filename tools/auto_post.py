@@ -3348,9 +3348,25 @@ def ensure_minimum_image_paths(
 ) -> Tuple[List[str], List[str]]:
     folder = ASSETS_POSTS_DIR / slug
 
-    while len(image_paths) < min_count:
-        idx = len(image_paths) + 1
-        sec = sections[idx - 1] if idx - 1 < len(sections) else {}
+    if len(image_paths) < len(sections):
+        image_paths.extend([""] * (len(sections) - len(image_paths)))
+
+    if len(alt_texts) < len(sections):
+        for i in range(len(alt_texts), len(sections)):
+            sec = sections[i] if i < len(sections) else {}
+            alt_texts.append(sec.get("alt_text") or sec.get("heading") or f"Section {i+1}")
+
+    non_empty_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
+
+    for i, sec in enumerate(sections):
+        if non_empty_count >= min_count:
+            break
+
+        current_path = image_paths[i] if i < len(image_paths) else ""
+        if isinstance(current_path, str) and current_path.strip():
+            continue
+
+        idx = i + 1
         heading = sec.get("heading", f"Section {idx}")
         image_query = sec.get("image_query", heading)
         alt_text = sec.get("alt_text", heading) or heading
@@ -3364,11 +3380,23 @@ def ensure_minimum_image_paths(
             visual_type=sec.get("visual_type", "photo"),
         )
 
-        image_paths.append(f"assets/posts/{slug}/{idx}.svg")
-        alt_texts.append(alt_text)
+        rel_path = f"assets/posts/{slug}/{idx}.svg"
+
+        if i < len(image_paths):
+            image_paths[i] = rel_path
+        else:
+            image_paths.append(rel_path)
+
+        if i < len(alt_texts):
+            alt_texts[i] = alt_text
+        else:
+            alt_texts.append(alt_text)
+
+        non_empty_count += 1
+        log("IMG", f"Fallback filled empty slot slug='{slug}' idx={idx}")
 
     return image_paths, alt_texts
-
+ 
  
 def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
     clean_query = sanitize_query_for_image(query)
@@ -3474,7 +3502,7 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
-    target_count = min(max(IMG_COUNT, 1), max(len(sections), 1))
+    target_count = min(max(IMG_COUNT, 1), len(sections))
     image_paths, alt_texts = ensure_minimum_image_paths(
         slug=slug,
         image_paths=image_paths,
@@ -3482,7 +3510,12 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         sections=sections,
         min_count=target_count,
     )
- 
+
+    log(
+        "IMG",
+        f"slug='{slug}' built={len(image_paths)} visible_candidates={sum(1 for p in image_paths if p.strip())} target={target_count}"
+    )
+
     return image_paths, alt_texts, credits_li
  
  
