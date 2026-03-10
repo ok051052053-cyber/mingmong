@@ -3497,9 +3497,6 @@ def build_image_asset_for_section(
     alt_hint: str,
     used_ids: set,
 ) -> Tuple[str, str, Optional[str], set]:
-    folder = ASSETS_POSTS_DIR / slug
-    folder.mkdir(parents=True, exist_ok=True)
-    
     alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
     clean_query = " ".join([
@@ -3508,7 +3505,7 @@ def build_image_asset_for_section(
     ]).strip() or "modern office workspace laptop notes"
 
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
- 
+
     should_try_external = len(clean_query.split()) >= 1
     if should_try_external:
         asset = find_best_asset_for_query(
@@ -3517,27 +3514,27 @@ def build_image_asset_for_section(
             visual_type=visual_type,
             used_ids=used_ids,
         )
-     
+
         if asset:
-            used_ids.add(asset["id"])
-            ext_path = folder / f"{idx}.jpg"
-            try:
-                download_asset(asset, ext_path)
-                rel_path = f"assets/posts/{slug}/{idx}.jpg"
- 
+            hotlink_url = (asset.get("hotlink_url") or "").strip()
+            if hotlink_url:
+                used_ids.add(asset["id"])
+
                 creator_name = html_escape(asset.get("creator_name") or asset.get("source", "Image source"))
                 creator_url = html_escape(asset.get("creator_url") or asset.get("page_url") or "#")
                 page_url = html_escape(asset.get("page_url") or creator_url)
                 source_label = html_escape(asset.get("source", "source").title())
- 
+
                 photo_credit_html = (
                     f'<li>Photo {idx}: '
                     f'<a href="{creator_url}" target="_blank" rel="noopener noreferrer">{creator_name}</a> '
                     f'via <a href="{page_url}" target="_blank" rel="noopener noreferrer">{source_label}</a></li>'
                 )
-                return rel_path, alt_text, photo_credit_html, used_ids
-            except Exception as e:
-                log("IMG", f"Download failed for '{clean_query}' from {asset.get('source')}: {e}")
+
+                log("IMG", f"Using hotlink image for slug='{slug}' idx={idx} source='{asset.get('source')}'")
+                return hotlink_url, alt_text, photo_credit_html, used_ids
+
+            log("IMG", f"Asset found but hotlink_url missing for slug='{slug}' idx={idx} source='{asset.get('source')}'")
 
     log("IMG", f"No external image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
