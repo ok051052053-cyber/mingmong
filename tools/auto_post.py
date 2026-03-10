@@ -37,7 +37,7 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 # =========================================================
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
-POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
+POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "2"))
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
