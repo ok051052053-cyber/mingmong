@@ -2006,12 +2006,14 @@ def build_article_prompt(
     else:
         structure_rules = WORKFLOW_STRUCTURE_RULES
  
-    table_rules = """
-Table rules:
-- Do NOT use HTML tables.
-- Use Markdown table format only.
-- Tables must be valid Markdown tables.
-- Each row must contain the same number of columns.
+visual_rules = """
+Visual rules:
+- Do NOT generate Markdown tables.
+- Do NOT generate HTML tables.
+- If comparison data is needed, represent it as a visual comparison graphic.
+- Use visual_type: diagram for comparison visuals.
+- image_query should describe a clean infographic-style comparison image.
+- body text must explain the decision logic clearly instead of printing a table.
 """
 
     return f"""
@@ -2029,8 +2031,17 @@ Post type:
 Content mode:
 {mode}
 
-Table rules:
-{table_rules}
+Visual rules:
+{visual_rules}
+
+Visual type rules:
+
+photo = real-world photography
+workspace = desk or workflow setup
+diagram = infographic, comparison chart, or conceptual visual
+
+If the article contains a tool or product comparison,
+use visual_type: diagram for the section explaining the comparison.
 
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
@@ -2246,8 +2257,13 @@ Required natural language signals:
 Intent specific requirements:
 - intent_type is {intent_type}
 - If intent_type is comparison:
-  - include a comparison table using Markdown table format
+  - do not generate a Markdown table
+  - do not generate an HTML table
+  - present comparison information through a visual comparison asset using visual_type: diagram
+  - the comparison diagram must replace the normal section image
+  - use image_query to describe a clean infographic-style comparison image
   - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
+  - explain the comparison in body text with clear decision logic
   - include a clear winner for at least 2 user types
   - include one overkill option and explain why
   - include one best free starting point
@@ -3114,7 +3130,9 @@ def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
  
     candidates.sort(key=lambda x: x["score"], reverse=True)
     return candidates[0]
- 
+
+    if "comparison" in heading.lower() or "difference" in heading.lower():
+        visual_type = "diagram"
  
 def build_image_asset_for_section(
     slug: str,
