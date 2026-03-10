@@ -3541,7 +3541,8 @@ def build_image_asset_for_section(
             hotlink_url = (asset.get("hotlink_url") or "").strip()
             if hotlink_url:
                 used_ids.add(asset["id"])
-
+                trigger_unsplash_download(asset)
+             
                 creator_name = html_escape(asset.get("creator_name") or asset.get("source", "Image source"))
                 creator_url = html_escape(asset.get("creator_url") or asset.get("page_url") or "#")
                 page_url = html_escape(asset.get("page_url") or creator_url)
