@@ -3736,8 +3736,8 @@ def main() -> int:
         data = None
         planning = {}
     
-                try:
-                    log("PLAN", "Generating planning and article")
+        try:
+            log("PLAN", "Generating planning and article")
 
                     cand, cand_planning = generate_deep_post(
                         keyword=keyword,
@@ -3779,12 +3779,6 @@ def main() -> int:
                     log("GEN", f"Generation crashed for keyword='{keyword}': {e}")
                     traceback.print_exc()
                     continue
-
-            except Exception as e:
-                import traceback
-                log("GEN", f"Attempt {attempt} crashed for keyword='{keyword}': {e}")
-                traceback.print_exc()
-                continue
 
         if not data:
             log("MAIN", f"Rejected keyword='{keyword}' after single-pass generation")
