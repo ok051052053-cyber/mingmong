@@ -3358,6 +3358,74 @@ def svg_text_block(x: float, y: float, lines: list[str], font_size: int = 12,
     parts.append("</text>")
     return "".join(parts)
 
+def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
+    words = (text or "").split()
+    if not words:
+        return [""]
+
+    max_chars = max(10, int(max_width / (font_size * 0.55)))
+
+    lines = []
+    current = ""
+
+    for word in words:
+        test = f"{current} {word}".strip()
+        if len(test) <= max_chars:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+
+    if current:
+        lines.append(current)
+
+    return lines
+
+def render_svg_table(
+    x: int,
+    y: int,
+    headers: List[str],
+    rows: List[Tuple[str, str, str, str]],
+    table_width: int,
+):
+    col_count = len(headers)
+    col_width = table_width // col_count
+
+    header_height = 54
+    row_height = 52
+
+    svg = ""
+
+    # header
+    for i, h in enumerate(headers):
+        cx = x + i * col_width
+
+        svg += f"""
+        <rect x="{cx}" y="{y}" width="{col_width}" height="{header_height}" fill="#e0e7ff"/>
+        <text x="{cx + 18}" y="{y + 34}" font-family="Arial, Helvetica, sans-serif"
+              font-size="20" fill="#1e293b" font-weight="700">{html_escape(h)}</text>
+        """
+
+    # rows
+    for r, row in enumerate(rows):
+        for c, cell in enumerate(row):
+
+            cx = x + c * col_width
+            cy = y + header_height + r * row_height
+
+            bg = "#ffffff" if r % 2 == 0 else "#f8fafc"
+
+            svg += f"""
+            <rect x="{cx}" y="{cy}" width="{col_width}" height="{row_height}"
+                  fill="{bg}" stroke="#e2e8f0"/>
+            <text x="{cx + 18}" y="{cy + 32}" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">{html_escape(cell)}</text>
+            """
+
+    table_height = header_height + len(rows) * row_height
+
+    return svg, table_height
 
 def create_svg_visual(
     out_path: Path,
@@ -3398,12 +3466,12 @@ def create_svg_visual(
         return lines[:max_lines]
     columns = columns or ["Feature", "Option A", "Option B", "Option C"]
     rows = rows or [
-        ("Setup", "Easy", "Balanced", "Heavy"),
-        ("Price", "Low", "Mid", "Higher"),
-        ("Best for", "Simple needs", "Most users", "Advanced use"),
-        ("Tradeoff", "Limited depth", "Best balance", "More friction"),
-        ("Upgrade path", "Basic", "Strong", "Powerful"),
-        ("Decision", "Start cheap", "Default choice", "Only if needed"),
+        ("Setup", "5 min", "10 min", "20+ min"),
+        ("Price", "Free", "$15/mo", "$30/mo"),
+        ("Best for", "Solo users", "Small teams", "Power users"),
+        ("Tradeoff", "Limited depth", "Balanced", "Higher complexity"),
+        ("Upgrade path", "Basic", "Strong", "Full automation"),
+        ("Decision", "Start here", "Best default", "Only if scaling"),
     ]
     takeaway = takeaway or (
         "Option B is the safest default for most readers because it balances setup, cost, and long-term usability."
