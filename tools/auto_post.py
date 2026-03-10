@@ -38,6 +38,8 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "3"))
+print(f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT}")
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
@@ -708,79 +710,6 @@ def semantic_overlap_score(a: str, b: str) -> float:
     return round((jaccard * 0.62) + (sig_score * 0.38), 4)
 
 
-def strip_markdown_tables(text: str) -> str:
-    lines = text.splitlines()
-    out = []
-    i = 0
-
-    while i < len(lines):
-        line = lines[i]
-        next_line = lines[i + 1] if i + 1 < len(lines) else ""
-
-        is_separator = False
-        if "|" in next_line:
-            cleaned = next_line.replace("|", "").replace(":", "").replace("-", "").strip()
-            is_separator = cleaned == ""
-
-        is_table_start = "|" in line and "|" in next_line and is_separator
-
-        if is_table_start:
-            i += 2
-            while i < len(lines) and "|" in lines[i]:
-                i += 1
-            continue
-
-        out.append(line)
-        i += 1
-
-    return "\n".join(out).strip()
-
-
-def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[str, Any]:
-    intent_type = (data.get("intent_type") or "").strip().lower()
-    sections = data.get("sections", [])
-
-    if not isinstance(sections, list):
-        return data
-
-    for s in sections:
-        body = s.get("body", "") or ""
-        s["body"] = strip_markdown_tables(body)
-
-    if intent_type != "comparison":
-        return data
-
-    target_idx = None
-
-    for i, s in enumerate(sections):
-        heading = (s.get("heading", "") or "").lower()
-        body = (s.get("body", "") or "").lower()
-
-        if any(x in heading for x in ["difference", "differences", "compare", "comparison", "vs", "which"]) \
-           or any(x in body for x in [
-               "best for",
-               "not ideal for",
-               "setup difficulty",
-               "free plan",
-               "pricing reality",
-               "price",
-               "automation"
-           ]):
-            target_idx = i
-            break
-
-    if target_idx is None and sections:
-        target_idx = 2
-
-    if target_idx is not None:
-        sec = sections[target_idx]
-        sec["visual_type"] = "diagram"
-        sec["alt_text"] = sec.get("alt_text") or f"{keyword} comparison infographic"
-        sec["image_query"] = f"{keyword} comparison infographic clean minimal chart"
-
-    data["sections"] = sections
-    return data
-
 def has_table_like_text(text: str) -> bool:
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
 
@@ -872,43 +801,6 @@ def strip_markdown_tables(text: str) -> str:
 
     return "\n".join(out).strip()
 
-
-def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[str, Any]:
-    intent_type = (data.get("intent_type") or "").strip().lower()
-    sections = data.get("sections", [])
-
-    if not isinstance(sections, list):
-        return data
-
-    for s in sections:
-        body = s.get("body", "") or ""
-        s["body"] = strip_markdown_tables(body)
-
-    if intent_type != "comparison":
-        return data
-
-    target_idx = None
-
-    for i, s in enumerate(sections):
-        heading = (s.get("heading", "") or "").lower()
-        body = (s.get("body", "") or "").lower()
-
-        if any(x in heading for x in ["difference", "compare", "comparison", "vs", "which"]) \
-           or any(x in body for x in ["best for", "not ideal for", "price", "free plan", "setup difficulty"]):
-            target_idx = i
-            break
-
-    if target_idx is None and sections:
-        target_idx = 2
-
-    if target_idx is not None:
-        sec = sections[target_idx]
-        sec["visual_type"] = "diagram"
-        sec["alt_text"] = sec.get("alt_text") or f"{keyword} comparison infographic"
-        sec["image_query"] = f"{keyword} comparison infographic clean minimal chart"
-
-    data["sections"] = sections
-    return data
  
 # =========================================================
 # Keyword quality
@@ -1997,6 +1889,11 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         tldr_focus = []
     tldr_focus = [_clean_text(x) for x in tldr_focus if isinstance(x, str) and _clean_text(x)][:5]
 
+    log(
+        "PLAN",
+        f"keyword='{keyword}' title='{title}' category='{category}' intent_type='{intent_type}' sections={len(clean_sections)}"
+    )
+ 
     return {
         "audience": audience,
         "problem": problem,
@@ -2183,11 +2080,12 @@ Section heading rules:
 """
 
 
-def build_table_rules(post_type: str, mode: str) -> str:
+def build_table_rules(post_type: str, mode: str, intent_type: str = "") -> str:
+    it = (intent_type or "").strip().lower()
     pt = (post_type or "").strip().lower()
     md = (mode or "").strip().lower()
 
-    if pt == "comparison" or md == "comparison":
+    if it == "comparison":
         return """
 HTML table rules:
 - For comparison-style sections, include exactly 1 HTML table in the most relevant section only.
@@ -2240,7 +2138,7 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
-    table_rules = build_table_rules(post_type, mode)
+    table_rules = build_table_rules(post_type, mode, intent_type)
  
     if mode == "investing":
         structure_rules = INVESTING_STRUCTURE_RULES
@@ -3397,6 +3295,80 @@ def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
 
     return lines
 
+
+def build_svg_placeholder(
+    out_path: Path,
+    title: str,
+    heading: str,
+    image_query: str,
+    visual_type: str = "photo",
+) -> None:
+    w = 1600
+    h = 900
+
+    bg = "#F8FAFC"
+    panel = "#FFFFFF"
+    stroke = "#E2E8F0"
+    title_color = "#0F172A"
+    body_color = "#475569"
+    accent = "#CBD5E1"
+
+    safe_heading = (heading or "Article visual").strip()
+    safe_query = (image_query or "").strip()
+    safe_type = (visual_type or "photo").strip().title()
+
+    heading_lines = wrap_text_to_width(safe_heading, 980, font_size=44)[:3]
+    query_lines = wrap_text_to_width(safe_query, 900, font_size=24)[:3]
+
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+  <rect width="100%" height="100%" fill="{bg}"/>
+  <rect x="70" y="70" width="1460" height="760" rx="32" fill="{panel}" stroke="{stroke}" stroke-width="2"/>
+  <rect x="120" y="120" width="220" height="40" rx="20" fill="{accent}"/>
+  <text x="230" y="147" font-size="18" font-weight="700" fill="{body_color}" text-anchor="middle" font-family="Inter, Arial, sans-serif">{escape_xml(safe_type)} visual</text>
+  <line x1="120" y1="220" x2="1480" y2="220" stroke="{stroke}" stroke-width="2"/>
+
+  {svg_text_block(120, 310, heading_lines, font_size=44, fill=title_color, weight="700")}
+  {svg_text_block(120, 470, query_lines, font_size=24, fill=body_color, weight="500")}
+
+  <rect x="120" y="620" width="340" height="110" rx="24" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text x="150" y="665" font-size="22" font-weight="700" fill="{title_color}" font-family="Inter, Arial, sans-serif">Fallback image</text>
+  <text x="150" y="703" font-size="18" fill="{body_color}" font-family="Inter, Arial, sans-serif">Generated because no external asset matched.</text>
+</svg>'''
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(svg, encoding="utf-8")
+
+
+def ensure_minimum_image_paths(
+    slug: str,
+    image_paths: List[str],
+    alt_texts: List[str],
+    sections: List[Dict[str, str]],
+    min_count: int,
+) -> Tuple[List[str], List[str]]:
+    folder = ASSETS_POSTS_DIR / slug
+
+    while len(image_paths) < min_count:
+        idx = len(image_paths) + 1
+        sec = sections[idx - 1] if idx - 1 < len(sections) else {}
+        heading = sec.get("heading", f"Section {idx}")
+        image_query = sec.get("image_query", heading)
+        alt_text = sec.get("alt_text", heading) or heading
+
+        svg_path = folder / f"{idx}.svg"
+        build_svg_placeholder(
+            out_path=svg_path,
+            title=slug,
+            heading=heading,
+            image_query=image_query,
+            visual_type=sec.get("visual_type", "photo"),
+        )
+
+        image_paths.append(f"assets/posts/{slug}/{idx}.svg")
+        alt_texts.append(alt_text)
+
+    return image_paths, alt_texts
+
  
 def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
     clean_query = sanitize_query_for_image(query)
@@ -3501,6 +3473,15 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
  
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
+
+    target_count = min(max(IMG_COUNT, 1), max(len(sections), 1))
+    image_paths, alt_texts = ensure_minimum_image_paths(
+        slug=slug,
+        image_paths=image_paths,
+        alt_texts=alt_texts,
+        sections=sections,
+        min_count=target_count,
+    )
  
     return image_paths, alt_texts, credits_li
  
@@ -4295,11 +4276,10 @@ def main() -> int:
                 keyword=keyword,
                 post_type=post_type,
             )
-            if not ok:
-                log("QUALITY", f"Post rejected but accepted: reason='{reason}'")
-                data = cand
-                planning = cand_planning
-                break
+                    if not ok:
+                        log("QUALITY", f"Post accepted with warning: reason='{reason}'")
+                        data = cand
+                        planning = cand_planning
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
@@ -4349,6 +4329,11 @@ def main() -> int:
             pillar_slug = slug
 
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
+
+    log(
+        "IMG",
+        f"slug='{slug}' total_sections={len(sections)} image_paths={len(image_paths)} non_empty={sum(1 for p in image_paths if p.strip())}"
+    )
 
         related_posts = select_related_posts(
             posts,
