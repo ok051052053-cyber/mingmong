@@ -1999,7 +1999,7 @@ def build_article_prompt(
         planning.get("intent", "cluster"),
     )
     mode_rules = build_mode_rules(mode)
-     if mode == "investing":
+    if mode == "investing":
         structure_rules = INVESTING_STRUCTURE_RULES
     elif mode == "review":
         structure_rules = REVIEW_STRUCTURE_RULES
