@@ -3735,51 +3735,51 @@ def main() -> int:
 
         data = None
         planning = {}
-    
+
         try:
             log("PLAN", "Generating planning and article")
 
-                    cand, cand_planning = generate_deep_post(
-                        keyword=keyword,
-                        cluster_name=effective_cluster_name,
-                        post_type=post_type,
-                        avoid_titles=existing_titles,
-                    )
+            cand, cand_planning = generate_deep_post(
+                keyword=keyword,
+                cluster_name=effective_cluster_name,
+                post_type=post_type,
+                avoid_titles=existing_titles,
+            )
 
-                    if post_semantically_too_close(keyword, cand_planning, posts):
-                        log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
-                        continue
+            if post_semantically_too_close(keyword, cand_planning, posts):
+                log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
+                continue
 
-                    cand_title = cand["title"]
+            cand_title = cand["title"]
 
-                    if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
-                        log("DUP", f"Title too similar: '{cand_title}'")
-                        continue
+            if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
+                log("DUP", f"Title too similar: '{cand_title}'")
+                continue
 
-                    ok, reason = quality_check_post(
-                        cand,
-                        keyword=keyword,
-                        post_type=post_type,
-                    )
-                    if not ok:
-                        log("QUALITY", f"Post rejected without retry: reason='{reason}'")
-                        continue
+            ok, reason = quality_check_post(
+                cand,
+                keyword=keyword,
+                post_type=post_type,
+            )
+            if not ok:
+                log("QUALITY", f"Post rejected without retry: reason='{reason}'")
+                continue
 
-                    fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
-                    if fp in used_fps:
-                        log("DUP", f"Fingerprint duplicate for keyword='{keyword}'")
-                        continue
+            fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
+            if fp in used_fps:
+                log("DUP", f"Fingerprint duplicate for keyword='{keyword}'")
+                continue
 
-                    data = cand
-                    planning = cand_planning
-                    used_fps.add(fp)
+            data = cand
+            planning = cand_planning
+            used_fps.add(fp)
 
-                except Exception as e:
-                    import traceback
-                    log("GEN", f"Generation crashed for keyword='{keyword}': {e}")
-                    traceback.print_exc()
-                    continue
-
+        except Exception as e:
+            import traceback
+            log("GEN", f"Generation crashed for keyword='{keyword}': {e}")
+            traceback.print_exc()
+            continue
+            
         if not data:
             log("MAIN", f"Rejected keyword='{keyword}' after single-pass generation")
             continue
