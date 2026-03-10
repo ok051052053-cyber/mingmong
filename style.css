@@ -1435,3 +1435,55 @@ textarea:focus-visible{
   font-size: 0.95rem;
   color: #64748b;
 }
+
+/* ============================= */
+/* Comparison Table Style */
+/* ============================= */
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0 24px;
+}
+
+.cmp-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.5;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.cmp-table th,
+.cmp-table td {
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.cmp-table thead th {
+  background: #eef2ff;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.cmp-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.cmp-table th:first-child,
+.cmp-table td:first-child {
+  font-weight: 700;
+  border-right: 3px solid #94a3b8;
+}
+
+.cmp-table td {
+  color: #374151;
+}
+
+.cmp-table th {
+  font-size: 14px;
+}
