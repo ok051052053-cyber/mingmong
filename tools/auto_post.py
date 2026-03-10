@@ -2448,6 +2448,14 @@ Readability and engagement rules:
   What this looks like
   Where this breaks down
 
+Step formatting rules:
+- If a section includes numbered steps, format them as a clean 1–4 step sequence.
+- Do not mix numbered steps inside normal paragraphs.
+- Each step must start on a new line.
+- Do not restart numbering in the same sequence.
+
+Limit numbered sequences to a maximum of 4 steps unless the workflow truly requires more.
+
 Internal-link and cluster rules:
 - Include at least 2 natural internal-link hook moments inside the article body
 - These hooks should naturally point to related article angles such as:
