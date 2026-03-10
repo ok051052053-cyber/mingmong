@@ -2014,7 +2014,7 @@ Table rules:
 - Each row must contain the same number of columns.
 """
 
-    return f"""
+return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
 Seed keyword:
