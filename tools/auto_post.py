@@ -1986,6 +1986,21 @@ Core writing standard:
 - Depth matters more than fluff
 
 Title and heading quality rules:
+- The title must start with a search-friendly phrase when natural
+- Prefer concrete title patterns such as:
+  Best X for beginners
+  X to buy now for beginners
+  3 X beginners can start with
+  X vs Y for beginners
+  How to start X with Y dollars
+- Avoid editorial title endings such as:
+  practical guide
+  real tradeoffs
+  practical first picks
+  complete framework
+  hidden truths
+- Use plain search language over clever wording
+- The first 5 words of the title should make the topic obvious
 - The title must be specific and non-generic
 - Do not use titles that sound like generic SEO blog posts
 - Avoid title patterns such as:
