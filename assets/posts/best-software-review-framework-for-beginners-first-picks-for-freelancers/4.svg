@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1500" viewBox="0 0 1000 1500" role="img" aria-label="A Real Setup Scenario: What Happens in Your First 30 Days">  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#94a3b8" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1000" height="1500" fill="url(#bg)"/>
+
+  <circle cx="860" cy="180" r="180" fill="#c7d2fe" opacity="0.35"/>
+  <circle cx="150" cy="1350" r="190" fill="#ddd6fe" opacity="0.28"/>
+  <circle cx="930" cy="1320" r="120" fill="#bfdbfe" opacity="0.22"/>
+
+  <rect x="60" y="60" width="880" height="1380" rx="40" fill="#ffffff" filter="url(#shadow)"/>
+  
+  <rect x="60" y="60" width="880" height="360" rx="40" fill="url(#hero)"/>
+
+  <rect x="100" y="105" width="250" height="48" rx="24" fill="#e0e7ff" opacity="0.95"/>
+  <text x="128" y="136" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#312e81" font-weight="700">Comparison Visual</text>
+
+  <text x="100" y="210" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">A Real Setup</text>
+  <text x="100" y="275" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">Scenario: What</text>
+  <text x="100" y="340" font-family="Arial, Helvetica, sans-serif" font-size="56" fill="#ffffff" font-weight="700">Happens</text>
+
+  <text x="100" y="385" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">step-by-step workflow of a</text>
+  <text x="100" y="417" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">beginner freelancer setting up</text>
+  <text x="100" y="449" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#dbeafe">software</text>
+
+  <rect x="100" y="470" width="800" height="587" rx="30" fill="url(#card)" stroke="#e2e8f0"/>
+  
+    
+        <rect x="120" y="500" width="190" height="54" fill="#e0e7ff"/>
+        <text x="138" y="534" font-family="Arial, Helvetica, sans-serif"
+              font-size="20" fill="#1e293b" font-weight="700">Feature</text>
+        
+        <rect x="310" y="500" width="190" height="54" fill="#e0e7ff"/>
+        <text x="328" y="534" font-family="Arial, Helvetica, sans-serif"
+              font-size="20" fill="#1e293b" font-weight="700">Option A</text>
+        
+        <rect x="500" y="500" width="190" height="54" fill="#e0e7ff"/>
+        <text x="518" y="534" font-family="Arial, Helvetica, sans-serif"
+              font-size="20" fill="#1e293b" font-weight="700">Option B</text>
+        
+        <rect x="690" y="500" width="190" height="54" fill="#e0e7ff"/>
+        <text x="708" y="534" font-family="Arial, Helvetica, sans-serif"
+              font-size="20" fill="#1e293b" font-weight="700">Option C</text>
+        
+            <rect x="120" y="554" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="138" y="586" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Setup</text>
+            
+            <rect x="310" y="554" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="328" y="586" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">5 min</text>
+            
+            <rect x="500" y="554" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="518" y="586" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">10 min</text>
+            
+            <rect x="690" y="554" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="708" y="586" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">20+ min</text>
+            
+            <rect x="120" y="606" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="138" y="638" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Price</text>
+            
+            <rect x="310" y="606" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="328" y="638" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Free</text>
+            
+            <rect x="500" y="606" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="518" y="638" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">$15/mo</text>
+            
+            <rect x="690" y="606" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="708" y="638" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">$30/mo</text>
+            
+            <rect x="120" y="658" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="138" y="690" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Best for</text>
+            
+            <rect x="310" y="658" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="328" y="690" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Solo users</text>
+            
+            <rect x="500" y="658" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="518" y="690" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Small teams</text>
+            
+            <rect x="690" y="658" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="708" y="690" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Power users</text>
+            
+            <rect x="120" y="710" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="138" y="742" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Tradeoff</text>
+            
+            <rect x="310" y="710" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="328" y="742" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Limited depth</text>
+            
+            <rect x="500" y="710" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="518" y="742" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Balanced</text>
+            
+            <rect x="690" y="710" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="708" y="742" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Higher complexity</text>
+            
+            <rect x="120" y="762" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="138" y="794" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Upgrade path</text>
+            
+            <rect x="310" y="762" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="328" y="794" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Basic</text>
+            
+            <rect x="500" y="762" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="518" y="794" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Strong</text>
+            
+            <rect x="690" y="762" width="190" height="52"
+                  fill="#ffffff" stroke="#e2e8f0"/>
+            <text x="708" y="794" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Full automation</text>
+            
+            <rect x="120" y="814" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="138" y="846" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Decision</text>
+            
+            <rect x="310" y="814" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="328" y="846" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Start here</text>
+            
+            <rect x="500" y="814" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="518" y="846" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Best default</text>
+            
+            <rect x="690" y="814" width="190" height="52"
+                  fill="#f8fafc" stroke="#e2e8f0"/>
+            <text x="708" y="846" font-family="Arial, Helvetica, sans-serif"
+                  font-size="18" fill="#334155">Only if scaling</text>
+            
+
+    
+      <rect x="120" y="894" width="760" height="118" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="150" y="932" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#0f172a" font-weight="700">Quick takeaway</text>
+      <text x="150" y="972" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#475569"><tspan x="150" dy="0">Option B is the safest default for most readers because it</tspan><tspan x="150" dy="28">balances setup, cost, and long-term usability.</tspan></text>
+    
+
+  <text x="100" y="1097" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#64748b">Generated by MingMong · Pinterest-style comparison graphic</text></svg>
