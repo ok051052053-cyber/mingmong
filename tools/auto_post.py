@@ -2005,7 +2005,19 @@ def build_article_prompt(
         structure_rules = REVIEW_STRUCTURE_RULES
     else:
         structure_rules = WORKFLOW_STRUCTURE_RULES
-     
+
+table_rules = """
+Table rules:
+- Do NOT use HTML tables.
+- Use Markdown table format only.
+- Example:
+
+| Tool | Price | Best For |
+|------|------|---------|
+| ExampleTool | $10 | freelancers |
+
+"""
+
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
@@ -2020,6 +2032,9 @@ Post type:
 
 Content mode:
 {mode}
+
+Table rules:
+{table_rules}
 
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
@@ -2054,6 +2069,8 @@ FAQ must be written only in the faq field.
 The 6 section objects must follow the exact required order defined in Structure rules.
 
 Core writing standard:
+- Tables must be valid Markdown tables.
+- Each row must contain the same number of columns.
 - This article must feel publishable on the first draft
 - Do not write a draft that needs a quality checker to fix obvious weaknesses
 - Do not write generic SEO filler
