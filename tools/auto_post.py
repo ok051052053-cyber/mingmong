@@ -46,7 +46,6 @@ MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "5200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "20"))
-MAX_GENERATE_ATTEMPTS = int(os.environ.get("MAX_GENERATE_ATTEMPTS", "8"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
@@ -478,9 +477,10 @@ def openai_generate_text(prompt: str, model: str, temperature: float = 0.5) -> s
                 {
                     "role": "system",
                     "content": (
-                        "You write useful operational content. "
-                        "You avoid shallow SEO filler. "
-                        "When asked for JSON you return strict JSON only."
+                        "You write editorial-quality practical articles for real readers, not generic SEO filler. "
+                     "You avoid repetition, generic introductions, bland section headings, and vague advice. "
+                     "You make concrete decisions, tradeoffs, examples, scenarios, and operational detail visible in the first draft. "
+                     "When asked for JSON you return strict JSON only."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -1908,9 +1908,12 @@ def build_article_prompt(
     cluster_name: str,
     post_type: str,
     planning: Dict[str, Any],
-    corrective_note: str = "",
 ) -> str:
-    category = planning.get("category") or pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    category = planning.get("category") or pick_category(
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
     intent_type = planning.get("intent_type") or infer_search_intent_type(keyword, category)
     mode = infer_content_mode(
         category,
@@ -1919,9 +1922,8 @@ def build_article_prompt(
     )
     mode_rules = build_mode_rules(mode)
 
-    return (
-        f"""
-You are writing a practical blog article for US and EU readers.
+    return f"""
+You are writing a practical editorial-quality blog article for US and EU readers.
 
 Seed keyword:
 {keyword}
@@ -1962,20 +1964,116 @@ Schema:
   "editorial_note": "string"
 }}
 
-Hard rules:
-- For investing topics include at least 2 practical realism examples with numbers
-- Good examples:
-  100 dollars per month
-  500 dollar starting portfolio
-  80 20 allocation
-  0.07 percent fee vs 0.60 percent fee
-- Include one sentence that frames the article as educational content not personal financial advice
-- Include one short editorial-style observation that sounds reviewed and practical
+Core writing standard:
+- This article must feel publishable on the first draft
+- Do not write a draft that needs a quality checker to fix obvious weaknesses
+- Do not write generic SEO filler
+- Do not write like a content farm
+- Do not write like a neutral encyclopedia
+- Write like a sharp niche editor who understands real reader decisions
+- Every section must add a new angle, new decision, new tradeoff, or new consequence
+- Do not restate the same advice in different wording
+- Avoid repetitive sentence openings
+- Vary paragraph rhythm and sentence length
+- Avoid obvious AI phrasing and predictable blog language
+- Avoid bland openers and bland transitions
+- Do not pad the article just to make it longer
+- Depth matters more than fluff
+
+Title and heading quality rules:
+- The title must be specific and non-generic
+- Do not use titles that sound like generic SEO blog posts
+- Avoid title patterns such as:
+  ultimate guide
+  complete guide
+  comprehensive guide
+  essential guide
+  top tools for everyone
+  best apps for everyone
+- The title must include a real audience, real constraint, or real decision point
+- The title must match the search intent closely
+- Do not simply restate the seed keyword
+- Section headings must not be generic
+- Avoid weak headings such as:
+  who this is for
+  practical approach
+  decision framework
+  final recommendation
+  step by step setup
+  template checklist
+  tradeoffs and limitations
+- Each heading should imply tension, contrast, hidden truth, consequence, or a real decision
+
+Structure rules:
+- Use the section_plan exactly as the backbone
+- Preserve the same number of sections as in section_plan
+- Each section must be materially distinct
+- The article must clearly move through:
+  visible problem -> hidden insight -> practical solution -> example or edge case -> decision
+- Section 1 must clearly say who this article is for
+- Section 1 must open with tension, consequence, or a non-obvious insight
+- Section 2 or 3 must reveal why common advice fails or what people misunderstand
+- The final section must not feel like a generic summary
+- The ending should leave the reader with a concrete decision, pressure point, or re-think moment
+
+Depth rules:
 - The body must satisfy the exact promise implied by the title
-- If the title includes beginner, simple, monthly, first, or small amount, the article must explain that constraint directly
-- Do not drift into a broader guide than the title promises
-- Include at least 2 natural internal-link hook moments inside the body
-- These hooks should mention related article angles such as:
+- If the title includes beginner, simple, first, monthly, or small amount, explain that constraint directly
+- Do not drift into a broader article than the title promises
+- Every section must contain concrete operational detail
+- Every section must contain at least one of these in a natural way:
+  example
+  scenario
+  tradeoff
+  mistake
+  decision
+  consequence
+- Include concrete numbers whenever relevant
+- At least 2 sections must include timing such as:
+  7 days
+  14 days
+  30 days
+  weekly
+  monthly
+- At least 2 sections must include a mini-scenario with sequence and consequence
+- At least 1 section must include a numbered step block
+- At least 2 sections must include examples or edge cases
+- Translate abstract advice into observable actions, thresholds, timing, or criteria
+- No empty motivational filler
+- No vague lines like improve efficiency, streamline workflow, or choose the right tool unless followed by exact operational detail
+
+Anti-repetition rules:
+- Do not repeat the same point across multiple sections
+- Do not repeat the same keyword unnaturally
+- Do not recycle the same sentence pattern across the article
+- Do not let multiple sections say the same thing with slightly different words
+- If a point has already been made, move forward instead of rephrasing it
+- Each section must introduce at least one fresh decision point, friction point, or practical angle
+
+Readability and engagement rules:
+- The TLDR and opening paragraph must create curiosity immediately
+- The first 3 lines must explain why the reader should keep reading
+- The opening must not begin with broad context like:
+  many people
+  in today's world
+  there are many tools available
+  productivity is important
+  investing can be intimidating
+- Use short and medium paragraphs
+- Most paragraphs should be 1 to 3 sentences
+- No paragraph should exceed 90 words unless it is a numbered step block
+- Include at least one one-sentence paragraph in every section for emphasis
+- Break reading rhythm at least 2 times with:
+  Example
+  Scenario
+  In practice
+  Edge case
+  What this looks like
+  Where this breaks down
+
+Internal-link and cluster rules:
+- Include at least 2 natural internal-link hook moments inside the article body
+- These hooks should naturally point to related article angles such as:
   comparison
   alternatives
   pricing
@@ -1983,42 +2081,36 @@ Hard rules:
   beginner mistakes
   portfolio allocation
 - Do not write raw URLs
-- Write them as natural lines such as:
-  before you choose a platform compare fees and beginner features
-  if portfolio allocation still feels unclear review a simple 3 fund example next
-- Do not use markdown bold like **text**
-- Do not place multiple numbered items in one paragraph
-- When using numbered steps, format them like:
-  1. Step title
-  Explanation sentence one.
-  Explanation sentence two.
+- Write hooks as natural next-step lines
+- The article should create follow-up reading demand without sounding promotional
 
-  2. Step title
-  Explanation sentence one.
-  Explanation sentence two.
-- Keep each numbered step as its own separate block
-- Use the section_plan exactly as the structural backbone
+Tool and software rules:
 - If the article mentions tools or software, do not stop at naming them
-- Every mentioned tool must have a role in a decision, comparison, or tradeoff
-- Do not write "tools like X, Y, Z" unless you explain who each one is actually for
+- Every mentioned tool must have a role in a decision, comparison, tradeoff, or fit judgment
+- Do not write "tools like X, Y, Z" unless you explain who each one is for
 - Force product differentiation
 - Force user-type differentiation
 - Force operational detail
-- If the title implies "top" or "best", the article must clearly rank, filter, or recommend by use case
-- The reader must not finish the article asking "so which one should I use"
-- Preserve the same number of sections as in section_plan
-- Each section must be materially useful
+- The reader must not finish the article asking which one they should use
+
+Length and completeness rules:
 - Total text must be at least {MIN_CHARS} characters
 - Aim for 9000 to 11000 characters when the topic supports it
 - Each section body must be at least {MIN_SECTION_CHARS} characters
-- Most sections should be longer than the minimum
-- Use concrete examples, mini-scenarios, edge cases, and decision logic in every section
-- The article must explicitly include these exact words in natural sentences:
-  mistake, tradeoff, decision, step
-- Include at least 2 sections with examples or edge cases
+- Most sections should be meaningfully longer than the minimum
 - FAQ must have 3 to 5 realistic follow-up questions
 - TLDR must be 2 to 4 sentences
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
+
+Required natural language signals:
+- The article must explicitly include these exact words in natural sentences:
+  mistake
+  tradeoff
+  decision
+  step
+- Include at least 2 uses of tradeoff
+- Include at least 2 uses of decision
+- Include at least 2 uses of mistake
 
 Intent specific requirements:
 - intent_type is {intent_type}
@@ -2026,9 +2118,9 @@ Intent specific requirements:
   - include a comparison table in HTML-ready plain text form
   - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
   - include a clear winner for at least 2 user types
-  - include one "overkill" option and explain why
-  - include one "best free starting point"
-  - include one "best paid upgrade" case
+  - include one overkill option and explain why
+  - include one best free starting point
+  - include one best paid upgrade case
   - include one section that explains what changes after 30 days of real use
 - If intent_type is template:
   - include one copyable template, checklist, script, or sequence
@@ -2047,138 +2139,47 @@ Intent specific requirements:
   - for each tool explain:
     what it does well
     where it starts to feel heavy or weak
-    which freelancer type should use it
+    which user type should use it
   - include at least one sentence about hidden cost, setup friction, or long-term workflow pain
 - If intent_type is howto:
   - include one weekly workflow
   - include one 30-day cadence or review cycle
   - include one specific scenario with consequence
 
-Experience block requirements:
-- Include at least 2 grounded realism blocks that feel like direct usage insight
-- Use headings or labels such as:
-  What happened when I used this
-  Where this breaks down
+Realism requirements:
+- Include at least 2 grounded realism blocks that feel like observed real usage
+- Use labels such as:
   In practice
   Scenario
+  Where this breaks down
   Best fit if you are
   Not worth it if
-- Even if the article is AI-assisted, it must read like it has observed real friction, setup pain, and tradeoffs
-- Do not write like a neutral encyclopedia
-- Include at least 2 lines that sound like observed real behavior
-- Good examples:
+- The article must feel aware of real friction
+- Include at least 2 lines that sound like real-world behavior
+- Good patterns include:
   clients stop replying after the proposal stage
   the tool feels fine until approvals start
-  solo freelancers often overbuild too early
+  solo operators often overbuild too early
   the free plan works until follow-up automation matters
-- Avoid fake first-person claims if they are not grounded
-- Instead use grounded observational language such as:
-  in practice
-  what usually happens
-  where this breaks down
-  what changes once client volume increases
+- Avoid fake personal claims
+- Use grounded observational language instead
 
-Engagement and dwell time requirements:
-- The TLDR and the opening of section 1 must create immediate curiosity
-- The first 3 lines must explain why the reader should keep reading
-- The opening must start with a non-obvious insight, tension, or hidden problem
-- The TLDR first sentence must include at least one of these exact phrases:
-  the real reason
-  what actually happens
-  most people think
-  in practice
-- Section 1 first paragraph must include at least one of these exact phrases:
-  the real reason
-  what actually happens
-  most people think
-  the problem is not
-- At least 2 sections must explicitly use the word tradeoff
-- At least 2 sections must explicitly use the word decision
-- At least 2 sections must explicitly use the word mistake
-- At least 2 sections must include a short scenario with sequence and consequence
-- At least 2 sections must include concrete numbers such as 7 days, 14 days, 30 days, weekly, or monthly
-- Section 1 must explicitly say who this article is for
-- Avoid generic titles and generic section headings
-- The TLDR first sentence must include at least one of these exact phrases:
-  the real reason
-  what actually happens
-  most people think
-  in practice
-- Section 1 first paragraph must include at least one of these exact phrases:
-  the real reason
-  what actually happens
-  most people think
-  the problem is not
-- The opening must include one consequence sentence such as:
-  this usually breaks down when
-  the cost shows up when
-  what looks simple becomes messy when
-- Section 2 or section 3 must explicitly use the word tradeoff
-- At least 2 sections must explicitly use the word decision
-- At least 2 sections must explicitly use the word mistake
-- At least 1 section must contain a numbered step block
-- At least 2 sections must include a mini-scenario with sequence and consequence
-- No paragraph should exceed 90 words unless it is a numbered step block
-- Every section must include at least one short paragraph of 1 sentence for emphasis
-- Do not start with generic context such as "many people", "in today's world", or broad importance statements
-- The opening should feel like a strong column opening, not a textbook introduction
-- The first section must answer:
-  - what people usually think
-  - what actually happens
-  - why that gap matters
-- The article must clearly move from problem to insight to solution
-- The reader should feel progression, not repetition
-- Section 1 should define the visible problem
-- Section 2 should reveal a hidden reason, false assumption, or overlooked mechanism
-- Section 3 should present the practical solution or system
-- Each section heading should feel worth reading on its own
-- Avoid bland, generic section titles
-- Break the reading pattern at least 2 times in the article
-- Include at least 2 mini-scenarios, short examples, or edge cases
-- At least 1 example should read like a brief story with sequence and consequence
-- Use labels like:
-  Example
-  Scenario
-  In practice
-  What this looks like
-  Edge case
-- Do not let every section follow the same rhythm
-- Use concrete numbers whenever possible
-- Include at least 3 specific numeric details such as:
-  7 days
-  14 days
-  30 days
-  weekly
-  monthly
-  3 steps
-- Avoid purely abstract advice like improve communication or be more organized
-- Translate advice into measurable actions
-- Keep paragraphs short
-- Most paragraphs should be 1 to 3 sentences
-- Use short sentences frequently
-- Do not write long dense paragraphs for the whole article
-- Vary sentence length to improve reading rhythm
-- Some lines may stand alone for emphasis when natural
-- The ending must leave the reader with a strong question, contrast, or decision point
-- Do not end with generic summary language
-- The final paragraph should feel memorable and reflective
-- The final lines should make the reader reconsider their current setup, behavior, or assumption
-- Include one short buyer-intent block that helps a reader choose now not later
-- Include one "if you only want the short answer" style decision moment inside the body without using that exact phrase
-- Add one clear next-step CTA near the end of the article
+Investing requirements:
+- For investing topics include at least 2 practical realism examples with numbers
+- Good examples:
+  100 dollars per month
+  500 dollar starting portfolio
+  80 20 allocation
+  0.07 percent fee vs 0.60 percent fee
+- Include one sentence that frames the article as educational content not personal financial advice
+- include at least one sample allocation with percentages
+- include at least one monthly contribution example
+- include at least one beginner mistake tied to a number or timing
+- include at least one platform or ETF selection decision point when relevant
 
 Mode specific requirements:
-- For investing articles:
-  - include at least one sample allocation with percentages
-  - include at least one monthly contribution example
-  - include at least one beginner mistake tied to a number or timing
-  - include at least one platform or ETF selection decision point when relevant
-  - include one sentence that clearly says this is educational content not personalized financial advice
 {mode_rules}
-
-{corrective_note.strip() if corrective_note else ""}
-"""
-    ).strip() 
+""".strip()
  
 def is_generic_title(title: str) -> bool:
     t = _norm_title(title)
@@ -2252,635 +2253,99 @@ def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq:
     joined = "\n".join([p for p in parts if p])
     return hashlib.sha1(joined.encode("utf-8")).hexdigest()
  
- 
-def build_retry_corrections(reason: str, planning: Dict[str, Any]) -> str:
-    audience = (planning.get("audience") or "beginners").strip()
-    category = (planning.get("category") or "").strip()
-    mode = infer_content_mode(category, planning.get("title", ""), planning.get("intent", "cluster"))
-
-    if reason == "bad-faq":
-        return """
-    Retry correction:
-    - Add 3 to 5 realistic FAQ questions
-    - The FAQ should reflect actual follow-up questions a reader would ask before taking action
-    - Avoid generic FAQ filler
-    """
- 
-    if reason == "missing-segmentation":
-        return """
-    Retry correction:
-    - Do not treat freelancers as one generic group
-    - Split recommendations by at least 2 concrete freelancer types
-    - Use examples such as solo freelancer, designer, developer, consultant, or writer
-    """
-
-    if reason == "missing-realism":
-        return """
-    Retry correction:
-    - Add grounded realism
-    - Include setup friction, hidden cost, approval bottleneck, renewal risk, or client delay
-    - Make the article feel observed not abstract
-    """
-
-    if reason == "missing-commercial-depth":
-        return """
-    Retry correction:
-    - Increase buying depth
-    - Include pricing reality, free plan, upgrade point, budget tradeoff, and best value logic
-    - Help the reader choose not just understand
-    """
-
-    if reason == "missing-cta":
-        return """
-    Retry correction:
-    - Add a clear next-step CTA near the end
-    - Use phrases like:
-      start with
-      compare
-      read the full
-      before you choose
-    """
-
-    if reason == "missing-cluster-hooks":
-        return """
-    Retry correction:
-    - Add stronger expansion hooks for related content
-    - Mention comparison angles, alternatives, pricing, free plans, workflows, or templates
-    - Make the article naturally lead into follow-up reads
-    """
-
-    if reason == "missing-review-comparison-depth":
-        return """
-    Retry correction:
-    - Strengthen the review comparison depth
-    - Explicitly compare price, free plan, setup difficulty, and automation
-    - Make each tool choice feel meaningfully different
-    """
-
-    if reason == "title-body-mismatch":
-        return """
-    Retry correction:
-    - The body must fulfill the promise of the title
-    - If the title says top, best, systems, or tools then rank, filter, or recommend clearly
-    - Do not leave the reader without a direct recommendation
-    """
- 
-    if reason == "missing-audience-framing":
-        return f"""
-    Retry correction:
-    - The first section must explicitly say who this article is for
-    - Use one of these exact phrases in the first section:
-      this is for
-      best for
-      if you are
-      for beginners
-    - The audience must be named directly as: {audience}
-    """
- 
-    if reason == "missing-depth-signals":
-        if mode == "review":
-            return """
-Retry correction:
-- Explicitly include these exact ideas in natural sentences:
-pricing, pros, cons, best for, not ideal, decision
-"""
-        if mode == "investing":
-            return """
-Retry correction:
-- Explicitly include these exact ideas in natural sentences:
-risk, volatility, long term, beginner, watch, decision
-"""
-        if mode == "money":
-            return """
-Retry correction:
-- Explicitly include these exact ideas in natural sentences:
-income, effort, time, mistake, decision, step
-"""
-        return """
-Retry correction:
-- Explicitly include these exact words in natural sentences:
-workflow, checklist, mistake, tradeoff, decision, step
-"""
- 
-    if reason == "missing-template-checklist":
-        return """
-    Retry correction:
-    - Include a clearly reusable checklist, framework, or summary format
-    """
-
-    if reason == "missing-comparison-signals":
-        return """
-    Retry correction:
-    - Add stronger comparison logic
-    - Include price, free plan, best for, and not ideal for
-    - Make the article help the reader choose not just browse
-    """
-
-    if reason == "missing-template-signals":
-        return """
-    Retry correction:
-    - Add a real reusable template or checklist
-    - Show one example and one customization case
-    """
-
-    if reason == "missing-review-format":
-        return """
-    Retry correction:
-    - Use these exact labels in natural prose:
-      Best for
-      Pricing reality
-      Setup difficulty
-      Main strength
-      Main weakness
-      My verdict
-    """
-
-    if reason == "missing-howto-specifics":
-        return """
-    Retry correction:
-    - Add a weekly workflow
-    - Add a 30 day review cycle
-    - Add one scenario with a concrete consequence
-    """
- 
-    if reason == "missing-mistakes":
-        return """
-    Retry correction:
-    - Include at least two concrete mistakes or one common pitfall section
-    """
- 
-    if reason == "missing-tradeoff":
-        return """
-    Retry correction:
-    - Use the exact word tradeoff and explain at least one tradeoff
-    """
- 
-    if reason == "missing-limitations":
-        return """
-    Retry correction:
-    - Include 'when not to use this' or explain who should avoid this
-    """
- 
-    if reason == "thin-section":
-        return """
-    Retry correction:
-    - Expand the weaker sections with examples, edge cases, and decision logic
-    """
- 
-    if reason == "weak-opening-hook":
-        return """
-    Retry correction:
-    - Rewrite the opening to create immediate curiosity
-    - Start with a non-obvious insight or hidden problem
-    - Use phrases like:
-      the real reason
-      most people think
-      what actually happens
-      the problem is not
-    - Do not start with broad general context
-    """
-
-    if reason == "missing-problem-stage":
-        return """
-    Retry correction:
-    - Make the article structure clearly begin with a visible problem
-    - Show what is going wrong before moving into solutions
-    """
-   
-    if reason == "missing-insight-stage":
-        return """
-    Retry correction:
-    - Add a hidden reason, misunderstanding, or overlooked mechanism
-    - The second stage should reveal why the obvious explanation is incomplete
-    """
-
-    if reason == "missing-solution-stage":
-        return """
-    Retry correction:
-    - Add a practical system, workflow, or process after the problem and insight stages
-    - The article must clearly move into solution mode
-    """
-
-    if reason == "weak-section-headings":
-        return """
-    Retry correction:
-    - Rewrite the section headings to create curiosity
-    - Avoid generic headings like practical approach or decision framework
-    - Use headings that imply hidden reasons, mistakes, tension, contrast, or decision moments
-    """
-
-    if reason == "missing-pattern-breaks":
-        return """
-    Retry correction:
-    - Add at least 2 mini-scenarios or example blocks
-    - Break the article rhythm with short story-like examples
-    - Use labels such as Example, Scenario, In practice, or Edge case
-    """
-
-    if reason == "not-specific-enough":
-        return """
-    Retry correction:
-    - Add specific numbers and timing
-    - Use concrete actions such as 7 days, 14 days, 30 days, weekly, or monthly
-    - Replace abstract advice with measurable steps
-    """
-
-    if reason == "too-dense":
-        return """
-    Retry correction:
-    - Rewrite the article with shorter paragraphs
-    - Most paragraphs should be 1 to 3 sentences
-    - Use shorter sentences and more visual breaks
-    - Keep the article long but easier to scan
-    """
-
-    if reason == "weak-ending":
-        return """
-    Retry correction:
-    - Rewrite the ending so it does not sound like a generic summary
-    - End with a sharper reflection, decision question, or strategic takeaway
-    """
-
-    if reason == "missing-reflective-ending":
-        return """
-    Retry correction:
-    - The final paragraph must leave the reader thinking
-    - Use a strong closing question, contrast, or implication
-    - Make the ending memorable rather than merely complete
-    """
-
-    if reason == "shallow-advice":
-        return """
-    Retry correction:
-    - Remove shallow advice such as choose the right tool or compare features
-    - Go deeper into behavioral causes, systems, timing, and decision logic
-    """
-
-    return """
-    Retry correction:
-    - Make the article more distinct, more concrete, and less templated
-    """
-
-def tldr_has_enough_signal(tldr: str) -> bool:
-    t = (tldr or "").lower().strip()
-    if not t:
-        return False
-
-    signal_groups = {
-        "hook": [
-            "the real reason",
-            "most people think",
-            "what actually happens",
-            "the problem is not",
-            "in practice",
-        ],
-        "audience": [
-            "this is for",
-            "best for",
-            "if you are",
-            "for beginners",
-            "for freelancers",
-            "for solo",
-            "for young professionals",
-        ],
-        "decision": [
-            "decision",
-            "choose",
-            "avoid",
-            "best option",
-            "not ideal",
-            "tradeoff",
-        ],
-        "consequence": [
-            "this breaks down when",
-            "the cost shows up when",
-            "what looks simple becomes messy when",
-            "go wrong",
-            "mistake",
-            "risk",
-            "problem",
-            "hidden cost",
-        ],
-        "action": [
-            "start with",
-            "use this",
-            "follow this",
-            "step",
-            "workflow",
-            "checklist",
-        ],
-    }
-
-    hit_groups = 0
-    for words in signal_groups.values():
-        if any(w in t for w in words):
-            hit_groups += 1
-
-    sentence_count = len([x for x in re.split(r"[.!?]+", t) if x.strip()])
-    if sentence_count < 2:
-        return False
-
-    return hit_groups >= 3
- 
 
 def quality_check_post(
     data: Dict[str, Any],
     keyword: str = "",
     post_type: str = "normal",
 ) -> Tuple[bool, str]:
-    title = data.get("title", "")
-    tldr = data.get("tldr", "")
+    title = _clean_text(data.get("title", ""))
+    tldr = _clean_text(data.get("tldr", ""))
     sections = data.get("sections", [])
     faq = data.get("faq", [])
-    category = data.get("category", "")
-    mode = infer_content_mode(category, keyword or title, "cluster")
-    intent_type = data.get("intent_type", "")
-    if not intent_type:
-        intent_type = infer_search_intent_type(keyword or title, category)
- 
+    category = _clean_text(data.get("category", ""))
+    editorial_note = _clean_text(data.get("editorial_note", ""))
+
+    if not title:
+        return False, "missing-title"
+
     if is_generic_title(title):
         return False, "generic-title"
- 
-    if not isinstance(sections, list) or len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+
+    if category not in ALLOWED_CATEGORIES:
+        return False, "bad-category"
+
+    if not isinstance(sections, list):
         return False, "bad-sections"
- 
-    joined = "\n".join(
-        [title, tldr] +
-        [s.get("heading", "") + "\n" + s.get("body", "") for s in sections] +
-        [item.get("q", "") + "\n" + item.get("a", "") for item in faq]
-    ).lower()
 
-    segment_hits = sum(1 for x in FREELANCER_SEGMENTS if x in joined)
-    realism_hits = sum(1 for x in REALISM_SIGNALS if x in joined)
-    commercial_hits = sum(1 for x in COMMERCIAL_DEPTH_SIGNALS if x in joined)
-    cta_hits = sum(1 for x in CTA_SIGNALS if x in joined)
-    internal_link_hits = sum(1 for x in INTERNAL_LINK_INTENT_SIGNALS if x in joined)
- 
-    if len(joined) < MIN_CHARS:
-        return False, "too-short"
- 
-    if opening_too_generic(tldr + "\n" + sections[0].get("body", "")):
-        return False, "generic-opening"
-    opening_text = ((tldr or "") + "\n" + sections[0].get("body", "")).lower()
+    if len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+        return False, "bad-sections"
 
-    strong_opening_signals = [
-        "the real reason",
-        "most people think",
-        "what actually happens",
-        "the problem is not",
-        "even when",
-        "hidden reason",
-        "looks like",
-    ]
+    clean_headings = []
+    for s in sections:
+        if not isinstance(s, dict):
+            return False, "bad-section-item"
 
+        heading = _clean_text(s.get("heading", ""))
+        body = _clean_text(s.get("body", ""))
+        image_query = _clean_text(s.get("image_query", ""))
+        visual_type = _clean_text(s.get("visual_type", "")).lower()
+        alt_text = _clean_text(s.get("alt_text", ""))
 
-    if not any(x in opening_text[:900] for x in strong_opening_signals[:4]):
-        return False, "weak-opening-hook"
-    problem_signals = ["problem", "fails", "go wrong", "lose", "mistake", "wrong"]
-    insight_signals = ["real reason", "hidden", "actually", "invisible", "why", "misunderstand"]
-    solution_signals = ["system", "workflow", "process", "how to", "setup", "build"]
+        if not heading or not body:
+            return False, "missing-section-content"
 
-    if not any(x in joined for x in problem_signals):
-        return False, "missing-problem-stage"
-    if not any(x in joined for x in insight_signals):
-        return False, "missing-insight-stage"
-    if not any(x in joined for x in solution_signals):
-        return False, "missing-solution-stage"
+        if len(body) < max(260, MIN_SECTION_CHARS // 2):
+            return False, "thin-section"
 
-    if any(len((s.get("body") or "").strip()) < MIN_SECTION_CHARS for s in sections):
-        return False, "thin-section"
-    
-    avg_section_len = sum(len((s.get("body") or "").strip()) for s in sections) / max(len(sections), 1)
-    if avg_section_len < MIN_SECTION_CHARS:
-        return False, "thin-section"
+        if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
+            return False, "bad-visual-type"
 
-    if len((tldr or "").strip()) < 80:
-        return False, "weak-opening-hook"
+        if not image_query:
+            return False, "missing-image-query"
 
-    if not tldr_has_enough_signal(tldr):
-        return False, "weak-opening-hook"
- 
-    if len(faq) < 3:
+        if not alt_text:
+            return False, "missing-alt-text"
+
+        clean_headings.append(_norm_title(heading))
+
+    if len(set(clean_headings)) < len(clean_headings):
+        return False, "duplicate-headings"
+
+    if not tldr or len(tldr) < 60:
+        return False, "weak-tldr"
+
+    if not isinstance(faq, list):
         return False, "bad-faq"
 
+    valid_faq = 0
+    for item in faq[:5]:
+        if isinstance(item, dict):
+            q = _clean_text(item.get("q", ""))
+            a = _clean_text(item.get("a", ""))
+            if q and a:
+                valid_faq += 1
 
-    section_headings = [_norm_title(s.get("heading", "")) for s in sections]
-    if len(set(section_headings)) < len(section_headings):
-        return False, "duplicate-headings"
-    for h in section_headings:
-        if h in WEAK_SECTION_HEADINGS:
-            return False, "weak-section-headings"
+    if valid_faq < 2:
+        return False, "bad-faq"
 
-    base_hits = sum(1 for x in REQUIRED_CONTENT_SIGNALS if x in joined)
-    if base_hits < 2:
-        return False, "missing-depth-signals"
- 
-    mode_signals = MODE_REQUIRED_SIGNALS.get(mode, MODE_REQUIRED_SIGNALS["workflow"])
-    mode_hits = sum(1 for x in mode_signals if x in joined)
-    if mode_hits < 2:
-        return False, "missing-depth-signals"
-    example_signals = [
-        "for example",
-        "example",
-        "scenario",
-        "in practice",
-        "edge case",
-        "consider this",
-        "imagine",
-    ]
-    example_hits = sum(1 for x in example_signals if x in joined)
-    if example_hits < 2:
-        return False, "missing-pattern-breaks"
+    if not editorial_note:
+        return False, "missing-editorial-note"
 
-    if sum(1 for x in TIME_BASED_SIGNAL_PATTERNS if x in joined) < 2:
-        return False, "not-specific-enough"
+    joined = "\n".join(
+        [title, tldr] +
+        [(_clean_text(s.get("heading", "")) + "\n" + _clean_text(s.get("body", ""))) for s in sections] +
+        [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
+    )
 
-    if len(re.findall(r"\b\d+\b", joined)) < 5:
-        return False, "not-specific-enough"
-    for bad in BANNED_SHALLOW_ADVICE:
-        if bad in joined:
-            return False, "shallow-advice"
-    dense_paragraph_count = 0
-    for s in sections:
-        softened = soften_dense_paragraphs(s.get("body", ""))
-        blocks = re.split(r"\n\s*\n+", softened)
-        for b in blocks:
-            if len(b.strip()) > 700:
-                dense_paragraph_count += 1
+    if len(joined) < max(2200, MIN_CHARS // 2):
+        return False, "too-short"
 
-    if dense_paragraph_count >= 5:
-        return False, "too-dense"
-
-    audience_signals = [
-        "who this is for",
-        "this is for",
-        "best for",
-        "if you are",
-        "for beginners",
-        "beginner investors",
-        "new investors",
-        "young professionals",
-        "first time investors",
-    ]    
-
-    if not any(x in joined for x in audience_signals):
-        return False, "missing-audience-framing"
- 
-    if "mistake" not in joined and "common pitfall" not in joined and "go wrong" not in joined:
-        return False, "missing-mistakes"
-
-    if "freelancer" in joined:
-        if segment_hits < 2:
-            return False, "missing-segmentation"
-
-    if realism_hits < 2:
-        return False, "missing-realism"
-
-    if intent_type in {"comparison", "review"} and commercial_hits < 2:
-        return False, "missing-commercial-depth"
-    if cta_hits < 1:
-        return False, "missing-cta"
-
-    if post_type == "pillar" and internal_link_hits < 1:
-        return False, "missing-cluster-hooks"
-
-    if mode == "workflow":
-        if "checklist" not in joined and "template" not in joined and "copy this" not in joined:
-            return False, "missing-template-checklist"
-
-        if "tradeoff" not in joined and "trade-off" not in joined:
-            return False, "missing-tradeoff"
-
-        limitation_signals = [
-            "when not to use this",
-            "do not use this setup",
-            "not ideal for",
-            "should avoid",
-            "avoid this if",
-            "this may not work",
-            "less useful if",
-            "not the best choice",
-            "this is not for",
-            "not a good fit",
-            "only makes sense if",
-            "works better if",
-            "can underperform",
-            "short time horizon",
-        ]
-        if not any(x in joined for x in limitation_signals):
-            return False, "missing-limitations"
-
-    if intent_type == "comparison":
-        required = ["price", "free plan", "best for", "not ideal"]
-        hits = sum(1 for x in required if x in joined)
-        if hits < 3:
-            return False, "missing-comparison-signals"
-
-    if intent_type == "template":
-        template_signals = ["template", "checklist", "copy", "example", "customize"]
-        hits = sum(1 for x in template_signals if x in joined)
-        if hits < 3:
-            return False, "missing-template-signals"
-
-    if intent_type == "review":
-        review_labels = [
-            "best for",
-            "pricing reality",
-            "setup difficulty",
-            "main strength",
-            "main weakness",
-            "my verdict",
-        ]
-        hits = sum(1 for x in review_labels if x in joined)
-        if hits < 4:
-            return False, "missing-review-format"
-
-    if intent_type == "howto":
-        howto_signals = ["weekly", "30 days", "workflow", "step", "mistake"]
-        hits = sum(1 for x in howto_signals if x in joined)
-        if hits < 3:
-            return False, "missing-howto-specifics"
- 
-    if mode == "review":
-        pros_like = ["pros", "advantages", "strengths", "upsides"]
-        cons_like = ["cons", "drawbacks", "weaknesses", "downsides"]
-        
-        if "pricing" not in joined or not any(x in joined for x in pros_like) or not any(x in joined for x in cons_like):
-            return False, "missing-depth-signals"
-        if "best for" not in joined or "not ideal" not in joined:
-            return False, "missing-limitations"
-        required_review_compare = ["price", "free plan", "setup difficulty", "automation"]
-        review_compare_hits = sum(1 for x in required_review_compare if x in joined)
-        if review_compare_hits < 3:
-            return False, "missing-review-comparison-depth"
- 
-    if mode == "investing":
-        if "risk" not in joined or "volatility" not in joined or "long term" not in joined:
-            return False, "missing-depth-signals"
-
-        investing_limitation_signals = [
-            "not financial advice",
-            "educational only",
-            "educational content",
-            "not personalized advice",
-            "risk tolerance",
-            "time horizon",
-            "short time horizon",
-            "can underperform",
-            "this may not fit",
-            "avoid this if",
-            "not ideal for",
-        ]
-        if not any(x in joined for x in investing_limitation_signals):
-            return False, "missing-limitations"
- 
-    if mode == "money":
-        if "income" not in joined or "effort" not in joined or "time" not in joined:
-            return False, "missing-depth-signals"
- 
-    last_body = (sections[-1].get("body", "") or "").lower()
-
-    weak_ending_patterns = [
-        "in conclusion",
-        "to summarize",
-        "choose the right tool",
-        "depends on your needs",
-        "final recommendation",
-    ]
-
-    if any(x in last_body[-500:] for x in weak_ending_patterns):
-        return False, "weak-ending"
-
-    ending_signals = [
-        "?",
-        "the real question",
-        "before you",
-        "ask yourself",
-        "if this happened tomorrow",
-        "what would happen",
-    ]
-
-    if not any(x in last_body[-700:] for x in ending_signals):
-        return False, "missing-reflective-ending"
-
-    title_lower = (title or "").lower()
-    if any(x in title_lower for x in ["top ", "best ", "systems", "tools"]):
-        recommendation_signals = [
-            "best for",
-            "not ideal for",
-            "my verdict",
-            "winner",
-            "best free",
-            "best paid",
-        ]
-        if sum(1 for x in recommendation_signals if x in joined) < 3:
-            return False, "title-body-mismatch"
- 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
     if nk and nt and nk == nt:
         return False, "title-too-close-to-keyword"
- 
+
     return True, "ok"
  
  
@@ -3006,7 +2471,6 @@ def generate_deep_post(
     cluster_name: str,
     post_type: str,
     avoid_titles: List[str],
-    corrective_note: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     t0 = time.time()
 
@@ -3018,7 +2482,7 @@ def generate_deep_post(
     planning = parse_planning_json(planning_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
     article_raw = openai_generate_text(
-        build_article_prompt(keyword, cluster_name, post_type, planning, corrective_note=corrective_note),
+        build_article_prompt(keyword, cluster_name, post_type, planning),
         model=MODEL_WRITER,
         temperature=0.6,
     )
@@ -4271,76 +3735,59 @@ def main() -> int:
 
         data = None
         planning = {}
-        corrective_note = ""
+    
+                try:
+                    log("PLAN", "Generating planning and article")
 
-        for attempt in range(1, MAX_GENERATE_ATTEMPTS + 1):
-            try:
-                log("PLAN", f"Attempt {attempt} generating planning")
-                cand, cand_planning = generate_deep_post(
-                    keyword=keyword,
-                    cluster_name=effective_cluster_name,
-                    post_type=post_type,
-                    avoid_titles=existing_titles,
-                    corrective_note=corrective_note,
-                )
+                    cand, cand_planning = generate_deep_post(
+                        keyword=keyword,
+                        cluster_name=effective_cluster_name,
+                        post_type=post_type,
+                        avoid_titles=existing_titles,
+                    )
 
-                if post_semantically_too_close(keyword, cand_planning, posts):
-                    log("DUP", f"Semantic overlap detected on attempt {attempt} for keyword='{keyword}'")
-                    corrective_note = """
-Retry correction:
-- Choose a meaningfully different audience or operating problem
-- Narrow the angle
-- Avoid overlap with existing onboarding, planning, admin, proposal, invoicing, and follow-up workflows
-"""
+                    if post_semantically_too_close(keyword, cand_planning, posts):
+                        log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
+                        continue
+
+                    cand_title = cand["title"]
+
+                    if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
+                        log("DUP", f"Title too similar: '{cand_title}'")
+                        continue
+
+                    ok, reason = quality_check_post(
+                        cand,
+                        keyword=keyword,
+                        post_type=post_type,
+                    )
+                    if not ok:
+                        log("QUALITY", f"Post rejected without retry: reason='{reason}'")
+                        continue
+
+                    fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
+                    if fp in used_fps:
+                        log("DUP", f"Fingerprint duplicate for keyword='{keyword}'")
+                        continue
+
+                    data = cand
+                    planning = cand_planning
+                    used_fps.add(fp)
+
+                except Exception as e:
+                    import traceback
+                    log("GEN", f"Generation crashed for keyword='{keyword}': {e}")
+                    traceback.print_exc()
                     continue
-
-                cand_title = cand["title"]
-
-                if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
-                    log("DUP", f"Title too similar on attempt {attempt}: '{cand_title}'")
-                    corrective_note = """
-Retry correction:
-- Create a more distinct title
-- Keep the title natural and human
-- Do not resemble existing titles
-"""
-                    continue
-
-                ok, reason = quality_check_post(
-                    cand,
-                    keyword=keyword,
-                    post_type=post_type,
-                )
-                if not ok:
-                    log("QUALITY", f"Quality check failed on attempt {attempt}: reason='{reason}'")
-                    corrective_note = build_retry_corrections(reason, cand_planning)
-                    continue
-
-                fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
-                if fp in used_fps:
-                    log("DUP", f"Fingerprint duplicate on attempt {attempt}")
-                    corrective_note = """
-Retry correction:
-- Keep the same intent
-- Change framing, examples, and reusable checklist
-- Make the article materially different
-"""
-                    continue
-
-                data = cand
-                planning = cand_planning
-                used_fps.add(fp)
-                break
 
             except Exception as e:
                 import traceback
                 log("GEN", f"Attempt {attempt} crashed for keyword='{keyword}': {e}")
                 traceback.print_exc()
-                corrective_note = "Retry correction: follow the required structure more strictly and keep the article less generic."
                 continue
 
         if not data:
-            log("MAIN", f"Failed to generate a unique post for keyword='{keyword}'")
+            log("MAIN", f"Rejected keyword='{keyword}' after single-pass generation")
             continue
 
         title = data["title"]
@@ -4435,7 +3882,7 @@ Retry correction:
         made += 1
 
     if made == 0:
-        log("MAIN", "No posts generated this run after all retries.")
+        log("MAIN", "No posts generated this run.")
         raise RuntimeError("No posts generated this run")
 
     save_posts_index(posts)
