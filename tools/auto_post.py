@@ -4276,9 +4276,9 @@ def main() -> int:
                 keyword=keyword,
                 post_type=post_type,
             )
-        if not ok:
-            log("QUALITY", f"Post rejected: reason='{reason}'")
-            continue
+            if not ok:
+                log("QUALITY", f"Post rejected: reason='{reason}'")
+                continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
@@ -4294,7 +4294,7 @@ def main() -> int:
             log("GEN", f"Generation crashed for keyword='{keyword}': {e}")
             traceback.print_exc()
             continue
-            
+
         if not data:
             log("MAIN", f"Rejected keyword='{keyword}' after single-pass generation")
             continue
@@ -4329,10 +4329,10 @@ def main() -> int:
 
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
 
-    log(
-        "IMG",
-        f"slug='{slug}' total_sections={len(sections)} image_paths={len(image_paths)} non_empty={sum(1 for p in image_paths if p.strip())}"
-    )
+        log(
+            "IMG",
+            f"slug='{slug}' total_sections={len(sections)} image_paths={len(image_paths)} non_empty={sum(1 for p in image_paths if p.strip())}"
+        )
 
         related_posts = select_related_posts(
             posts,
@@ -4402,6 +4402,7 @@ def main() -> int:
     save_posts_index(posts)
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
