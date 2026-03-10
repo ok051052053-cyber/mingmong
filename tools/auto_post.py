@@ -4276,10 +4276,9 @@ def main() -> int:
                 keyword=keyword,
                 post_type=post_type,
             )
-                    if not ok:
-                        log("QUALITY", f"Post accepted with warning: reason='{reason}'")
-                        data = cand
-                        planning = cand_planning
+        if not ok:
+            log("QUALITY", f"Post rejected: reason='{reason}'")
+            continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
