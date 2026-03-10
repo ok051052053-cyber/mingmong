@@ -845,7 +845,7 @@ def enforce_comparison_visuals(data: Dict[str, Any], keyword: str = "") -> Dict[
     return data
 
 
- def strip_markdown_tables(text: str) -> str:
+def strip_markdown_tables(text: str) -> str:
     lines = text.splitlines()
     out = []
     i = 0
