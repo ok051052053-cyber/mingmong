@@ -38,8 +38,18 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "3"))
-print(f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT}")
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "7"))
+MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "7"))
+VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "5"))
+EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "2"))
+COLLECT_TARGET_IMAGES = int(
+    os.environ.get("COLLECT_TARGET_IMAGES", str(VISIBLE_MIN_IMAGES + EXTRA_TABLE_BUFFER))
+)
+print(
+    f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT} "
+    f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={VISIBLE_MIN_IMAGES} "
+    f"EXTRA_TABLE_BUFFER={EXTRA_TABLE_BUFFER} COLLECT_TARGET_IMAGES={COLLECT_TARGET_IMAGES}"
+)
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
@@ -2885,7 +2895,53 @@ def sanitize_query_for_image(q: str) -> str:
     q = re.sub(r"\s+", " ", q).strip()
     return q or "workspace planning notebook laptop"
  
+
+def build_image_query_candidates(query: str, heading: str = "", visual_type: str = "photo") -> List[str]:
+    base = sanitize_query_for_image(query)
+    heading_clean = sanitize_query_for_image(heading)
+
+    candidates = []
+
+    for item in [
+        base,
+        f"{base} {heading_clean}".strip(),
+        heading_clean,
+        f"{base} office",
+        f"{base} workspace",
+        f"{base} laptop",
+        f"{base} desk",
+        f"{heading_clean} office".strip(),
+        f"{heading_clean} workspace".strip(),
+    ]:
+        item = re.sub(r"\s+", " ", (item or "").strip())
+        if item and item not in candidates:
+            candidates.append(item)
+
+    generic_by_visual = {
+        "photo": [
+            "modern office workspace laptop",
+            "business desk laptop notebook",
+            "professional workspace meeting desk",
+        ],
+        "workspace": [
+            "workspace desk laptop notebook",
+            "home office desk setup",
+            "productivity workspace computer desk",
+        ],
+        "diagram": [
+            "business analytics dashboard screen",
+            "comparison dashboard laptop screen",
+            "data chart laptop desk",
+        ],
+    }
+
+    for item in generic_by_visual.get((visual_type or "photo").lower(), []):
+        if item not in candidates:
+            candidates.append(item)
+
+    return candidates
  
+
 def normalize_asset_id(source: str, raw_id: str) -> str:
     return f"{source}:{raw_id}"
  
@@ -3398,32 +3454,33 @@ def ensure_minimum_image_paths(
     return image_paths, alt_texts
  
  
-def find_best_asset_for_query(query: str, used_ids: set) -> Optional[dict]:
-    clean_query = sanitize_query_for_image(query)
-    candidates: List[dict] = []
- 
-    for source in IMAGE_SOURCE_PRIORITY:
-        for page in [1, 2]:
-            results = search_source(source, clean_query, page=page)
-            if not results:
-                continue
- 
-            for asset in results:
-                if asset["id"] in used_ids:
+def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
+    query_candidates = build_image_query_candidates(query, heading, visual_type)
+    all_candidates: List[dict] = []
+
+    for candidate_query in query_candidates:
+        for source in IMAGE_SOURCE_PRIORITY:
+            for page in [1, 2, 3]:
+                results = search_source(source, candidate_query, page=page)
+                if not results:
                     continue
-                candidates.append(asset)
- 
-            if candidates:
-                break
- 
-        if candidates:
-            break
- 
-    if not candidates:
+
+                for asset in results:
+                    if asset["id"] in used_ids:
+                        continue
+
+                    boosted = dict(asset)
+                    boosted["score"] = boosted.get("score", 0.0) + score_query_match(candidate_query, query) + 0.15
+                    all_candidates.append(boosted)
+
+    if not all_candidates:
+        log("IMG", f"No asset found for query='{query}' heading='{heading}'")
         return None
- 
-    candidates.sort(key=lambda x: x["score"], reverse=True)
-    return candidates[0]
+
+    all_candidates.sort(key=lambda x: x["score"], reverse=True)
+    best = all_candidates[0]
+    log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{query}' heading='{heading}'")
+    return best
     
  
 def build_image_asset_for_section(
@@ -3449,8 +3506,13 @@ def build_image_asset_for_section(
  
     should_try_external = len(clean_query.split()) >= 1
     if should_try_external:
-        asset = find_best_asset_for_query(clean_query, used_ids)
- 
+        asset = find_best_asset_for_query(
+            query=clean_query,
+            heading=heading,
+            visual_type=visual_type,
+            used_ids=used_ids,
+        )
+     
         if asset:
             used_ids.add(asset["id"])
             ext_path = folder / f"{idx}.jpg"
@@ -3471,7 +3533,8 @@ def build_image_asset_for_section(
                 return rel_path, alt_text, photo_credit_html, used_ids
             except Exception as e:
                 log("IMG", f"Download failed for '{clean_query}' from {asset.get('source')}: {e}")
- 
+
+    log("IMG", f"No external image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
  
  
@@ -3479,18 +3542,34 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     used_raw = load_json(USED_IMAGES_JSON, {})
     used = ensure_used_schema(used_raw)
     used_ids = set(used.get("asset_ids") or [])
- 
+
     image_paths: List[str] = []
     alt_texts: List[str] = []
     credits_li: List[str] = []
+
+    table_count = sum(1 for sec in sections if section_has_html_table(sec))
+    target_count = min(
+        len(sections),
+        max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + table_count)
+    )
+    table_sections = [sec for sec in sections if section_has_html_table(sec)]
+    non_table_sections = [sec for sec in sections if not section_has_html_table(sec)]
+
+    preferred_sections = non_table_sections + table_sections
+
+    target_count = min(
+        len(preferred_sections),
+        max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + len(table_sections))
+    )
+    target_sections = preferred_sections[:target_count]
  
-    for i, sec in enumerate(sections, start=1):
+    for i, sec in enumerate(target_sections, start=1):
         path, alt, credit, used_ids = build_image_asset_for_section(
             slug=slug,
             idx=i,
             heading=sec.get("heading", f"Section {i}"),
             image_query=sec.get("image_query", sec.get("heading", "")),
-            visual_type=sec.get("visual_type", "diagram"),
+            visual_type=sec.get("visual_type", "photo"),
             alt_hint=sec.get("alt_text", sec.get("alt_hint", sec.get("heading", ""))),
             used_ids=used_ids,
         )
@@ -3498,24 +3577,16 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         alt_texts.append(alt or sec.get("heading", f"Section {i}"))
         if credit:
             credits_li.append(credit)
- 
+
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
-    target_count = min(max(IMG_COUNT, 1), len(sections))
-    image_paths, alt_texts = ensure_minimum_image_paths(
-        slug=slug,
-        image_paths=image_paths,
-        alt_texts=alt_texts,
-        sections=sections,
-        min_count=target_count,
-    )
-
+    non_empty_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
     log(
         "IMG",
-        f"slug='{slug}' built={len(image_paths)} visible_candidates={sum(1 for p in image_paths if p.strip())} target={target_count}"
+        f"slug='{slug}' requested={len(target_sections)} found={non_empty_count} table_sections={table_count}"
     )
-
+ 
     return image_paths, alt_texts, credits_li
  
  
@@ -3830,8 +3901,13 @@ def paragraphs_to_html(text: str) -> str:
         out.append(f"<p>{html_escape(para)}</p>")
 
     return "\n".join(out)
- 
- 
+
+
+def section_has_html_table(section: Dict[str, str]) -> bool:
+    body = (section.get("body") or "").lower()
+    return "<table" in body and "</table>" in body
+
+
 def body_to_html(text: str) -> str:
     text = (text or "").strip()
     if not text:
@@ -3965,10 +4041,7 @@ def render_post_html(
 
         if has_html_table:
             img_path = ""
-
-        has_html_table = "<table" in (sec.get("body") or "").lower() and "</table>" in (sec.get("body") or "").lower()
-        if has_html_table:
-            img_path = ""
+         
 
         blocks.append(f"<h2>{html_escape(sec['heading'])}</h2>")
 
@@ -4361,6 +4434,31 @@ def main() -> int:
             pillar_slug = slug
 
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
+
+        real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
+
+        visible_image_count = 0
+        for i, sec in enumerate(sections[:len(image_paths)]):
+            path = image_paths[i] if i < len(image_paths) else ""
+            if not path or not path.strip():
+                continue
+            if section_has_html_table(sec):
+                continue
+            visible_image_count += 1
+
+        if real_image_count < MIN_REQUIRED_IMAGES:
+            log(
+                "IMG",
+                f"Rejecting post slug='{slug}' because only {real_image_count} images were found, need at least {MIN_REQUIRED_IMAGES}"
+            )
+            continue
+
+        if visible_image_count < VISIBLE_MIN_IMAGES:
+            log(
+                "IMG",
+                f"Rejecting post slug='{slug}' because only {visible_image_count} images would be visible, need at least {VISIBLE_MIN_IMAGES}"
+            )
+            continue
 
         log(
             "IMG",
