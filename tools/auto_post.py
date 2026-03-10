@@ -3464,6 +3464,8 @@ def build_image_asset_for_section(
 ) -> Tuple[str, str, Optional[str], set]:
     folder = ASSETS_POSTS_DIR / slug
     folder.mkdir(parents=True, exist_ok=True)
+    
+    alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
     if (visual_type or "").strip().lower() == "diagram":
         svg_path = folder / f"{idx}.svg"
@@ -3481,17 +3483,6 @@ def build_image_asset_for_section(
         (heading or "").strip(),
     ]).strip() or "modern office workspace laptop notes"
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
-
-    if (visual_type or "").strip().lower() == "diagram":
-        svg_path = folder / f"{idx}.svg"
-        create_svg_visual(
-            svg_path,
-            title=heading or "Comparison visual",
-            subtitle=image_query or alt_hint or "Clean comparison infographic",
-            badge="Comparison Visual",
-        )
-        rel_path = f"assets/posts/{slug}/{idx}.svg"
-        return rel_path, alt_text, None, used_ids 
  
     should_try_external = len(clean_query.split()) >= 1
     if should_try_external:
