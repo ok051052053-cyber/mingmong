@@ -1962,7 +1962,7 @@ Schema:
   ],
   "tldr": "string",
   "editorial_note": "string"
-}
+}}
 The sections array must contain exactly 6 section objects only.
 FAQ must not appear inside sections.
 FAQ must be written only in the faq field.
