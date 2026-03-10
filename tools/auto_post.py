@@ -560,6 +560,7 @@ def ensure_used_texts_schema(raw):
  
  
 def _clean_text(s: str) -> str:
+    s = s.replace("*", "")
     s = (s or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\n{3,}", "\n\n", s)
