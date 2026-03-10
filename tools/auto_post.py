@@ -2295,6 +2295,12 @@ Investing requirements:
 - include at least one beginner mistake tied to a number or timing
 - include at least one platform or ETF selection decision point when relevant
 
+Formatting rules:
+- Do not use markdown symbols such as *, **, or _
+- Do not use bullet symbols like * or -
+- Use plain text only
+- Emphasis should be written using normal words, not markdown formatting
+
 Mode specific requirements:
 {mode_rules}
 """.strip()
