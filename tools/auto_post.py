@@ -2088,6 +2088,7 @@ Anti-repetition rules:
 - Each section must introduce at least one fresh decision point, friction point, or practical angle
 
 Readability and engagement rules:
+- Intro must stay under 120 words
 - The TLDR and opening paragraph must create curiosity immediately
 - The first 3 lines must explain why the reader should keep reading
 - The opening must not begin with broad context like:
