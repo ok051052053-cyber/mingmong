@@ -1981,7 +1981,7 @@ Section heading rules:
 """
 
  
-table_rules = """
+    table_rules = """
 Table rules:
 - Do NOT use HTML tables.
 - Use Markdown table format only.
@@ -1989,7 +1989,7 @@ Table rules:
 - Each row must contain the same number of columns.
 """
 
-return f"""
+    return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
 Seed keyword:
