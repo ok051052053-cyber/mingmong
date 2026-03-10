@@ -2006,15 +2006,15 @@ def build_article_prompt(
     else:
         structure_rules = WORKFLOW_STRUCTURE_RULES
 
-table_rules = """
+    table_rules = """
 Table rules:
 - Do NOT use HTML tables.
 - Use Markdown table format only.
 - Tables must be valid Markdown tables.
 - Each row must contain the same number of columns.
 """
-
-return f"""
+  
+    return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
 Seed keyword:
