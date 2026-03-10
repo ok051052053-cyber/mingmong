@@ -2152,7 +2152,11 @@ Length and completeness rules:
 - Each section body must be at least {MIN_SECTION_CHARS} characters
 - Most sections should be meaningfully longer than the minimum
 - FAQ must have 3 to 5 realistic follow-up questions
-- TLDR must be 2 to 4 sentences
+- TLDR must be 3 to 5 short lines
+- TLDR must answer the core query immediately
+- TLDR must include at least one concrete recommendation, example, number, or named option
+- TLDR must not sound abstract or editorial
+- TLDR should read like a fast answer box, not a summary paragraph
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
 
 Required natural language signals:
