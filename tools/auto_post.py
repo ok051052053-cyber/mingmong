@@ -2968,12 +2968,13 @@ def build_image_alt(title: str, heading: str, image_query: str) -> str:
 def unsplash_search(query: str, page: int = 1) -> List[dict]:
     if not UNSPLASH_ACCESS_KEY:
         return []
- 
+
     try:
         url = "https://api.unsplash.com/search/photos"
         headers = {
             "Accept-Version": "v1",
             "Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}",
+            "User-Agent": "MingMongBot/1.0 (https://mingmonglife.com)",
         }
         params = {
             "query": query,
@@ -2986,14 +2987,14 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
         r.raise_for_status()
         data = r.json()
         results = data.get("results") or []
- 
+
         out = []
         for item in results:
             try:
                 pid = str(item.get("id") or "").strip()
                 if not pid:
                     continue
- 
+
                 w = int(item.get("width") or 0)
                 h = int(item.get("height") or 0)
                 likes = int(item.get("likes") or 0)
@@ -3001,29 +3002,32 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     continue
                 if likes < UNSPLASH_MIN_LIKES:
                     continue
- 
+
                 ratio = w / max(h, 1)
                 if ratio < 1.2 or ratio > 2.2:
                     continue
- 
+
                 urls = item.get("urls") or {}
-                raw = urls.get("raw") or urls.get("full") or urls.get("regular")
-                if not raw:
+                hotlink_url = urls.get("regular") or urls.get("full") or urls.get("raw")
+                if not hotlink_url:
                     continue
- 
+
+                links = item.get("links") or {}
+                download_location = (links.get("download_location") or "").strip()
+
                 user = item.get("user") or {}
                 user_name = (user.get("name") or "").strip()
                 user_link = ((user.get("links") or {}).get("html") or "").strip()
-                page_link = ((item.get("links") or {}).get("html") or "").strip()
+                page_link = (links.get("html") or "").strip()
                 if not user_name or not user_link or not page_link:
                     continue
- 
+
                 desc = " ".join([
                     str(item.get("description") or ""),
                     str(item.get("alt_description") or ""),
                     user_name,
                 ]).strip()
- 
+
                 out.append({
                     "source": "unsplash",
                     "id": normalize_asset_id("unsplash", pid),
@@ -3031,14 +3035,15 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     "width": w,
                     "height": h,
                     "score": score_query_match(query, desc) + min(likes / 500.0, 0.4),
-                    "download_url": raw,
+                    "hotlink_url": hotlink_url,
+                    "download_location": download_location,
                     "page_url": page_link,
                     "creator_name": user_name,
                     "creator_url": user_link,
                 })
             except Exception:
                 continue
- 
+
         out.sort(key=lambda x: x["score"], reverse=True)
         return out
     except Exception as e:
