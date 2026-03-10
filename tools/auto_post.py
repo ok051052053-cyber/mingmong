@@ -1981,40 +1981,15 @@ Section heading rules:
 """
 
  
-def build_article_prompt(
-    keyword: str,
-    cluster_name: str,
-    post_type: str,
-    planning: Dict[str, Any],
-) -> str:
-    category = planning.get("category") or pick_category(
-        keyword=keyword,
-        cluster_name=cluster_name,
-        post_type=post_type,
-    )
-    intent_type = planning.get("intent_type") or infer_search_intent_type(keyword, category)
-    mode = infer_content_mode(
-        category,
-        planning.get("search_intent_summary", "") or planning.get("title", ""),
-        planning.get("intent", "cluster"),
-    )
-    mode_rules = build_mode_rules(mode)
-    if mode == "investing":
-        structure_rules = INVESTING_STRUCTURE_RULES
-    elif mode == "review":
-        structure_rules = REVIEW_STRUCTURE_RULES
-    else:
-        structure_rules = WORKFLOW_STRUCTURE_RULES
-
-    table_rules = """
+table_rules = """
 Table rules:
 - Do NOT use HTML tables.
 - Use Markdown table format only.
 - Tables must be valid Markdown tables.
 - Each row must contain the same number of columns.
 """
-  
-    return f"""
+
+return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
 Seed keyword:
@@ -2246,7 +2221,7 @@ Required natural language signals:
 Intent specific requirements:
 - intent_type is {intent_type}
 - If intent_type is comparison:
-  - include a comparison table in HTML-ready plain text form
+  - include a comparison table using Markdown table format
   - compare by price, free plan, setup difficulty, automation, client portal or communication fit, invoicing fit when relevant, best for, not ideal for
   - include a clear winner for at least 2 user types
   - include one overkill option and explain why
