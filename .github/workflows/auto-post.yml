@@ -62,7 +62,7 @@ jobs:
           SITE_NAME: "MingMong"
           SITE_URL: "https://mingmonglife.com"
 
-          POSTS_PER_RUN: "1"
+          POSTS_PER_RUN: "3"
           MODEL: "gpt-4o-mini"
 
           MIN_CHARS: "9000"
