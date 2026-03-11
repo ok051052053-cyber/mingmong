@@ -3068,11 +3068,16 @@ def build_image_query_candidates(query: str, heading: str, visual_type: str) -> 
     candidates = []
 
     direct = [
-        simplify_image_query(query, heading, visual_type),
-        simplify_image_query(heading, query, visual_type),
+        simplify_section_image_query(query, heading, visual_type),
+        simplify_section_image_query(heading, query, visual_type),
         sanitize_query_for_image(query),
         sanitize_query_for_image(heading),
-        auto_image_query(heading=heading, image_query=query, body="", visual_type=visual_type),
+        auto_image_query(
+            heading=heading,
+            image_query=query,
+            body="",
+            visual_type=visual_type,
+        ),
     ]
 
     for c in direct:
