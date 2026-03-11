@@ -2877,10 +2877,15 @@ def sanitize_query_for_image(q: str) -> str:
         "most", "more", "less",
         "pick", "using", "start", "with", "your", "their",
         "into", "from", "begin", "guide",
+        "which", "tools", "tool", "actually", "real", "quick",
+        "answer", "final", "recommendation", "what", "why", "how",
+        "for", "and", "or", "to", "of", "in", "on", "by",
+        "best", "smart", "simple", "choose", "choosing",
+        "worth", "ideal", "option", "options"
     }
     words = [w for w in words if w not in stop_words]
 
-    q = " ".join(words[:6])
+    q = " ".join(words[:3])
 
     return q or "business workspace laptop desk"
  
@@ -3067,54 +3072,39 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
     candidates: List[str] = []
 
-    direct = [
-        simplify_section_image_query(query, heading, visual_type),
-        simplify_section_image_query(heading, query, visual_type),
-        sanitize_query_for_image(query),
-        sanitize_query_for_image(heading),
-        auto_image_query(
-            heading=heading or "",
-            image_query=query or "",
-            body="",
-            visual_type=visual_type or "photo",
-        ),
-    ]
+    primary = sanitize_query_for_image(query or "")
+    heading_q = sanitize_query_for_image(heading or "")
 
-    fallback_map = {
+    if primary:
+        candidates.append(primary)
+
+    if heading_q and heading_q not in candidates:
+        candidates.append(heading_q)
+
+    visual_defaults = {
         "diagram": [
-            "business chart",
-            "finance dashboard",
             "investment chart",
-            "comparison chart",
-            "laptop analytics",
+            "finance dashboard",
+            "business chart",
         ],
         "workspace": [
-            "workspace desk laptop",
-            "modern office desk",
-            "planning notebook desk",
-            "home office desk",
-            "business workspace laptop",
+            "laptop workspace",
+            "office desk",
+            "planning desk",
         ],
         "photo": [
-            "modern office desk",
-            "laptop workspace",
-            "business workspace",
-            "notebook planning desk",
-            "finance workspace desk",
+            "finance workspace",
+            "laptop desk",
+            "modern office",
         ],
     }
 
-    for c in direct:
-        c = sanitize_query_for_image(c or "")
-        if c and c not in candidates:
-            candidates.append(c)
+    for item in visual_defaults.get((visual_type or "photo").lower(), visual_defaults["photo"]):
+        item = sanitize_query_for_image(item)
+        if item and item not in candidates:
+            candidates.append(item)
 
-    for c in fallback_map.get((visual_type or "photo").lower(), fallback_map["photo"]):
-        c = sanitize_query_for_image(c)
-        if c and c not in candidates:
-            candidates.append(c)
-
-    return candidates[:10]
+    return candidates[:5]
  
  
 # -----------------------------
@@ -3645,13 +3635,10 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
                     return picked
 
     fallback_queries = [
-        "modern office desk",
         "laptop workspace",
-        "business workspace",
-        "planning notebook desk",
-        "finance workspace desk",
-        "investment dashboard",
-        "office laptop screen",
+        "finance workspace",
+        "investment chart",
+        "office desk",
     ]
 
     for fq in fallback_queries:
@@ -3774,13 +3761,6 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         for sec in candidate_sections:
             fallback_sections.append({
                 "heading": sec.get("heading", ""),
-                "image_query": "modern office desk",
-                "visual_type": "photo",
-                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
-                "body": sec.get("body", ""),
-            })
-            fallback_sections.append({
-                "heading": sec.get("heading", ""),
                 "image_query": "laptop workspace",
                 "visual_type": "workspace",
                 "alt_text": sec.get("alt_text") or sec.get("heading", ""),
@@ -3788,7 +3768,7 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
             })
             fallback_sections.append({
                 "heading": sec.get("heading", ""),
-                "image_query": "finance workspace desk",
+                "image_query": "finance workspace",
                 "visual_type": "photo",
                 "alt_text": sec.get("alt_text") or sec.get("heading", ""),
                 "body": sec.get("body", ""),
