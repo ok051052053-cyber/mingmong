@@ -16,15 +16,9 @@ from slugify import slugify
 from openai import OpenAI
  
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
-
+IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
 UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
-
-UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
-IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
-
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "5"))
-MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "4"))
 
 # =========================================================
 # Paths
@@ -48,10 +42,10 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "5"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "7"))
-VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "5"))
-EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "2"))
+VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "4"))
+EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "1"))
 COLLECT_TARGET_IMAGES = int(
     os.environ.get("COLLECT_TARGET_IMAGES", str(VISIBLE_MIN_IMAGES + EXTRA_TABLE_BUFFER))
 )
@@ -1536,11 +1530,11 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             merged_all = [
                 kw for kw in merged_all
                 if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
-            ]
+]
 
-            if merged_all:
-                save_keywords(merged_all)
-                return merged_all, cluster_name, "normal", current_pillar_slug
+if merged_all:
+            save_keywords(merged_all)
+            return merged_all, cluster_name, "normal", current_pillar_slug
 
         except Exception as e:
             log("KW", f"Cluster keyword generation failed: {e}")
@@ -1585,7 +1579,7 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
 - For freelancer topics do not treat all freelancers as one group
 - Split recommendations by at least 2 concrete freelancer types
 - Examples: solo freelancer, designer, developer, consultant, writer, video editor
-- The article must help a reader identify "this is for me" quickly
+- The article must help a reader identify this is for me quickly
 """
 
     review_depth_note = """
@@ -1617,35 +1611,39 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
 - Avoid generic SaaS blog structure
 - The article should feel like it has seen messy real client work
 """
- 
+
     INTENT_BLUEPRINTS = {
         "comparison": [
             "quick verdict and who each option is for",
-            "comparison table with real selection criteria",
-            "where each tool wins and breaks down",
-            "best fit by user type or budget",
-            "final decision and what to do next",
+            "who each option is actually for",
+            "where the differences start to matter",
+            "a real setup or buying scenario",
+            "mistakes and overkill choices",
+            "final recommendation by user type",
         ],
         "template": [
-            "the situation this template solves",
-            "copyable template or checklist",
-            "how to customize it without breaking it",
-            "example scenario and common mistake",
-            "when not to use this template",
+            "quick answer and who this template is for",
+            "why the default approach fails",
+            "the copyable template or checklist",
+            "a real example or customization scenario",
+            "mistakes and misuse cases",
+            "what to use next",
         ],
         "review": [
             "quick verdict and target user",
-            "pricing reality and setup difficulty",
-            "main strengths and where it breaks down",
-            "best for and not ideal for",
-            "final recommendation",
+            "who each option is actually for",
+            "where the differences start to matter",
+            "a real setup or buying scenario",
+            "mistakes and overkill choices",
+            "final recommendation by user type",
         ],
         "howto": [
-            "why the problem keeps happening",
-            "the hidden reason common advice fails",
-            "the exact system or workflow",
-            "example scenario with timing",
-            "mistakes tradeoffs and final decision",
+            "quick answer and who this is for",
+            "why the default approach fails",
+            "the core workflow",
+            "a real example or scenario",
+            "mistakes and tradeoffs",
+            "what to use next",
         ],
     }
 
@@ -1794,7 +1792,7 @@ Hard rules:
   - X for beginners
   - how to choose X
 - Avoid vague clickbait
-- Avoid generic titles like "Top Tools" or "Best Apps"
+- Avoid generic titles like Top Tools or Best Apps
 - Do not restate the seed keyword as the title
 - The title must include a real audience or real decision point
 - Keep title under 72 characters when possible
@@ -1803,7 +1801,7 @@ Hard rules:
 {json.dumps(blueprint, ensure_ascii=False, indent=2)}
 - Each section must be materially distinct
 - image_query must be visual and believable
-- visual_type should prefer "diagram" for abstract comparison topics and "photo" or "workspace" for concrete environments
+- visual_type should prefer diagram for abstract comparison topics and photo or workspace for concrete environments
 - The first section must be built around a strong opening hook
 - The first section goal must explicitly include:
   - what people usually think
@@ -1819,9 +1817,9 @@ Hard rules:
 - The audience must be named directly in section 1
 - Section 1 must clearly state who this article is for
 - Avoid generic titles such as:
-  The best way to...
-  A complete guide to...
-  Effective strategies for...
+  The best way to
+  A complete guide to
+  Effective strategies for
 - Titles must include a real audience, real constraint, or real decision
 {audience_segmentation_note}
 {review_depth_note}
@@ -1829,13 +1827,11 @@ Hard rules:
 {post_guidance}
 """.strip()
 
-
 def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
-    raw = _find_balanced_json(text)
-    data = json.loads(raw)
+    data = safe_json_loads(text, {})
 
-    if not isinstance(data, dict):
-        raise ValueError("planning JSON root is not object")
+    if not isinstance(data, dict) or not data:
+        raise ValueError("planning JSON parse failed")
 
     audience = _clean_text(data.get("audience", ""))
     problem = _clean_text(data.get("problem", ""))
@@ -1860,8 +1856,8 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
     section_plan = data.get("section_plan") or []
     if not isinstance(section_plan, list):
         raise ValueError("section_plan must be a list")
-    if len(section_plan) < SECTION_COUNT_MIN or len(section_plan) > SECTION_COUNT_MAX:
-        raise ValueError(f"section_plan must be between {SECTION_COUNT_MIN} and {SECTION_COUNT_MAX}")
+    if len(section_plan) != 6:
+        raise ValueError("section_plan must be exactly 6")
 
     clean_sections = []
     for s in section_plan:
@@ -1912,7 +1908,7 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         "PLAN",
         f"keyword='{keyword}' title='{title}' category='{category}' intent_type='{intent_type}' sections={len(clean_sections)}"
     )
- 
+
     return {
         "audience": audience,
         "problem": problem,
@@ -1927,8 +1923,7 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         "section_plan": clean_sections,
         "faq_questions": faq_questions,
         "tldr_focus": tldr_focus,
-    }
- 
+    } 
 
 def infer_search_intent_type(keyword: str, category: str = "") -> str:
     k = (keyword or "").lower().strip()
@@ -2158,7 +2153,7 @@ def build_article_prompt(
     )
     mode_rules = build_mode_rules(mode)
     table_rules = build_table_rules(post_type, mode, intent_type)
- 
+
     if mode == "investing":
         structure_rules = INVESTING_STRUCTURE_RULES
     elif mode == "review":
@@ -2167,14 +2162,14 @@ def build_article_prompt(
         structure_rules = WORKFLOW_STRUCTURE_RULES
 
     visual_rules = """
-    Visual rules:
-    - Use photo or workspace for normal sections when an image helps.
-    - Do NOT use SVG infographic tables.
-    - Do NOT force diagram visuals for comparison sections.
-    - If a section includes an HTML comparison table, do not add an image to that section.
-    - Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
-    - Use real product names, not placeholders like Option A or Option B.
-    """
+Visual rules:
+- Use photo or workspace for normal sections when an image helps.
+- Do NOT use SVG infographic tables.
+- Do NOT force diagram visuals for comparison sections.
+- If a section includes an HTML comparison table, do not add an image to that section.
+- Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
+- Use real product names, not placeholders like Option A or Option B.
+"""
 
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
@@ -2199,7 +2194,6 @@ Visual type rules:
 photo = real-world photography
 workspace = desk or workflow setup
 diagram = infographic, comparison chart, or conceptual visual
-
 
 Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
@@ -2337,12 +2331,11 @@ Depth rules:
 - At least 2 sections must include examples or edge cases
 - Translate abstract advice into observable actions, thresholds, timing, or criteria
 - No empty motivational filler
-- No vague lines like improve efficiency, streamline workflow, or choose the right tool unless followed by exact operational detail
 
 Concrete example rule:
 - At least 2 sections must include a concrete real-world example with numbers.
 - Examples should include specific products, companies, tools, or dollar amounts.
-- Avoid vague examples such as "a typical user" or "many people".
+- Avoid vague examples such as a typical user or many people.
 
 Anti-repetition rules:
 - Do not repeat the same point across multiple sections
@@ -2371,26 +2364,6 @@ Readability and engagement rules:
 - Most paragraphs should be 1 to 3 sentences
 - No paragraph should exceed 90 words unless it is a numbered step block
 - Include at least one one-sentence paragraph in every section for emphasis
-- Break reading rhythm at least 2 times with:
-  Example
-  Scenario
-  In practice
-  Edge case
-  What this looks like
-  Where this breaks down
-
-Step formatting rules:
-- If a section includes numbered steps, each step must begin on its own new line.
-- Each step must start with a number and a period.
-- Use a clean continuous sequence such as 1. 2. 3. 4.
-- Do not restart numbering in the same sequence.
-- Do not place step 2 or step 3 inside the same paragraph as step 1.
-- If a section includes numbered steps, format them as a clean 1–4 step sequence.
-- Do not mix numbered steps inside normal paragraphs.
-- Each step must start on a new line.
-- Do not restart numbering in the same sequence.
-
-Limit numbered sequences to a maximum of 4 steps unless the workflow truly requires more.
 
 Internal-link and cluster rules:
 - Include at least 2 natural internal-link hook moments inside the article body
@@ -2403,39 +2376,20 @@ Internal-link and cluster rules:
   portfolio allocation
 - Do not write raw URLs
 - Write hooks as natural next-step lines
-- The article should create follow-up reading demand without sounding promotional
-
-Tool and software rules:
-- If the article mentions tools or software, do not stop at naming them
-- Every mentioned tool must have a role in a decision, comparison, tradeoff, or fit judgment
-- Do not write "tools like X, Y, Z" unless you explain who each one is for
-- Force product differentiation
-- Force user-type differentiation
-- Force operational detail
-- The reader must not finish the article asking which one they should use
 
 Length and completeness rules:
 - Total text must be at least {MIN_CHARS} characters
-- Aim for 9000 to 11000 characters when the topic supports it
-- Each section body must be at least {MIN_SECTION_CHARS} characters
-- Most sections should be meaningfully longer than the minimum
+- Each section body should normally be at least {MIN_SECTION_CHARS} characters
 - FAQ must have 3 to 5 realistic follow-up questions
-- TLDR must be 3 to 5 short lines
-- TLDR must answer the core query immediately
-- TLDR must include at least one concrete recommendation, example, number, or named option
-- TLDR must not sound abstract or editorial
-- TLDR should read like a fast answer box, not a summary paragraph
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
 
 Required natural language signals:
-- The article must explicitly include these exact words in natural sentences:
+- Naturally include these words where they fit:
   mistake
   tradeoff
   decision
   step
-- Include at least 2 uses of tradeoff
-- Include at least 2 uses of decision
-- Include at least 2 uses of mistake
+- Do not force awkward repetition
 
 Intent specific requirements:
 - intent_type is {intent_type}
@@ -2451,96 +2405,29 @@ Intent specific requirements:
   - keep the table to 4 to 6 rows in the tbody
   - place one short paragraph before the table
   - place one short paragraph after the table
-  - do not describe the table abstractly
   - the section with the HTML table should not rely on an image
-  - compare using practical factors such as price, free plan, setup difficulty, automation, communication fit, best for, and not ideal for when relevant
-  - include a clear best fit for at least 2 user types
-  - include one overkill option and explain why
-  - include one best free starting point when relevant
-  - include one best paid upgrade case when relevant
-  - include one section that explains what changes after 30 days of real use
 - If intent_type is template:
   - include one copyable template, checklist, script, or sequence
   - include one example of customization
   - include one misuse case
 - If intent_type is review:
   - include these exact labels in natural text:
-    Best for
-    Pricing reality
-    Setup difficulty
-    Main strength
-    Main weakness
-    My verdict
-  - the article must feel like an actual review or decision guide not a summary
-  - include at least 3 concrete tools if the topic is a roundup
-  - for each tool explain:
-    what it does well
-    where it starts to feel heavy or weak
-    which user type should use it
-  - include at least one sentence about hidden cost, setup friction, or long-term workflow pain
+    Best for:
+    Pricing reality:
+    Setup difficulty:
+    Main strength:
+    Main weakness:
+    My verdict:
 - If intent_type is howto:
   - include one weekly workflow
   - include one 30-day cadence or review cycle
   - include one specific scenario with consequence
-
-Realism requirements:
-- Include at least 2 grounded realism blocks that feel like observed real usage
-- Use labels such as:
-  In practice
-  Scenario
-  Where this breaks down
-  Best fit if you are
-  Not worth it if
-- The article must feel aware of real friction
-- Include at least 2 lines that sound like real-world behavior
-- Good patterns include:
-  clients stop replying after the proposal stage
-  the tool feels fine until approvals start
-  solo operators often overbuild too early
-  the free plan works until follow-up automation matters
-- Avoid fake personal claims
-- Use grounded observational language instead
-
-Investing requirements:
-- For investing topics include at least 2 practical realism examples with numbers
-- Good examples:
-  100 dollars per month
-  500 dollar starting portfolio
-  80 20 allocation
-  0.07 percent fee vs 0.60 percent fee
-- Include one sentence that frames the article as educational content not personal financial advice
-- include at least one sample allocation with percentages
-- include at least one monthly contribution example
-- include at least one beginner mistake tied to a number or timing
-- include at least one platform or ETF selection decision point when relevant
-
-
-Formatting rules:
-- Do not use markdown symbols such as *, **, or _
-- Do not use bullet symbols like * or -
-- Use plain text only
-- Emphasis should be written using normal words, not markdown formatting
-- Do not wrap emphasis words in markdown
-- Use plain text labels only
-- Use simple labels such as:
-  Best for:
-  Tradeoff:
-  Decision:
-- Do not wrap them in markdown symbols
-- Write them as normal text lines
-
-Step formatting rules:
-- If a section includes numbered steps, each step must begin on its own new line.
-- Each step must start with a number and a period.
-- Use a clean continuous sequence such as 1. 2. 3. 4.
-- Do not mix numbered steps into normal paragraphs.
 
 Mode specific requirements:
 {mode_rules}
 
 Table requirements:
 {table_rules}
-
 """.strip()
  
 def is_generic_title(title: str) -> bool:
@@ -2627,12 +2514,10 @@ def quality_check_post(
     faq = data.get("faq", [])
     category = _clean_text(data.get("category", ""))
     editorial_note = _clean_text(data.get("editorial_note", ""))
+    intent_type = _clean_text(data.get("intent_type", "")).lower()
 
     if not title:
         return False, "missing-title"
-
-    #if is_generic_title(title):
-    #   return False, "generic-title"
 
     if category not in ALLOWED_CATEGORIES:
         return False, "bad-category"
@@ -2640,10 +2525,12 @@ def quality_check_post(
     if not isinstance(sections, list):
         return False, "bad-sections"
 
-    if len(sections) < SECTION_COUNT_MIN or len(sections) > SECTION_COUNT_MAX:
+    if len(sections) != 6:
         return False, "bad-sections"
 
     clean_headings = []
+    html_table_count = 0
+
     for s in sections:
         if not isinstance(s, dict):
             return False, "bad-section-item"
@@ -2657,10 +2544,17 @@ def quality_check_post(
         if not heading or not body:
             return False, "missing-section-content"
 
-        if has_table_like_text(body):
+        has_html_table = "<table" in body.lower() and "</table>" in body.lower()
+        if has_html_table:
+            html_table_count += 1
+
+        if has_table_like_text(body) and intent_type != "comparison":
             return False, "table-like-text-detected"
-     
-        if len(body) < max(260, MIN_SECTION_CHARS // 2):
+
+        if has_html_table and intent_type != "comparison":
+            return False, "unexpected-html-table"
+
+        if len(body) < 220:
             return False, "thin-section"
 
         if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
@@ -2676,6 +2570,9 @@ def quality_check_post(
 
     if len(set(clean_headings)) < len(clean_headings):
         return False, "duplicate-headings"
+
+    if intent_type == "comparison" and html_table_count > 1:
+        return False, "too-many-html-tables"
 
     if not tldr or len(tldr) < 60:
         return False, "weak-tldr"
@@ -2703,12 +2600,12 @@ def quality_check_post(
         [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
     )
 
-    if len(joined) < max(2200, MIN_CHARS // 2):
+    if len(joined) < 2200:
         return False, "too-short"
 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
-    if nk and nt and nk == nt:
+    if nk and nt and nk == nt and len(nt.split()) <= 6:
         return False, "title-too-close-to-keyword"
 
     return True, "ok"
@@ -2756,14 +2653,13 @@ def post_semantically_too_close(
     return False
 
 def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
-    raw = _find_balanced_json(article_raw)
-    data = json.loads(raw)
+    data = safe_json_loads(article_raw, {})
 
-    if not isinstance(data, dict):
-        raise ValueError("article JSON root is not object")
+    if not isinstance(data, dict) or not data:
+        raise ValueError("article JSON parse failed")
 
     title = _clean_text(data.get("title", "")) or keyword.title()
-    description = _clean_text(data.get("description", ""))
+    description = _clean_text(data.get("description", "")) or short_desc(title or keyword)
     category = _clean_text(data.get("category", "")) or pick_category(
         keyword=keyword,
         cluster_name=cluster_name,
@@ -2829,6 +2725,7 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         "tldr": tldr,
         "editorial_note": editorial_note,
     }
+
  
 def generate_deep_post(
     *,
@@ -2876,13 +2773,13 @@ def sanitize_query_for_image(q: str) -> str:
     q = (q or "").strip().lower()
 
     replacements = {
-        "client retention system": "crm dashboard laptop",
+        "client retention system": "freelancer crm dashboard laptop",
         "client retention": "freelancer crm dashboard",
-        "decision framework": "comparison chart laptop",
+        "decision framework": "comparison chart on laptop",
         "practical approach": "workspace planning desk",
         "template checklist": "checklist notebook desk",
         "follow-up automation": "crm automation dashboard",
-        "offboarding": "client handoff desk",
+        "offboarding": "client handoff workspace",
         "reactivation": "email follow up workspace",
         "simple long term portfolio": "investment portfolio laptop",
         "beginner portfolio allocation": "portfolio allocation chart",
@@ -2912,15 +2809,15 @@ def sanitize_query_for_image(q: str) -> str:
 
     stop_words = {
         "the", "a", "an", "this", "that", "these", "those",
-        "most", "more", "less", "real", "simple", "wrong",
+        "most", "more", "less",
         "pick", "using", "start", "with", "your", "their",
-        "into", "from", "begin", "easy", "easily", "guide",
+        "into", "from", "begin", "guide",
     }
     words = [w for w in words if w not in stop_words]
 
-    q = " ".join(words[:4])
+    q = " ".join(words[:6])
 
-    return q or "modern office workspace laptop"
+    return q or "business workspace laptop desk"
  
 
 def extract_visual_keywords_from_text(text: str, limit: int = 4) -> List[str]:
@@ -2975,7 +2872,7 @@ def auto_image_query(
 ) -> str:
     base = sanitize_query_for_image(image_query or heading)
     heading_clean = sanitize_query_for_image(heading)
-    body_keywords = extract_visual_keywords_from_text(body, limit=4)
+    body_keywords = extract_visual_keywords_from_text(body, limit=6)
 
     parts = []
 
@@ -2996,7 +2893,7 @@ def auto_image_query(
         seen.add(p)
         compact.append(p)
 
-    compact = compact[:4]
+    compact = compact[:6]
 
     if compact:
         query = " ".join(compact)
@@ -3415,23 +3312,27 @@ def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str
 
 
 def search_unsplash_once(query: str) -> List[dict]:
-    global UNSPLASH_CALL_COUNT
-
     query = (query or "").strip().lower()
     if not query:
         return []
 
-    if query in UNSPLASH_SEARCH_CACHE:
-        return UNSPLASH_SEARCH_CACHE[query]
+    cache_key = f"{query}|1"
+    if cache_key in UNSPLASH_SEARCH_CACHE:
+        return UNSPLASH_SEARCH_CACHE[cache_key]
 
-    if UNSPLASH_CALL_COUNT >= UNSPLASH_CALL_LIMIT:
-        log("IMG", f"Unsplash skipped due to call limit query='{query}'")
-        UNSPLASH_SEARCH_CACHE[query] = []
+    results = search_source("unsplash", query, page=1) or []
+    UNSPLASH_SEARCH_CACHE[cache_key] = results
+    return resultsdef search_unsplash_once(query: str) -> List[dict]:
+    query = (query or "").strip().lower()
+    if not query:
         return []
 
-    UNSPLASH_CALL_COUNT += 1
+    cache_key = f"{query}|1"
+    if cache_key in UNSPLASH_SEARCH_CACHE:
+        return UNSPLASH_SEARCH_CACHE[cache_key]
+
     results = search_source("unsplash", query, page=1) or []
-    UNSPLASH_SEARCH_CACHE[query] = results
+    UNSPLASH_SEARCH_CACHE[cache_key] = results
     return results
 
 
@@ -3647,7 +3548,7 @@ def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> s
     priority_map = [
         ("etf", "etf investing"),
         ("stock", "stock market"),
-        ("invest", "investing"),
+        ("invest", "investing dashboard"),
         ("freelance", "freelancer workspace"),
         ("software", "software workspace"),
         ("design", "designer workspace"),
@@ -3665,16 +3566,19 @@ def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> s
         if key in joined:
             return replacement
 
-    if "chart" in visual_type.lower():
-        if "etf" in joined or "invest" in joined:
+    if "diagram" in visual_type.lower():
+        if "etf" in joined or "invest" in joined or "stock" in joined:
             return "investment chart"
         return "business chart"
 
     if "desk" in joined or "workspace" in joined:
         return "workspace desk laptop"
 
-    if len(words) >= 2:
-        return " ".join(words[:2])
+    if len(words) >= 3:
+        return " ".join(words[:3])
+
+    if len(words) == 2:
+        return " ".join(words)
 
     if len(words) == 1:
         return words[0]
@@ -3730,49 +3634,57 @@ def build_image_asset_for_section(
     used_ids: set,
     body: str = "",
 ) -> Tuple[str, str, Optional[str], set]:
-    alt_text = alt_hint or build_image_alt(heading, heading, image_query)
-
-    clean_query = simplify_image_query(
-        keyword=image_query,
-        heading=heading,
-        visual_type=visual_type,
+    clean_query = auto_image_query(
+        heading=heading or "",
+        image_query=image_query or "",
+        body=body or "",
+        visual_type=visual_type or "photo",
     )
 
-    alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
+    alt_text = alt_hint or build_image_alt(slug, heading, clean_query)
 
-    should_try_external = len(clean_query.split()) >= 1
-    if should_try_external:
-        asset = find_best_asset_for_query(
-            query=clean_query,
-            heading=heading,
-            visual_type=visual_type,
-            used_ids=used_ids,
-        )
+    asset = find_best_asset_for_query(
+        query=clean_query,
+        heading=heading or "",
+        visual_type=visual_type or "photo",
+        used_ids=used_ids,
+    )
 
-        if asset:
-            hotlink_url = (asset.get("hotlink_url") or "").strip()
-            if hotlink_url:
-                used_ids.add(asset["id"])
+    if asset:
+        hotlink_url = (asset.get("hotlink_url") or asset.get("download_url") or "").strip()
+        if hotlink_url:
+            used_ids.add(asset["id"])
+
+            if (asset.get("source") or "").strip().lower() == "unsplash":
                 trigger_unsplash_download(asset)
-             
-                creator_name = html_escape(asset.get("creator_name") or asset.get("source", "Image source"))
-                creator_url = html_escape(asset.get("creator_url") or asset.get("page_url") or "#")
-                page_url = html_escape(asset.get("page_url") or creator_url)
-                source_label = html_escape(asset.get("source", "source").title())
 
-                photo_credit_html = (
-                    f'<li>Photo {idx}: '
-                    f'<a href="{creator_url}" target="_blank" rel="noopener noreferrer">{creator_name}</a> '
-                    f'via <a href="{page_url}" target="_blank" rel="noopener noreferrer">{source_label}</a></li>'
-                )
+            creator_name = html_escape(asset.get("creator_name") or asset.get("source", "Image source"))
+            creator_url = html_escape(asset.get("creator_url") or asset.get("page_url") or "#")
+            page_url = html_escape(asset.get("page_url") or creator_url)
+            source_label = html_escape(asset.get("source", "source").title())
 
-                log("IMG", f"Using hotlink image for slug='{slug}' idx={idx} source='{asset.get('source')}'")
-                return hotlink_url, alt_text, photo_credit_html, used_ids
+            photo_credit_html = (
+                f'<li>Photo {idx}: '
+                f'<a href="{creator_url}" target="_blank" rel="noopener noreferrer">{creator_name}</a> '
+                f'via <a href="{page_url}" target="_blank" rel="noopener noreferrer">{source_label}</a></li>'
+            )
 
-            log("IMG", f"Asset found but hotlink_url missing for slug='{slug}' idx={idx} source='{asset.get('source')}'")
+            log("IMG", f"Using external image for slug='{slug}' idx={idx} source='{asset.get('source')}'")
+            return hotlink_url, alt_text, photo_credit_html, used_ids
 
-    log("IMG", f"No external image found for slug='{slug}' idx={idx} query='{clean_query}'")
-    return "", alt_text, None, used_ids
+    folder = ASSETS_POSTS_DIR / slug
+    svg_path = folder / f"{idx}.svg"
+    build_svg_placeholder(
+        out_path=svg_path,
+        title=slug,
+        heading=heading or f"Section {idx}",
+        image_query=clean_query,
+        visual_type=visual_type or "photo",
+    )
+    rel_path = f"assets/posts/{slug}/{idx}.svg"
+
+    log("IMG", f"Fallback SVG created for slug='{slug}' idx={idx} query='{clean_query}'")
+    return rel_path, alt_text, None, used_ids
  
  
 def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
@@ -3784,37 +3696,38 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     alt_texts: List[str] = []
     credits_li: List[str] = []
 
-    table_count = sum(1 for sec in sections if section_has_html_table(sec))
-    target_count = min(
-        len(sections),
-        max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + table_count)
-    )
     table_sections = [sec for sec in sections if section_has_html_table(sec)]
     non_table_sections = [sec for sec in sections if not section_has_html_table(sec)]
-
     preferred_sections = non_table_sections + table_sections
 
     target_count = min(
         len(preferred_sections),
         max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + len(table_sections))
     )
-    target_sections = preferred_sections[:IMG_COUNT]
+    target_sections = preferred_sections[:target_count]
 
     for i, sec in enumerate(target_sections, start=1):
-
         path, alt, credit, used_ids = build_image_asset_for_section(
             slug=slug,
             idx=i,
-            heading=sec.get("heading"),
-            image_query=sec.get("image_query"),
-            visual_type=sec.get("visual_type"),
-            alt_hint=sec.get("alt_text"),
+            heading=sec.get("heading", ""),
+            image_query=sec.get("image_query", ""),
+            visual_type=sec.get("visual_type", "photo"),
+            alt_hint=sec.get("alt_text", ""),
             used_ids=used_ids,
+            body=sec.get("body", ""),
         )
         image_paths.append(path)
         alt_texts.append(alt or sec.get("heading", f"Section {i}"))
         if credit:
             credits_li.append(credit)
+
+    while len(image_paths) < len(sections):
+        image_paths.append("")
+    while len(alt_texts) < len(sections):
+        idx = len(alt_texts)
+        sec = sections[idx] if idx < len(sections) else {}
+        alt_texts.append(sec.get("alt_text") or sec.get("heading") or f"Section {idx + 1}")
 
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
@@ -3822,11 +3735,10 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     non_empty_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
     log(
         "IMG",
-        f"slug='{slug}' requested={len(target_sections)} found={non_empty_count} table_sections={table_count}"
+        f"slug='{slug}' requested={len(target_sections)} found={non_empty_count} table_sections={len(table_sections)}"
     )
- 
-    return image_paths, alt_texts, credits_li
- 
+
+    return image_paths, alt_texts, credits_li 
  
 # =========================================================
 # Internal links
@@ -4674,10 +4586,17 @@ def main() -> int:
         if post_type == "pillar":
             pillar_slug = slug
 
-        image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
+image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
 
-        real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
+image_paths, alt_texts = ensure_minimum_image_paths(
+    slug=slug,
+            image_paths=image_paths,
+    alt_texts=alt_texts,
+            sections=sections,
+            min_count=MIN_REQUIRED_IMAGES,
+)
 
+real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
         visible_image_count = 0
         for i, sec in enumerate(sections[:len(image_paths)]):
             path = image_paths[i] if i < len(image_paths) else ""
