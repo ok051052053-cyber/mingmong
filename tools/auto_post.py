@@ -3732,12 +3732,11 @@ def build_image_asset_for_section(
 ) -> Tuple[str, str, Optional[str], set]:
     alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
-    clean_query = auto_image_query(
+    clean_query = simplify_image_query(
+        keyword=image_query,
         heading=heading,
-        image_query=image_query,
-        body=body,
         visual_type=visual_type,
-    ) or "modern office workspace laptop"
+    )
 
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
 
