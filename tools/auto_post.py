@@ -2974,7 +2974,7 @@ def auto_image_query(
 
     return sanitize_query_for_image(query)
 
-def simplify_image_text(text: str, max_words: int = 4) -> str:
+def simplify_section_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
     text = (text or "").lower().strip()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     words = [w for w in text.split() if w and w not in IMAGE_QUERY_STOPWORDS]
@@ -3065,52 +3065,48 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 
 
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
-    raw_candidates = [
-        simplify_image_text(heading, 4),
-        simplify_image_text(query, 4),
-        simplify_image_text(f"{query} {heading}", 4),
+    candidates = []
+
+    direct = [
+        simplify_image_query(query, heading, visual_type),
+        simplify_image_query(heading, query, visual_type),
+        sanitize_query_for_image(query),
+        sanitize_query_for_image(heading),
+        auto_image_query(heading=heading, image_query=query, body="", visual_type=visual_type),
     ]
 
-    raw_candidates += expand_visual_fallbacks(query, heading, visual_type)
+    for c in direct:
+        c = (c or "").strip().lower()
+        if c and c not in candidates:
+            candidates.append(c)
 
-    generic_fallbacks = [
-        "office desk",
-        "laptop workspace",
-        "notebook planning",
-        "modern workspace",
-    ]
+    fallback_map = {
+        "diagram": [
+            "business chart",
+            "comparison chart",
+            "dashboard laptop",
+            "finance chart",
+        ],
+        "workspace": [
+            "workspace desk laptop",
+            "modern office desk",
+            "planning notebook desk",
+            "home office desk",
+        ],
+        "photo": [
+            "modern office desk",
+            "laptop workspace",
+            "business workspace",
+            "notebook planning desk",
+        ],
+    }
 
-    raw_candidates += [simplify_image_text(x, 4) for x in generic_fallbacks]
- 
-    deduped = []
-    for c in raw_candidates:
-        if not c:
-            continue
-        if len(c.split()) > 5:
-            continue
-        if c not in deduped:
-            deduped.append(c)
+    for c in fallback_map.get((visual_type or "photo").lower(), fallback_map["photo"]):
+        c = sanitize_query_for_image(c)
+        if c and c not in candidates:
+            candidates.append(c)
 
-    return deduped[:6]
-
-def normalize_asset_id(source: str, raw_id: str) -> str:
-    return f"{source}:{raw_id}"
- 
- 
-def score_query_match(query: str, haystack: str) -> float:
-    q = normalize_keyword(query)
-    h = normalize_keyword(haystack)
-    if not q or not h:
-        return 0.0
-    return similarity_ratio(q, h)
- 
- 
-def build_image_alt(title: str, heading: str, image_query: str) -> str:
-    base = (heading or image_query or title or "article visual").strip()
-    base = re.sub(r"\s+", " ", base).strip()
-    if len(base) > 140:
-        base = base[:137].rstrip() + "..."
-    return base
+    return candidates[:8]
  
  
 # -----------------------------
@@ -3627,41 +3623,48 @@ def simplify_section_image_query(keyword: str, heading: str, visual_type: str = 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     query_candidates = build_image_query_candidates(query, heading, visual_type)
 
-    source_priority = ["unsplash", "pexels", "pixabay"]
+    source_priority = ["unsplash", "pexels", "pixabay", "wikimedia"]
 
-    for candidate_query in query_candidates[:2]:
+    for candidate_query in query_candidates[:4]:
         for source in source_priority:
-            results = cached_search_source(source, candidate_query, page=1)
-            log("IMG", f"source='{source}' cq='{candidate_query}' page=1 results={len(results)}")
+            for page in [1, 2]:
+                results = cached_search_source(source, candidate_query, page=page)
+                log("IMG", f"source='{source}' cq='{candidate_query}' page={page} results={len(results)}")
 
-            if not results:
-                continue
+                if not results:
+                    continue
 
-            filtered = filter_reusable_assets(results, used_ids=used_ids)
-            if not filtered:
-                continue
+                filtered = filter_reusable_assets(results, used_ids=used_ids)
+                if not filtered:
+                    continue
 
-            picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
-            if picked:
-                return picked
+                picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
+                if picked:
+                    return picked
 
-    fallback_queries = ["office desk", "laptop workspace"]
+    fallback_queries = [
+        "modern office desk",
+        "laptop workspace",
+        "business workspace",
+        "planning notebook desk",
+    ]
 
     for fq in fallback_queries:
-        for source in ["pexels", "pixabay"]:
-            results = cached_search_source(source, fq, page=1)
-            log("IMG", f"fallback source='{source}' cq='{fq}' page=1 results={len(results)}")
+        for source in source_priority:
+            for page in [1, 2]:
+                results = cached_search_source(source, fq, page=page)
+                log("IMG", f"fallback source='{source}' cq='{fq}' page={page} results={len(results)}")
 
-            if not results:
-                continue
+                if not results:
+                    continue
 
-            filtered = filter_reusable_assets(results, used_ids=used_ids)
-            if not filtered:
-                continue
+                filtered = filter_reusable_assets(results, used_ids=used_ids)
+                if not filtered:
+                    continue
 
-            picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
-            if picked:
-                return picked
+                picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
+                if picked:
+                    return picked
 
     return None
     
