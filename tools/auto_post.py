@@ -3798,7 +3798,7 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         len(preferred_sections),
         max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + len(table_sections))
     )
-    target_sections = sections[:IMG_COUNT]
+    target_sections = preferred_sections[:IMG_COUNT]
 
     for i, sec in enumerate(target_sections, start=1):
 
