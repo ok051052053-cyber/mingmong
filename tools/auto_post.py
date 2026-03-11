@@ -2699,7 +2699,7 @@ def quality_check_post(
 
         has_html_table = "<table" in body.lower() and "</table>" in body.lower()
         if has_html_table:
-        html_table_count += 1
+            html_table_count += 1
 
         if has_table_like_text(body) and intent_type != "comparison":
             return False, "table-like-text-detected"
