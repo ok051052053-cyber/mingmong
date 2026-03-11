@@ -99,7 +99,7 @@ MIN_KEYWORD_POOL = int(os.environ.get("MIN_KEYWORD_POOL", "18"))
 GOOGLE_SUGGEST_ENABLED = os.environ.get("GOOGLE_SUGGEST_ENABLED", "1").strip() == "1"
 GOOGLE_SUGGEST_MAX_SEEDS = int(os.environ.get("GOOGLE_SUGGEST_MAX_SEEDS", "4"))
 GOOGLE_SUGGEST_PER_QUERY = int(os.environ.get("GOOGLE_SUGGEST_PER_QUERY", "4"))
-GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "0.28"))
+GOOGLE_SUGGEST_SCORE_THRESHOLD = float(os.environ.get("GOOGLE_SUGGEST_SCORE_THRESHOLD", "-0.2"))
  
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_ENGINE = os.environ.get("SERPAPI_ENGINE", "google").strip()
