@@ -44,9 +44,6 @@ UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "50"))
 PEXELS_SEARCH_CACHE: Dict[str, List[dict]] = {}
 PIXABAY_SEARCH_CACHE: Dict[str, List[dict]] = {}
 
-UNSPLASH_CALL_COUNT = 0
-UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "50"))
-
 IMAGE_QUERY_STOPWORDS = {
     "actually", "really", "very", "best", "guide", "tips", "tip",
     "how", "what", "why", "when", "where", "which",
@@ -99,7 +96,7 @@ MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "5500"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "800"))
-MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "5"))
+MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
@@ -2954,58 +2951,6 @@ def auto_image_query(
 
     return sanitize_query_for_image(query)
 
-def simplify_section_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
-    text = (text or "").lower().strip()
-    text = re.sub(r"[^a-z0-9\s]", " ", text)
-    words = [w for w in text.split() if w and w not in IMAGE_QUERY_STOPWORDS]
-
-    cleaned = []
-    for w in words:
-        if len(w) <= 2:
-            continue
-        if w not in cleaned:
-            cleaned.append(w)
-
-    if not cleaned:
-        return ""
-
-    return " ".join(cleaned[:max_words])
-
-
-def expand_visual_fallbacks(query: str, heading: str, visual_type: str) -> List[str]:
-    base = f"{query} {heading}".lower()
-
-    candidates = []
-
-    if any(x in base for x in ["price", "pricing", "budget", "cost", "money", "invest"]):
-        candidates += ["calculator", "budget notebook", "finance desk", "money planning"]
-
-    if any(x in base for x in ["workflow", "setup", "process", "system", "steps"]):
-        candidates += ["laptop workspace", "office desk", "project planning", "whiteboard"]
-
-    if any(x in base for x in ["productivity", "focus", "planning", "organize", "task"]):
-        candidates += ["desk setup", "notebook desk", "work planning", "home office"]
-
-    if any(x in base for x in ["software", "app", "tool", "platform", "automation"]):
-        candidates += ["laptop screen", "computer desk", "modern workspace", "tech workspace"]
-
-    if visual_type == "table":
-        candidates += ["notebook desk", "office desk"]
-
-    if visual_type == "step":
-        candidates += ["planning notebook", "workflow board"]
-
-    if visual_type == "comparison":
-        candidates += ["two laptops", "office workspace"]
-
-    deduped = []
-    for c in candidates:
-        c = simplify_image_text(c)
-        if c and c not in deduped:
-            deduped.append(c)
-
-    return deduped[:4]
-
 
 def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
     global UNSPLASH_CALL_COUNT
@@ -3067,7 +3012,63 @@ def build_image_query_candidates(query: str, heading: str, visual_type: str) -> 
 
     return candidates[:5]
  
+
+def detect_post_image_theme(sections: List[Dict[str, str]]) -> str:
+    joined = " ".join(
+        [
+            (sec.get("heading") or "") + " " +
+            (sec.get("image_query") or "") + " " +
+            (sec.get("body") or "")
+            for sec in sections
+        ]
+    ).lower()
+
+    if any(x in joined for x in ["stock", "stocks", "invest", "investment", "portfolio", "etf", "trading"]):
+        return "investing"
+    if any(x in joined for x in ["software", "app", "platform", "tool", "saas", "crm"]):
+        return "software"
+    return "workspace"
+
+
+def build_post_level_image_queries(sections: List[Dict[str, str]]) -> List[str]:
+    theme = detect_post_image_theme(sections)
+
+    if theme == "investing":
+        return [
+            "laptop desk",
+            "office desk",
+            "computer desk",
+            "notebook desk",
+            "workspace",
+            "home office",
+            "business desk",
+            "laptop workspace",
+        ]
+
+    if theme == "software":
+        return [
+            "computer desk",
+            "laptop workspace",
+            "office desk",
+            "workspace",
+            "business desk",
+            "home office",
+            "notebook desk",
+            "desktop setup",
+        ]
+
+    return [
+        "office desk",
+        "laptop workspace",
+        "notebook desk",
+        "home office",
+        "computer desk",
+        "workspace",
+        "business desk",
+        "desk setup",
+    ]
  
+
 # -----------------------------
 # Unsplash
 # -----------------------------
@@ -3364,7 +3365,6 @@ def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str
     for sec in sections[:IMG_COUNT]:
         heading = sec.get("heading", "")
         visual_type = sec.get("visual_type", "")
-        q = simplify_section_image_query(keyword, heading, visual_type)
 
         if q in seen:
             q = "workspace desk laptop"
@@ -3532,50 +3532,23 @@ def simplify_section_image_query(keyword: str, heading: str, visual_type: str = 
  
 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
-    query_candidates = build_image_query_candidates(query, heading, visual_type)
-
     source_priority = ["unsplash", "pexels", "pixabay"]
 
-    for candidate_query in query_candidates[:6]:
-        for source in source_priority:
-            for page in [1, 2, 3, 4, 5]:
-                results = cached_search_source(source, candidate_query, page=page)
-                log("IMG", f"source='{source}' cq='{candidate_query}' page={page} results={len(results)}")
+    for source in source_priority:
+        for page in [1, 2, 3, 4, 5]:
+            results = cached_search_source(source, query, page=page)
+            log("IMG", f"source='{source}' cq='{query}' page={page} results={len(results)}")
 
-                if not results:
-                    continue
+            if not results:
+                continue
 
-                filtered = filter_reusable_assets(results, used_ids=used_ids)
-                if not filtered:
-                    continue
+            filtered = filter_reusable_assets(results, used_ids=used_ids)
+            if not filtered:
+                continue
 
-                picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
-                if picked:
-                    return picked
-
-    fallback_queries = [
-        "office",
-        "desk",
-        "laptop",
-        "workspace",
-    ]
- 
-    for fq in fallback_queries:
-        for source in source_priority:
-            for page in [1, 2, 3, 4, 5]:
-                results = cached_search_source(source, fq, page=page)
-                log("IMG", f"fallback source='{source}' cq='{fq}' page={page} results={len(results)}")
-
-                if not results:
-                    continue
-
-                filtered = filter_reusable_assets(results, used_ids=used_ids)
-                if not filtered:
-                    continue
-
-                picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
-                if picked:
-                    return picked
+            picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
+            if picked:
+                return picked
 
     return None
     
@@ -3642,87 +3615,71 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     alt_texts: List[str] = []
     credits_li: List[str] = []
 
-    candidate_sections = []
-    for sec in sections:
-        if section_has_html_table(sec):
-            continue
-        candidate_sections.append(sec)
-
+    candidate_sections = [sec for sec in sections if not section_has_html_table(sec)]
     if not candidate_sections:
         candidate_sections = sections[:]
 
-    log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} candidates={len(candidate_sections)}")
+    post_queries = build_post_level_image_queries(candidate_sections)
+    collected_assets = []
 
-    for i, sec in enumerate(candidate_sections, start=1):
-        if len(image_paths) >= MIN_REQUIRED_IMAGES:
+    log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} candidate_sections={len(candidate_sections)}")
+    log("IMG", f"post-level queries={post_queries}")
+
+    for q in post_queries:
+        if len(collected_assets) >= MIN_REQUIRED_IMAGES:
             break
 
-        path, alt, credit, used_ids = build_image_asset_for_section(
-            slug=slug,
-            idx=i,
-            heading=sec.get("heading", ""),
-            image_query=sec.get("image_query", ""),
-            visual_type=sec.get("visual_type", "photo"),
-            alt_hint=sec.get("alt_text", ""),
+        asset = find_best_asset_for_query(
+            query=q,
+            heading=q,
+            visual_type="photo",
             used_ids=used_ids,
-            body=sec.get("body", ""),
         )
 
-        if path and path.strip():
-            image_paths.append(path)
-            alt_texts.append(alt or sec.get("heading", f"Section {i}"))
-            if credit:
-                credits_li.append(credit)
+        if not asset:
+            continue
 
-    # 1차 실패 시 더 넓은 fallback 검색
-    if len(image_paths) < MIN_REQUIRED_IMAGES:
-        fallback_sections = []
-        for sec in candidate_sections:
-            fallback_sections.append({
-                "heading": sec.get("heading", ""),
-                "image_query": "laptop workspace",
-                "visual_type": "workspace",
-                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
-                "body": sec.get("body", ""),
-            })
-            fallback_sections.append({
-                "heading": sec.get("heading", ""),
-                "image_query": "finance workspace",
-                "visual_type": "photo",
-                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
-                "body": sec.get("body", ""),
-            })
+        hotlink_url = (asset.get("hotlink_url") or asset.get("download_url") or "").strip()
+        if not hotlink_url:
+            continue
 
-        for j, sec in enumerate(fallback_sections, start=len(image_paths) + 1):
-            if len(image_paths) >= MIN_REQUIRED_IMAGES:
-                break
-
-            path, alt, credit, used_ids = build_image_asset_for_section(
-                slug=slug,
-                idx=j,
-                heading=sec.get("heading", ""),
-                image_query=sec.get("image_query", ""),
-                visual_type=sec.get("visual_type", "photo"),
-                alt_hint=sec.get("alt_text", ""),
-                used_ids=used_ids,
-                body=sec.get("body", ""),
-            )
-
-            if path and path.strip():
-                image_paths.append(path)
-                alt_texts.append(alt or sec.get("heading", f"Fallback {j}"))
-                if credit:
-                    credits_li.append(credit)
+        used_ids.add(asset["id"])
+        collected_assets.append(asset)
 
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
-    if len(image_paths) < MIN_REQUIRED_IMAGES:
+    if len(collected_assets) < MIN_REQUIRED_IMAGES:
         raise RuntimeError(
-            f"Not enough unique images for slug='{slug}'. found={len(image_paths)} required={MIN_REQUIRED_IMAGES}"
+            f"Not enough unique images for slug='{slug}'. found={len(collected_assets)} required={MIN_REQUIRED_IMAGES}"
         )
 
-    return image_paths[:MIN_REQUIRED_IMAGES], alt_texts[:MIN_REQUIRED_IMAGES], credits_li[:MIN_REQUIRED_IMAGES]
+    target_sections = candidate_sections[:MIN_REQUIRED_IMAGES]
+
+    for i, sec in enumerate(target_sections, start=1):
+        asset = collected_assets[i - 1]
+        hotlink_url = (asset.get("hotlink_url") or asset.get("download_url") or "").strip()
+        alt_text = sec.get("alt_text") or sec.get("heading") or f"Section {i}"
+
+        if (asset.get("source") or "").strip().lower() == "unsplash":
+            trigger_unsplash_download(asset)
+
+        creator_name = html_escape(asset.get("creator_name") or asset.get("source", "Image source"))
+        creator_url = html_escape(asset.get("creator_url") or asset.get("page_url") or "#")
+        page_url = html_escape(asset.get("page_url") or creator_url)
+        source_label = html_escape(asset.get("source", "source").title())
+
+        photo_credit_html = (
+            f'<li>Photo {i}: '
+            f'<a href="{creator_url}" target="_blank" rel="noopener noreferrer">{creator_name}</a> '
+            f'via <a href="{page_url}" target="_blank" rel="noopener noreferrer">{source_label}</a></li>'
+        )
+
+        image_paths.append(hotlink_url)
+        alt_texts.append(alt_text)
+        credits_li.append(photo_credit_html)
+
+    return image_paths, alt_texts, credits_li
  
 # =========================================================
 # Internal links
