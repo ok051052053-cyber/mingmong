@@ -3322,7 +3322,10 @@ def search_unsplash_once(query: str) -> List[dict]:
 
     results = search_source("unsplash", query, page=1) or []
     UNSPLASH_SEARCH_CACHE[cache_key] = results
-    return resultsdef search_unsplash_once(query: str) -> List[dict]:
+    return results
+ 
+
+def search_unsplash_once(query: str) -> List[dict]:
     query = (query or "").strip().lower()
     if not query:
         return []
