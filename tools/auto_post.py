@@ -60,13 +60,14 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "6"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "5"))
 VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "4"))
-EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "1"))
+EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "2"))
 COLLECT_TARGET_IMAGES = int(
-    os.environ.get("COLLECT_TARGET_IMAGES", str(VISIBLE_MIN_IMAGES + EXTRA_TABLE_BUFFER))
+    os.environ.get("COLLECT_TARGET_IMAGES", str(max(MIN_REQUIRED_IMAGES + EXTRA_TABLE_BUFFER, VISIBLE_MIN_IMAGES + EXTRA_TABLE_BUFFER)))
 )
+
 print(
     f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT} "
     f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={VISIBLE_MIN_IMAGES} "
@@ -3508,35 +3509,57 @@ def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> s
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     cache_key = f"{query}|{heading}|{visual_type}"
     if cache_key in IMAGE_RESULT_CACHE:
-        return IMAGE_RESULT_CACHE[cache_key]
+        cached = IMAGE_RESULT_CACHE[cache_key]
+        if cached is None:
+            return None
+        cached_id = cached.get("id") or cached.get("url") or cached.get("src")
+        if cached_id and cached_id not in used_ids:
+            return cached
 
     simple_query = simplify_image_query(query, heading, visual_type)
+    candidate_queries = build_image_query_candidates(simple_query, heading, visual_type)
 
-    unsplash_results = search_unsplash_once(simple_query)
-    for item in unsplash_results:
-        item_id = item.get("id") or item.get("url") or item.get("src")
-        if not item_id or item_id in used_ids:
-            continue
-        IMAGE_RESULT_CACHE[cache_key] = item
-        return item
+    generic_fallbacks = []
+    vt = (visual_type or "").lower()
 
-    fallback_queries = [
-        simple_query,
-        "workspace desk laptop",
-        "modern office desk",
-    ]
+    if vt == "workspace":
+        generic_fallbacks = [
+            "workspace desk laptop",
+            "home office desk",
+            "modern desk setup",
+            "office workspace laptop",
+        ]
+    elif vt == "diagram":
+        generic_fallbacks = [
+            "business dashboard laptop",
+            "analytics dashboard screen",
+            "finance chart laptop",
+            "data dashboard office",
+        ]
+    else:
+        generic_fallbacks = [
+            "modern office desk",
+            "laptop desk workspace",
+            "business meeting desk",
+            "office laptop table",
+        ]
 
-    fallback_sources = ["pexels", "pixabay"]
+    for q in generic_fallbacks:
+        if q not in candidate_queries:
+            candidate_queries.append(q)
 
-    for fq in fallback_queries:
-        for source in fallback_sources:
-            results = search_source(source, fq, page=1) or []
-            for item in results:
-                item_id = item.get("id") or item.get("url") or item.get("src")
-                if not item_id or item_id in used_ids:
-                    continue
-                IMAGE_RESULT_CACHE[cache_key] = item
-                return item
+    sources = ["unsplash", "pexels", "pixabay"]
+
+    for cq in candidate_queries[:6]:
+        for source in sources:
+            for page in [1, 2]:
+                results = search_source(source, cq, page=page) or []
+                for item in results:
+                    item_id = item.get("id") or item.get("url") or item.get("src")
+                    if not item_id or item_id in used_ids:
+                        continue
+                    IMAGE_RESULT_CACHE[cache_key] = item
+                    return item
 
     log("IMG", f"No asset found for query='{simple_query}' heading='{heading}'")
     IMAGE_RESULT_CACHE[cache_key] = None
@@ -4506,6 +4529,20 @@ def main() -> int:
             if section_has_html_table(sec):
                 continue
             visible_image_count += 1
+
+        if real_image_count < MIN_REQUIRED_IMAGES:
+            log(
+                "IMG",
+                f"Rejecting post slug='{slug}' because only {real_image_count} images were found, need at least {MIN_REQUIRED_IMAGES}"
+            )
+            continue
+
+        if visible_image_count < VISIBLE_MIN_IMAGES:
+            log(
+                "IMG",
+                f"Rejecting post slug='{slug}' because only {visible_image_count} images would be visible, need at least {VISIBLE_MIN_IMAGES}"
+            )
+            continue
 
         log(
             "IMG",
