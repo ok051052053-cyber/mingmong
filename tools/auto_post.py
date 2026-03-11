@@ -139,18 +139,15 @@ log(
     f"wikimedia={ENABLE_WIKIMEDIA}"
 )
 
-UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "1000"))
-UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "650"))
-UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "2"))
-UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
- 
-PEXELS_MIN_WIDTH = int(os.environ.get("PEXELS_MIN_WIDTH", "1000"))
-PEXELS_MIN_HEIGHT = int(os.environ.get("PEXELS_MIN_HEIGHT", "650"))
-PEXELS_PER_PAGE = int(os.environ.get("PEXELS_PER_PAGE", "30"))
- 
-PIXABAY_MIN_WIDTH = int(os.environ.get("PIXABAY_MIN_WIDTH", "1000"))
-PIXABAY_MIN_HEIGHT = int(os.environ.get("PIXABAY_MIN_HEIGHT", "650"))
-PIXABAY_PER_PAGE = int(os.environ.get("PIXABAY_PER_PAGE", "50"))
+UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "800"))
+UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "500"))
+UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "0"))
+
+PEXELS_MIN_WIDTH = int(os.environ.get("PEXELS_MIN_WIDTH", "800"))
+PEXELS_MIN_HEIGHT = int(os.environ.get("PEXELS_MIN_HEIGHT", "500"))
+
+PIXABAY_MIN_WIDTH = int(os.environ.get("PIXABAY_MIN_WIDTH", "800"))
+PIXABAY_MIN_HEIGHT = int(os.environ.get("PIXABAY_MIN_HEIGHT", "500"))
  
 IMAGE_SOURCE_PRIORITY = [
     "unsplash",
@@ -2837,57 +2834,35 @@ def generate_deep_post(
 def sanitize_query_for_image(q: str) -> str:
     q = (q or "").strip().lower()
 
-    replacements = {
-        "client retention system": "freelancer crm dashboard laptop",
-        "client retention": "freelancer crm dashboard",
-        "decision framework": "comparison chart on laptop",
-        "practical approach": "workspace planning desk",
-        "template checklist": "checklist notebook desk",
-        "follow-up automation": "crm automation dashboard",
-        "offboarding": "client handoff workspace",
-        "reactivation": "email follow up workspace",
-        "simple long term portfolio": "investment portfolio laptop",
-        "beginner portfolio allocation": "portfolio allocation chart",
-        "monthly investing plan": "budget spreadsheet laptop",
-        "etf comparison": "etf comparison chart",
-        "risk tolerance": "investment risk chart",
-        "ai stocks": "stock market dashboard",
-        "investment performance": "investment dashboard laptop",
-        "screening process": "stock chart laptop",
-        "beginner investing": "finance workspace desk",
-    }
-
-    for src, dst in replacements.items():
-        if src in q:
-            q = q.replace(src, dst)
-
-    q = re.sub(
-        r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to|why|what|when|best|mistake|tradeoff|decision|quick answer|final recommendation|for beginners|worth it)\b",
-        "",
-        q,
-        flags=re.IGNORECASE,
-    )
     q = re.sub(r"[^a-z0-9\s]", " ", q)
     q = re.sub(r"\s+", " ", q).strip()
 
-    words = q.split()
-
     stop_words = {
         "the", "a", "an", "this", "that", "these", "those",
-        "most", "more", "less",
+        "most", "more", "less", "best", "right", "wrong",
         "pick", "using", "start", "with", "your", "their",
-        "into", "from", "begin", "guide",
-        "which", "tools", "tool", "actually", "real", "quick",
-        "answer", "final", "recommendation", "what", "why", "how",
-        "for", "and", "or", "to", "of", "in", "on", "by",
-        "best", "smart", "simple", "choose", "choosing",
-        "worth", "ideal", "option", "options"
+        "into", "from", "begin", "guide", "which", "what",
+        "why", "how", "for", "and", "or", "to", "of", "in",
+        "on", "by", "tools", "tool", "app", "apps", "stock",
+        "stocks", "trading", "investing", "investment", "chart",
+        "checklist", "strategy", "analysis", "beginner", "beginners",
+        "smart", "simple", "choose", "choosing", "ideal", "option",
+        "options", "finance", "financial", "etf", "etfs"
     }
-    words = [w for w in words if w not in stop_words]
 
-    q = " ".join(words[:2])
+    words = [w for w in q.split() if w not in stop_words and len(w) >= 3]
 
-    return q or "business workspace laptop desk"
+    if "desk" in words or "workspace" in words or "office" in words:
+        return "office desk"
+    if "laptop" in words or "computer" in words or "screen" in words:
+        return "laptop desk"
+    if "notebook" in words or "planning" in words:
+        return "notebook desk"
+
+    if len(words) >= 2:
+        return " ".join(words[:2])
+
+    return "office desk"
  
 
 def extract_visual_keywords_from_text(text: str, limit: int = 4) -> List[str]:
@@ -3070,39 +3045,25 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 
 
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
-    candidates: List[str] = []
+    candidates = []
 
-    primary = sanitize_query_for_image(query or "")
-    heading_q = sanitize_query_for_image(heading or "")
+    q1 = sanitize_query_for_image(query)
+    q2 = sanitize_query_for_image(heading)
 
-    if primary:
-        candidates.append(primary)
+    for q in [q1, q2]:
+        if q and q not in candidates:
+            candidates.append(q)
 
-    if heading_q and heading_q not in candidates:
-        candidates.append(heading_q)
+    if (visual_type or "").lower() == "workspace":
+        extras = ["laptop desk", "office desk", "workspace laptop"]
+    elif (visual_type or "").lower() == "diagram":
+        extras = ["computer desk", "office desk", "business laptop"]
+    else:
+        extras = ["office desk", "laptop desk", "notebook desk"]
 
-    visual_defaults = {
-        "diagram": [
-            "investment chart",
-            "finance dashboard",
-            "business chart",
-        ],
-        "workspace": [
-            "laptop workspace",
-            "office desk",
-            "planning desk",
-        ],
-        "photo": [
-            "finance workspace",
-            "laptop desk",
-            "modern office",
-        ],
-    }
-
-    for item in visual_defaults.get((visual_type or "photo").lower(), visual_defaults["photo"]):
-        item = sanitize_query_for_image(item)
-        if item and item not in candidates:
-            candidates.append(item)
+    for q in extras:
+        if q not in candidates:
+            candidates.append(q)
 
     return candidates[:5]
  
@@ -3155,7 +3116,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     continue
 
                 ratio = w / max(h, 1)
-                if ratio < 1.0 or ratio > 2.8:
+                if ratio < 0.9 or ratio > 3.0:
                     continue
 
                 urls = item.get("urls") or {}
@@ -3621,7 +3582,7 @@ def simplify_section_image_query(keyword: str, heading: str, visual_type: str = 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     query_candidates = build_image_query_candidates(query, heading, visual_type)
 
-    source_priority = ["unsplash", "wikimedia", "pexels", "pixabay"]
+    source_priority = ["unsplash", "pexels", "pixabay"]
 
     for candidate_query in query_candidates[:6]:
         for source in source_priority:
@@ -3641,10 +3602,14 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
                     return picked
 
     fallback_queries = [
+        "laptop desk",
         "office desk",
-        "laptop workspace",
-        "finance desk",
-        "investment chart",
+        "computer desk",
+        "workspace laptop",
+        "notebook desk",
+        "home office",
+        "business laptop",
+        "desk workspace",
     ]
 
     for fq in fallback_queries:
