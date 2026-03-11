@@ -130,7 +130,9 @@ IMAGE_SOURCE_PRIORITY = [
     "pexels",
     "pixabay",
 ]
- 
+
+log("IMG", f"API keys loaded unsplash={bool(UNSPLASH_ACCESS_KEY)} pexels={bool(PEXELS_API_KEY)} pixabay={bool(PIXABAY_API_KEY)} wikimedia={ENABLE_WIKIMEDIA}")
+
 RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
  
 CLUSTER_MODE = os.environ.get("CLUSTER_MODE", "1").strip() == "1"
@@ -3548,12 +3550,16 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
         if q not in candidate_queries:
             candidate_queries.append(q)
 
+    log("IMG", f"find_best_asset query='{query}' heading='{heading}' visual_type='{visual_type}'")
+    log("IMG", f"candidate_queries={candidate_queries}")
+
     sources = ["unsplash", "pexels", "pixabay"]
 
     for cq in candidate_queries[:6]:
         for source in sources:
             for page in [1, 2]:
                 results = search_source(source, cq, page=page) or []
+                log("IMG", f"source='{source}' cq='{cq}' page={page} results={len(results)}")
                 for item in results:
                     item_id = item.get("id") or item.get("url") or item.get("src")
                     if not item_id or item_id in used_ids:
@@ -3582,7 +3588,8 @@ def build_image_asset_for_section(
         body=body or "",
         visual_type=visual_type or "photo",
     )
-
+    log("IMG", f"trying image slug='{slug}' idx={idx} heading='{heading}' query='{image_query}' visual_type='{visual_type}'")
+ 
     alt_text = alt_hint or build_image_alt(slug, heading, clean_query)
 
     asset = find_best_asset_for_query(
@@ -3637,6 +3644,8 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     )
     target_sections = preferred_sections[:target_count]
 
+    log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} target_sections={len(target_sections)}")
+ 
     for i, sec in enumerate(target_sections, start=1):
         path, alt, credit, used_ids = build_image_asset_for_section(
             slug=slug,
