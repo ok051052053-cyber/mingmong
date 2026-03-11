@@ -40,12 +40,12 @@ def safe_json_loads(text: str, default=None):
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
-UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
+UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "50"))
 PEXELS_SEARCH_CACHE: Dict[str, List[dict]] = {}
 PIXABAY_SEARCH_CACHE: Dict[str, List[dict]] = {}
 
 UNSPLASH_CALL_COUNT = 0
-UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
+UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "50"))
 
 IMAGE_QUERY_STOPWORDS = {
     "actually", "really", "very", "best", "guide", "tips", "tip",
@@ -97,8 +97,8 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "2200"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "420"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "5500"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "800"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "5"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
@@ -2357,7 +2357,7 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- Aim for 4500 to 7000 characters for most articles
+- Aim for 6500 to 9500 characters for most articles
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
@@ -2619,7 +2619,7 @@ def quality_check_post(
         if has_html_table and intent_type != "comparison":
             return False, "unexpected-html-table"
 
-        if len(body) < 220:
+        if len(body) < 500:
             return False, "thin-section"
 
         if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
@@ -2665,7 +2665,7 @@ def quality_check_post(
         [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
     )
 
-    if len(joined) < 2200:
+    if len(joined) < 5200:
         return False, "too-short"
 
     nk = normalize_keyword(keyword)
@@ -3065,7 +3065,7 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 
 
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
-    candidates = []
+    candidates: List[str] = []
 
     direct = [
         simplify_section_image_query(query, heading, visual_type),
@@ -3073,45 +3073,48 @@ def build_image_query_candidates(query: str, heading: str, visual_type: str) -> 
         sanitize_query_for_image(query),
         sanitize_query_for_image(heading),
         auto_image_query(
-            heading=heading,
-            image_query=query,
+            heading=heading or "",
+            image_query=query or "",
             body="",
-            visual_type=visual_type,
+            visual_type=visual_type or "photo",
         ),
     ]
-
-    for c in direct:
-        c = (c or "").strip().lower()
-        if c and c not in candidates:
-            candidates.append(c)
 
     fallback_map = {
         "diagram": [
             "business chart",
+            "finance dashboard",
+            "investment chart",
             "comparison chart",
-            "dashboard laptop",
-            "finance chart",
+            "laptop analytics",
         ],
         "workspace": [
             "workspace desk laptop",
             "modern office desk",
             "planning notebook desk",
             "home office desk",
+            "business workspace laptop",
         ],
         "photo": [
             "modern office desk",
             "laptop workspace",
             "business workspace",
             "notebook planning desk",
+            "finance workspace desk",
         ],
     }
+
+    for c in direct:
+        c = sanitize_query_for_image(c or "")
+        if c and c not in candidates:
+            candidates.append(c)
 
     for c in fallback_map.get((visual_type or "photo").lower(), fallback_map["photo"]):
         c = sanitize_query_for_image(c)
         if c and c not in candidates:
             candidates.append(c)
 
-    return candidates[:8]
+    return candidates[:10]
  
  
 # -----------------------------
@@ -3434,15 +3437,8 @@ def wikimedia_search(query: str, page: int = 1) -> List[dict]:
  
  
 def search_source(source: str, query: str, page: int = 1) -> List[dict]:
-    global UNSPLASH_CALL_COUNT
-
     if source == "unsplash":
-        if UNSPLASH_CALL_COUNT >= UNSPLASH_CALL_LIMIT:
-            log("IMG", f"Unsplash skipped due to call limit query='{query}'")
-            return []
-        UNSPLASH_CALL_COUNT += 1
         return unsplash_search(query, page=page)
-
     if source == "pexels":
         return pexels_search(query, page=page)
     if source == "pixabay":
@@ -3450,6 +3446,7 @@ def search_source(source: str, query: str, page: int = 1) -> List[dict]:
     if source == "wikimedia":
         return wikimedia_search(query, page=page)
     return []
+ 
 
 def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str]:
     seen = set()
@@ -3628,11 +3625,11 @@ def simplify_section_image_query(keyword: str, heading: str, visual_type: str = 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     query_candidates = build_image_query_candidates(query, heading, visual_type)
 
-    source_priority = ["unsplash", "pexels", "pixabay", "wikimedia"]
+    source_priority = ["unsplash", "wikimedia", "pexels", "pixabay"]
 
-    for candidate_query in query_candidates[:4]:
+    for candidate_query in query_candidates[:6]:
         for source in source_priority:
-            for page in [1, 2]:
+            for page in [1, 2, 3, 4, 5]:
                 results = cached_search_source(source, candidate_query, page=page)
                 log("IMG", f"source='{source}' cq='{candidate_query}' page={page} results={len(results)}")
 
@@ -3652,11 +3649,14 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
         "laptop workspace",
         "business workspace",
         "planning notebook desk",
+        "finance workspace desk",
+        "investment dashboard",
+        "office laptop screen",
     ]
 
     for fq in fallback_queries:
         for source in source_priority:
-            for page in [1, 2]:
+            for page in [1, 2, 3, 4, 5]:
                 results = cached_search_source(source, fq, page=page)
                 log("IMG", f"fallback source='{source}' cq='{fq}' page={page} results={len(results)}")
 
@@ -3736,19 +3736,21 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     alt_texts: List[str] = []
     credits_li: List[str] = []
 
-    table_sections = [sec for sec in sections if section_has_html_table(sec)]
-    non_table_sections = [sec for sec in sections if not section_has_html_table(sec)]
-    preferred_sections = non_table_sections + table_sections
+    candidate_sections = []
+    for sec in sections:
+        if section_has_html_table(sec):
+            continue
+        candidate_sections.append(sec)
 
-    target_count = min(
-        len(preferred_sections),
-        max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + len(table_sections))
-    )
-    target_sections = preferred_sections[:target_count]
+    if not candidate_sections:
+        candidate_sections = sections[:]
 
-    log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} target_sections={len(target_sections)}")
- 
-    for i, sec in enumerate(target_sections, start=1):
+    log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} candidates={len(candidate_sections)}")
+
+    for i, sec in enumerate(candidate_sections, start=1):
+        if len(image_paths) >= MIN_REQUIRED_IMAGES:
+            break
+
         path, alt, credit, used_ids = build_image_asset_for_section(
             slug=slug,
             idx=i,
@@ -3759,40 +3761,69 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
             used_ids=used_ids,
             body=sec.get("body", ""),
         )
-        image_paths.append(path)
-        alt_texts.append(alt or sec.get("heading", f"Section {i}"))
-        if credit:
-            credits_li.append(credit)
 
-    while len(image_paths) < len(sections):
-        image_paths.append("")
-    while len(alt_texts) < len(sections):
-        idx = len(alt_texts)
-        sec = sections[idx] if idx < len(sections) else {}
-        alt_texts.append(sec.get("alt_text") or sec.get("heading") or f"Section {idx + 1}")
+        if path and path.strip():
+            image_paths.append(path)
+            alt_texts.append(alt or sec.get("heading", f"Section {i}"))
+            if credit:
+                credits_li.append(credit)
+
+    # 1차 실패 시 더 넓은 fallback 검색
+    if len(image_paths) < MIN_REQUIRED_IMAGES:
+        fallback_sections = []
+        for sec in candidate_sections:
+            fallback_sections.append({
+                "heading": sec.get("heading", ""),
+                "image_query": "modern office desk",
+                "visual_type": "photo",
+                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
+                "body": sec.get("body", ""),
+            })
+            fallback_sections.append({
+                "heading": sec.get("heading", ""),
+                "image_query": "laptop workspace",
+                "visual_type": "workspace",
+                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
+                "body": sec.get("body", ""),
+            })
+            fallback_sections.append({
+                "heading": sec.get("heading", ""),
+                "image_query": "finance workspace desk",
+                "visual_type": "photo",
+                "alt_text": sec.get("alt_text") or sec.get("heading", ""),
+                "body": sec.get("body", ""),
+            })
+
+        for j, sec in enumerate(fallback_sections, start=len(image_paths) + 1):
+            if len(image_paths) >= MIN_REQUIRED_IMAGES:
+                break
+
+            path, alt, credit, used_ids = build_image_asset_for_section(
+                slug=slug,
+                idx=j,
+                heading=sec.get("heading", ""),
+                image_query=sec.get("image_query", ""),
+                visual_type=sec.get("visual_type", "photo"),
+                alt_hint=sec.get("alt_text", ""),
+                used_ids=used_ids,
+                body=sec.get("body", ""),
+            )
+
+            if path and path.strip():
+                image_paths.append(path)
+                alt_texts.append(alt or sec.get("heading", f"Fallback {j}"))
+                if credit:
+                    credits_li.append(credit)
 
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
 
-    non_empty_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
-    log(
-        "IMG",
-        f"slug='{slug}' requested={len(target_sections)} found={non_empty_count} table_sections={len(table_sections)}"
-    )
+    if len(image_paths) < MIN_REQUIRED_IMAGES:
+        raise RuntimeError(
+            f"Not enough unique images for slug='{slug}'. found={len(image_paths)} required={MIN_REQUIRED_IMAGES}"
+        )
 
-    non_empty_images = [p for p in image_paths if isinstance(p, str) and p.strip()]
-    non_empty_alts = [alt_texts[i] for i, p in enumerate(image_paths) if isinstance(p, str) and p.strip()]
-
-    while len(non_empty_images) < MIN_REQUIRED_IMAGES and non_empty_images:
-        non_empty_images.append(non_empty_images[-1])
-        non_empty_alts.append(non_empty_alts[-1] if non_empty_alts else "Article image")
-
-    for i in range(min(len(image_paths), MIN_REQUIRED_IMAGES)):
-        if not image_paths[i].strip() and non_empty_images:
-            image_paths[i] = non_empty_images[min(i, len(non_empty_images) - 1)]
-            alt_texts[i] = non_empty_alts[min(i, len(non_empty_alts) - 1)]
- 
-    return image_paths, alt_texts, credits_li 
+    return image_paths[:MIN_REQUIRED_IMAGES], alt_texts[:MIN_REQUIRED_IMAGES], credits_li[:MIN_REQUIRED_IMAGES]
  
 # =========================================================
 # Internal links
