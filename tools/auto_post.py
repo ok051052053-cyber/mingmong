@@ -4589,17 +4589,17 @@ def main() -> int:
         if post_type == "pillar":
             pillar_slug = slug
 
-image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
+        image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
 
-image_paths, alt_texts = ensure_minimum_image_paths(
-    slug=slug,
+        image_paths, alt_texts = ensure_minimum_image_paths(
+            slug=slug,
             image_paths=image_paths,
-    alt_texts=alt_texts,
+            alt_texts=alt_texts,
             sections=sections,
             min_count=MIN_REQUIRED_IMAGES,
-)
+        )
 
-real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
+        real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
         visible_image_count = 0
         for i, sec in enumerate(sections[:len(image_paths)]):
             path = image_paths[i] if i < len(image_paths) else ""
