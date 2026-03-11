@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="100%" height="100%" fill="#F8FAFC"/>
+  <rect x="70" y="70" width="1460" height="760" rx="32" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/>
+  <rect x="120" y="120" width="220" height="40" rx="20" fill="#CBD5E1"/>
+  <text x="230" y="147" font-size="18" font-weight="700" fill="#475569" text-anchor="middle" font-family="Inter, Arial, sans-serif">Workspace visual</text>
+  <line x1="120" y1="220" x2="1480" y2="220" stroke="#E2E8F0" stroke-width="2"/>
+
+  <text x="120" y="310" font-size="44" font-weight="700" fill="#0F172A" text-anchor="start" font-family="Inter, Arial, sans-serif"><tspan x="120" dy="0">A 30-Day Portfolio Screening Workflow to</tspan><tspan x="120" dy="59.400000000000006">Avoid ETF Surprises</tspan></text>
+  <text x="120" y="470" font-size="24" font-weight="500" fill="#475569" text-anchor="start" font-family="Inter, Arial, sans-serif"><tspan x="120" dy="0">diversified etf portfolio allocation 30 day</tspan></text>
+
+  <rect x="120" y="620" width="340" height="110" rx="24" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text x="150" y="665" font-size="22" font-weight="700" fill="#0F172A" font-family="Inter, Arial, sans-serif">Fallback image</text>
+  <text x="150" y="703" font-size="18" fill="#475569" font-family="Inter, Arial, sans-serif">Generated because no external asset matched.</text>
+</svg>
