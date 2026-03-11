@@ -126,7 +126,11 @@ SERP_CHECK_LIMIT = int(os.environ.get("SERP_CHECK_LIMIT", "10"))
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
-ENABLE_WIKIMEDIA = False
+ENABLE_WIKIMEDIA = True
+
+UNSPLASH_PER_PAGE = max(1, min(30, int(os.environ.get("UNSPLASH_PER_PAGE", "10"))))
+PEXELS_PER_PAGE = max(1, min(80, int(os.environ.get("PEXELS_PER_PAGE", "10"))))
+PIXABAY_PER_PAGE = max(3, min(200, int(os.environ.get("PIXABAY_PER_PAGE", "10"))))
 
 log(
     "IMG",
