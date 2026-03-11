@@ -3450,46 +3450,7 @@ def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
 
 
 def build_svg_placeholder(
-    out_path: Path,
-    title: str,
-    heading: str,
-    image_query: str,
-    visual_type: str = "photo",
-) -> None:
-    w = 1600
-    h = 900
-
-    bg = "#F8FAFC"
-    panel = "#FFFFFF"
-    stroke = "#E2E8F0"
-    title_color = "#0F172A"
-    body_color = "#475569"
-    accent = "#CBD5E1"
-
-    safe_heading = (heading or "Article visual").strip()
-    safe_query = (image_query or "").strip()
-    safe_type = (visual_type or "photo").strip().title()
-
-    heading_lines = wrap_text_to_width(safe_heading, 980, font_size=44)[:3]
-    query_lines = wrap_text_to_width(safe_query, 900, font_size=24)[:3]
-
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
-  <rect width="100%" height="100%" fill="{bg}"/>
-  <rect x="70" y="70" width="1460" height="760" rx="32" fill="{panel}" stroke="{stroke}" stroke-width="2"/>
-  <rect x="120" y="120" width="220" height="40" rx="20" fill="{accent}"/>
-  <text x="230" y="147" font-size="18" font-weight="700" fill="{body_color}" text-anchor="middle" font-family="Inter, Arial, sans-serif">{escape_xml(safe_type)} visual</text>
-  <line x1="120" y1="220" x2="1480" y2="220" stroke="{stroke}" stroke-width="2"/>
-
-  {svg_text_block(120, 310, heading_lines, font_size=44, fill=title_color, weight="700")}
-  {svg_text_block(120, 470, query_lines, font_size=24, fill=body_color, weight="500")}
-
-  <rect x="120" y="620" width="340" height="110" rx="24" fill="#EFF6FF" stroke="#BFDBFE"/>
-  <text x="150" y="665" font-size="22" font-weight="700" fill="{title_color}" font-family="Inter, Arial, sans-serif">Fallback image</text>
-  <text x="150" y="703" font-size="18" fill="{body_color}" font-family="Inter, Arial, sans-serif">Generated because no external asset matched.</text>
-</svg>'''
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(svg, encoding="utf-8")
+    return None
 
 
 def ensure_minimum_image_paths(
