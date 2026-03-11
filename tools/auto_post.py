@@ -1530,11 +1530,11 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             merged_all = [
                 kw for kw in merged_all
                 if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
-]
+            ]
 
-if merged_all:
-            save_keywords(merged_all)
-            return merged_all, cluster_name, "normal", current_pillar_slug
+            if merged_all:
+                save_keywords(merged_all)
+                return merged_all, cluster_name, "normal", current_pillar_slug
 
         except Exception as e:
             log("KW", f"Cluster keyword generation failed: {e}")
