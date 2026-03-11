@@ -2427,6 +2427,18 @@ Length rules:
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
+Hard section length rules:
+- Every section body must be substantial.
+- Section 1 and section 6 must each be at least 350 characters.
+- Sections 2, 3, 4, and 5 must each be at least 550 characters.
+- Do not leave any section as a short summary.
+- If a section feels short, extend it with:
+  one concrete example
+  one tradeoff
+  one consequence
+  one next-step decision
+- Before finishing, check every section length and expand weak sections.
+
 TLDR rules:
 - TLDR must be 3 to 5 short lines
 - TLDR must answer the core query immediately
@@ -2462,6 +2474,15 @@ Depth rules:
 - At least 2 sections must include examples or edge cases
 - Translate abstract advice into observable actions, thresholds, timing, or criteria
 - No empty motivational filler
+
+Section development rules:
+- Each section must contain:
+  one direct answer or claim
+  one concrete example with numbers, tools, money, or timing
+  one mistake, tradeoff, or limitation
+  one consequence or decision point
+- A section is incomplete if it has only advice without an example.
+- A section is incomplete if it has only explanation without a tradeoff.
 
 Concrete example rule:
 - At least 2 sections must include a concrete real-world example with numbers.
@@ -2510,7 +2531,8 @@ Internal-link and cluster rules:
 
 Length and completeness rules:
 - Total text must be at least {MIN_CHARS} characters
-- Each section body should normally be at least {MIN_SECTION_CHARS} characters
+- Each section body must meet the minimum length target before you finish.
+- Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
 
@@ -2662,7 +2684,7 @@ def quality_check_post(
     clean_headings = []
     html_table_count = 0
 
-    for s in sections:
+    for idx, s in enumerate(sections):
         if not isinstance(s, dict):
             return False, "bad-section-item"
 
@@ -2677,7 +2699,7 @@ def quality_check_post(
 
         has_html_table = "<table" in body.lower() and "</table>" in body.lower()
         if has_html_table:
-            html_table_count += 1
+        html_table_count += 1
 
         if has_table_like_text(body) and intent_type != "comparison":
             return False, "table-like-text-detected"
@@ -2685,7 +2707,8 @@ def quality_check_post(
         if has_html_table and intent_type != "comparison":
             return False, "unexpected-html-table"
 
-        if len(body) < 500:
+        min_len = 300 if idx in {0, 5} else 400
+        if len(body) < min_len:
             return False, "thin-section"
 
         if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
