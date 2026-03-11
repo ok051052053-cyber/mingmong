@@ -18,7 +18,7 @@ from openai import OpenAI
 
 def log(stage: str, message: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] [{stage}] {message
+    print(f"[{ts}] [{stage}] {message}")
                               
 
 def safe_json_loads(text: str, default=None):
