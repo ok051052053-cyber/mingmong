@@ -15,7 +15,11 @@ import requests
 from slugify import slugify
 from openai import OpenAI
  
- 
+UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
+
+UNSPLASH_CALL_COUNT = 0
+UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
+
 # =========================================================
 # Paths
 # =========================================================
@@ -106,7 +110,6 @@ IMAGE_SOURCE_PRIORITY = [
     "unsplash",
     "pexels",
     "pixabay",
-    "wikimedia",
 ]
  
 RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
@@ -3016,7 +3019,9 @@ def build_image_query_candidates(query: str, heading: str = "", visual_type: str
             candidates.append(q)
 
     add(base)
-    add(heading_clean)
+
+    if heading_clean and heading_clean != base:
+        add(heading_clean)
 
     if (visual_type or "").lower() == "diagram":
         add("business dashboard laptop")
@@ -3054,6 +3059,10 @@ def build_image_alt(title: str, heading: str, image_query: str) -> str:
 def unsplash_search(query: str, page: int = 1) -> List[dict]:
     if not UNSPLASH_ACCESS_KEY:
         return []
+
+    cache_key = f"{query.strip().lower()}|{page}"
+    if cache_key in UNSPLASH_SEARCH_CACHE:
+        return UNSPLASH_SEARCH_CACHE[cache_key]
 
     try:
         url = "https://api.unsplash.com/search/photos"
@@ -3115,7 +3124,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                 ]).strip()
 
                 out.append({
-                    "download_location": (links.get("download_location") or "").strip(),
+                    "download_location": download_location,
                     "source": "unsplash",
                     "id": normalize_asset_id("unsplash", pid),
                     "raw_id": pid,
@@ -3131,9 +3140,11 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                 continue
 
         out.sort(key=lambda x: x["score"], reverse=True)
+        UNSPLASH_SEARCH_CACHE[cache_key] = out
         return out
     except Exception as e:
         log("IMG", f"Unsplash search failed for '{query}': {e}")
+        UNSPLASH_SEARCH_CACHE[cache_key] = []
         return []
  
  
@@ -3362,8 +3373,15 @@ def wikimedia_search(query: str, page: int = 1) -> List[dict]:
  
  
 def search_source(source: str, query: str, page: int = 1) -> List[dict]:
+    global UNSPLASH_CALL_COUNT
+
     if source == "unsplash":
+        if UNSPLASH_CALL_COUNT >= UNSPLASH_CALL_LIMIT:
+            log("IMG", f"Unsplash skipped due to call limit query='{query}'")
+            return []
+        UNSPLASH_CALL_COUNT += 1
         return unsplash_search(query, page=page)
+
     if source == "pexels":
         return pexels_search(query, page=page)
     if source == "pixabay":
@@ -3568,21 +3586,20 @@ def ensure_minimum_image_paths(
  
  
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
-    query_candidates = build_image_query_candidates(query, heading, visual_type)
+    query_candidates = build_image_query_candidates(query, heading, visual_type)[:3]
 
-    for candidate_query in query_candidates[:3]:
+    for candidate_query in query_candidates:
         for source in IMAGE_SOURCE_PRIORITY:
-            for page in [1]:
-                results = search_source(source, candidate_query, page=page)
-                if not results:
-                    continue
+            results = search_source(source, candidate_query, page=1)
+            if not results:
+                continue
 
-                filtered = [asset for asset in results if asset["id"] not in used_ids]
-                if filtered:
-                    filtered.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-                    best = filtered[0]
-                    log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{candidate_query}'")
-                    return best
+            filtered = [asset for asset in results if asset["id"] not in used_ids]
+            if filtered:
+                filtered.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+                best = filtered[0]
+                log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{candidate_query}'")
+                return best
 
     log("IMG", f"No asset found for query='{query}' heading='{heading}'")
     return None
@@ -3667,18 +3684,18 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         len(preferred_sections),
         max(COLLECT_TARGET_IMAGES, VISIBLE_MIN_IMAGES + len(table_sections))
     )
-    target_sections = preferred_sections[:target_count]
- 
+    target_sections = sections[:IMG_COUNT]
+
     for i, sec in enumerate(target_sections, start=1):
+
         path, alt, credit, used_ids = build_image_asset_for_section(
             slug=slug,
             idx=i,
-            heading=sec.get("heading", f"Section {i}"),
-            image_query=sec.get("image_query", sec.get("heading", "")),
-            visual_type=sec.get("visual_type", "photo"),
-            alt_hint=sec.get("alt_text", sec.get("alt_hint", sec.get("heading", ""))),
+            heading=sec.get("heading"),
+            image_query=sec.get("image_query"),
+            visual_type=sec.get("visual_type"),
+            alt_hint=sec.get("alt_text"),
             used_ids=used_ids,
-            body=sec.get("body", ""),
         )
         image_paths.append(path)
         alt_texts.append(alt or sec.get("heading", f"Section {i}"))
