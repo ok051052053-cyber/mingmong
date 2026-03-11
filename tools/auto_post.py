@@ -42,6 +42,24 @@ IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
 UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
 
+UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
+PEXELS_SEARCH_CACHE: Dict[str, List[dict]] = {}
+PIXABAY_SEARCH_CACHE: Dict[str, List[dict]] = {}
+
+UNSPLASH_CALL_COUNT = 0
+UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
+
+IMAGE_QUERY_STOPWORDS = {
+    "actually", "really", "very", "best", "guide", "tips", "tip",
+    "how", "what", "why", "when", "where", "which",
+    "beginner", "beginners", "starter", "starting",
+    "strong", "finish", "finishing",
+    "resources", "resource", "tools", "tool",
+    "for", "to", "and", "or", "the", "a", "an", "of", "in", "on", "with",
+    "your", "you", "from", "by", "at", "is", "are", "be", "this", "that",
+    "can", "could", "should", "would", "will", "into", "about"
+}
+
 # =========================================================
 # Paths
 # =========================================================
@@ -2959,32 +2977,124 @@ def auto_image_query(
 
     return sanitize_query_for_image(query)
 
+def simplify_image_query(text: str, max_words: int = 4) -> str:
+    text = (text or "").lower().strip()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    words = [w for w in text.split() if w and w not in IMAGE_QUERY_STOPWORDS]
 
-def build_image_query_candidates(query: str, heading: str = "", visual_type: str = "photo") -> List[str]:
-    base = sanitize_query_for_image(query)
-    heading_clean = sanitize_query_for_image(heading)
+    cleaned = []
+    for w in words:
+        if len(w) <= 2:
+            continue
+        if w not in cleaned:
+            cleaned.append(w)
+
+    if not cleaned:
+        return ""
+
+    return " ".join(cleaned[:max_words])
+
+
+def expand_visual_fallbacks(query: str, heading: str, visual_type: str) -> List[str]:
+    base = f"{query} {heading}".lower()
 
     candidates = []
 
-    def add(q: str) -> None:
-        q = re.sub(r"\s+", " ", (q or "").strip())
-        if q and q not in candidates:
-            candidates.append(q)
+    if any(x in base for x in ["price", "pricing", "budget", "cost", "money", "invest"]):
+        candidates += ["calculator", "budget notebook", "finance desk", "money planning"]
 
-    add(base)
+    if any(x in base for x in ["workflow", "setup", "process", "system", "steps"]):
+        candidates += ["laptop workspace", "office desk", "project planning", "whiteboard"]
 
-    if heading_clean and heading_clean != base:
-        add(heading_clean)
+    if any(x in base for x in ["productivity", "focus", "planning", "organize", "task"]):
+        candidates += ["desk setup", "notebook desk", "work planning", "home office"]
 
-    if (visual_type or "").lower() == "diagram":
-        add("business dashboard laptop")
-    elif (visual_type or "").lower() == "workspace":
-        add("workspace desk laptop")
-    else:
-        add("modern office desk")
+    if any(x in base for x in ["software", "app", "tool", "platform", "automation"]):
+        candidates += ["laptop screen", "computer desk", "modern workspace", "tech workspace"]
 
-    return candidates[:3]
- 
+    if visual_type == "table":
+        candidates += ["notebook desk", "office desk"]
+
+    if visual_type == "step":
+        candidates += ["planning notebook", "workflow board"]
+
+    if visual_type == "comparison":
+        candidates += ["two laptops", "office workspace"]
+
+    deduped = []
+    for c in candidates:
+        c = simplify_image_query(c)
+        if c and c not in deduped:
+            deduped.append(c)
+
+    return deduped[:4]
+
+
+def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
+    global UNSPLASH_CALL_COUNT
+
+    q = (query or "").strip().lower()
+    cache_key = f"{q}|{page}"
+
+    if not q:
+        return []
+
+    if source == "unsplash":
+        if cache_key in UNSPLASH_SEARCH_CACHE:
+            return UNSPLASH_SEARCH_CACHE[cache_key]
+        if UNSPLASH_CALL_COUNT >= UNSPLASH_CALL_LIMIT:
+            log("IMG", f"Unsplash skipped due to call limit query='{query}'")
+            return []
+        UNSPLASH_CALL_COUNT += 1
+        results = search_source(source, query, page=page) or []
+        UNSPLASH_SEARCH_CACHE[cache_key] = results
+        return results
+
+    if source == "pexels":
+        if cache_key in PEXELS_SEARCH_CACHE:
+            return PEXELS_SEARCH_CACHE[cache_key]
+        results = search_source(source, query, page=page) or []
+        PEXELS_SEARCH_CACHE[cache_key] = results
+        return results
+
+    if source == "pixabay":
+        if cache_key in PIXABAY_SEARCH_CACHE:
+            return PIXABAY_SEARCH_CACHE[cache_key]
+        results = search_source(source, query, page=page) or []
+        PIXABAY_SEARCH_CACHE[cache_key] = results
+        return results
+
+    return search_source(source, query, page=page) or []
+
+
+def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
+    raw_candidates = [
+        simplify_image_query(heading, 4),
+        simplify_image_query(query, 4),
+        simplify_image_query(f"{query} {heading}", 4),
+    ]
+
+    raw_candidates += expand_visual_fallbacks(query, heading, visual_type)
+
+    generic_fallbacks = [
+        "office desk",
+        "laptop workspace",
+        "notebook planning",
+        "modern workspace",
+    ]
+
+    raw_candidates += [simplify_image_query(x, 4) for x in generic_fallbacks]
+
+    deduped = []
+    for c in raw_candidates:
+        if not c:
+            continue
+        if len(c.split()) > 5:
+            continue
+        if c not in deduped:
+            deduped.append(c)
+
+    return deduped[:6]
 
 def normalize_asset_id(source: str, raw_id: str) -> str:
     return f"{source}:{raw_id}"
@@ -3519,66 +3629,44 @@ def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> s
  
 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
-    cache_key = f"{query}|{heading}|{visual_type}"
-    if cache_key in IMAGE_RESULT_CACHE:
-        cached = IMAGE_RESULT_CACHE[cache_key]
-        if cached is None:
-            return None
-        cached_id = cached.get("id") or cached.get("url") or cached.get("src")
-        if cached_id and cached_id not in used_ids:
-            return cached
+    query_candidates = build_image_query_candidates(query, heading, visual_type)
 
-    simple_query = simplify_image_query(query, heading, visual_type)
-    candidate_queries = build_image_query_candidates(simple_query, heading, visual_type)
+    source_priority = ["unsplash", "pexels", "pixabay"]
 
-    generic_fallbacks = []
-    vt = (visual_type or "").lower()
+    for candidate_query in query_candidates[:2]:
+        for source in source_priority:
+            results = cached_search_source(source, candidate_query, page=1)
+            log("IMG", f"source='{source}' cq='{candidate_query}' page=1 results={len(results)}")
 
-    if vt == "workspace":
-        generic_fallbacks = [
-            "workspace desk laptop",
-            "home office desk",
-            "modern desk setup",
-            "office workspace laptop",
-        ]
-    elif vt == "diagram":
-        generic_fallbacks = [
-            "business dashboard laptop",
-            "analytics dashboard screen",
-            "finance chart laptop",
-            "data dashboard office",
-        ]
-    else:
-        generic_fallbacks = [
-            "modern office desk",
-            "laptop desk workspace",
-            "business meeting desk",
-            "office laptop table",
-        ]
+            if not results:
+                continue
 
-    for q in generic_fallbacks:
-        if q not in candidate_queries:
-            candidate_queries.append(q)
+            filtered = filter_reusable_assets(results, used_ids=used_ids)
+            if not filtered:
+                continue
 
-    log("IMG", f"find_best_asset query='{query}' heading='{heading}' visual_type='{visual_type}'")
-    log("IMG", f"candidate_queries={candidate_queries}")
+            picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
+            if picked:
+                return picked
 
-    sources = ["unsplash", "pexels", "pixabay"]
+    fallback_queries = ["office desk", "laptop workspace"]
 
-    for cq in candidate_queries[:6]:
-        for source in sources:
-            for page in [1, 2]:
-                results = search_source(source, cq, page=page) or []
-                log("IMG", f"source='{source}' cq='{cq}' page={page} results={len(results)}")
-                for item in results:
-                    item_id = item.get("id") or item.get("url") or item.get("src")
-                    if not item_id or item_id in used_ids:
-                        continue
-                    IMAGE_RESULT_CACHE[cache_key] = item
-                    return item
+    for fq in fallback_queries:
+        for source in ["pexels", "pixabay"]:
+            results = cached_search_source(source, fq, page=1)
+            log("IMG", f"fallback source='{source}' cq='{fq}' page=1 results={len(results)}")
 
-    log("IMG", f"No asset found for query='{simple_query}' heading='{heading}'")
-    IMAGE_RESULT_CACHE[cache_key] = None
+            if not results:
+                continue
+
+            filtered = filter_reusable_assets(results, used_ids=used_ids)
+            if not filtered:
+                continue
+
+            picked = pick_best_asset(filtered, heading=heading, visual_type=visual_type)
+            if picked:
+                return picked
+
     return None
     
  
@@ -4461,24 +4549,15 @@ def main() -> int:
         try:
             log("PLAN", "Generating planning and article")
 
-            cand, cand_planning = generate_deep_post(
-                keyword=keyword,
-                cluster_name=effective_cluster_name,
-                post_type=post_type,
-                avoid_titles=existing_titles,
-            )
-
             cand = enforce_comparison_visuals(cand, keyword=keyword)
 
             if post_semantically_too_close(keyword, cand_planning, posts):
                 log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
-                continue
 
             cand_title = cand["title"]
 
             if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                 log("DUP", f"Title too similar: '{cand_title}'")
-                continue
 
             ok, reason = quality_check_post(
                 cand,
@@ -4487,12 +4566,10 @@ def main() -> int:
             )
             if not ok:
                 log("QUALITY", f"Post rejected: reason='{reason}'")
-                continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
                 log("DUP", f"Fingerprint duplicate for keyword='{keyword}'")
-                continue
 
             data = cand
             planning = cand_planning
