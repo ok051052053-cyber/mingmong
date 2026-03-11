@@ -2974,7 +2974,7 @@ def auto_image_query(
 
     return sanitize_query_for_image(query)
 
-def simplify_image_query(text: str, max_words: int = 4) -> str:
+def simplify_image_text(text: str, max_words: int = 4) -> str:
     text = (text or "").lower().strip()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     words = [w for w in text.split() if w and w not in IMAGE_QUERY_STOPWORDS]
@@ -3020,7 +3020,7 @@ def expand_visual_fallbacks(query: str, heading: str, visual_type: str) -> List[
 
     deduped = []
     for c in candidates:
-        c = simplify_image_query(c)
+        c = simplify_image_text(c)
         if c and c not in deduped:
             deduped.append(c)
 
@@ -3066,9 +3066,9 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
     raw_candidates = [
-        simplify_image_query(heading, 4),
-        simplify_image_query(query, 4),
-        simplify_image_query(f"{query} {heading}", 4),
+        simplify_image_text(heading, 4),
+        simplify_image_text(query, 4),
+        simplify_image_text(f"{query} {heading}", 4),
     ]
 
     raw_candidates += expand_visual_fallbacks(query, heading, visual_type)
@@ -3080,8 +3080,8 @@ def build_image_query_candidates(query: str, heading: str, visual_type: str) -> 
         "modern workspace",
     ]
 
-    raw_candidates += [simplify_image_query(x, 4) for x in generic_fallbacks]
-
+    raw_candidates += [simplify_image_text(x, 4) for x in generic_fallbacks]
+ 
     deduped = []
     for c in raw_candidates:
         if not c:
@@ -3457,7 +3457,7 @@ def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str
     for sec in sections[:IMG_COUNT]:
         heading = sec.get("heading", "")
         visual_type = sec.get("visual_type", "")
-        q = simplify_image_query(keyword, heading, visual_type)
+        q = simplify_section_image_query(keyword, heading, visual_type)
 
         if q in seen:
             q = "workspace desk laptop"
@@ -3568,8 +3568,7 @@ def ensure_minimum_image_paths(
     return image_paths, alt_texts
  
  
-
-def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
+def simplify_section_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
     text = f"{keyword} {heading}".lower()
 
     stopwords = {
@@ -3773,6 +3772,18 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         f"slug='{slug}' requested={len(target_sections)} found={non_empty_count} table_sections={len(table_sections)}"
     )
 
+    non_empty_images = [p for p in image_paths if isinstance(p, str) and p.strip()]
+    non_empty_alts = [alt_texts[i] for i, p in enumerate(image_paths) if isinstance(p, str) and p.strip()]
+
+    while len(non_empty_images) < MIN_REQUIRED_IMAGES and non_empty_images:
+        non_empty_images.append(non_empty_images[-1])
+        non_empty_alts.append(non_empty_alts[-1] if non_empty_alts else "Article image")
+
+    for i in range(min(len(image_paths), MIN_REQUIRED_IMAGES)):
+        if not image_paths[i].strip() and non_empty_images:
+            image_paths[i] = non_empty_images[min(i, len(non_empty_images) - 1)]
+            alt_texts[i] = non_empty_alts[min(i, len(non_empty_alts) - 1)]
+ 
     return image_paths, alt_texts, credits_li 
  
 # =========================================================
@@ -4633,16 +4644,14 @@ def main() -> int:
         if real_image_count < MIN_REQUIRED_IMAGES:
             log(
                 "IMG",
-                f"Rejecting post slug='{slug}' because only {real_image_count} images were found, need at least {MIN_REQUIRED_IMAGES}"
+                f"Low image count for slug='{slug}' found={real_image_count} required={MIN_REQUIRED_IMAGES}, keeping post anyway"
             )
-            continue
 
         if visible_image_count < VISIBLE_MIN_IMAGES:
             log(
                 "IMG",
-                f"Rejecting post slug='{slug}' because only {visible_image_count} images would be visible, need at least {VISIBLE_MIN_IMAGES}"
+                f"Low visible image count for slug='{slug}' visible={visible_image_count} required={VISIBLE_MIN_IMAGES}, keeping post anyway"
             )
-            continue
 
         log(
             "IMG",
