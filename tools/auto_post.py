@@ -2914,6 +2914,96 @@ def sanitize_query_for_image(q: str) -> str:
     return q or "modern office workspace laptop"
  
 
+def extract_visual_keywords_from_text(text: str, limit: int = 4) -> List[str]:
+    text = (text or "").lower().strip()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "if", "then", "than",
+        "this", "that", "these", "those", "with", "from", "into", "onto",
+        "your", "their", "about", "because", "while", "when", "where",
+        "what", "which", "most", "more", "less", "very", "just", "also",
+        "have", "has", "had", "will", "would", "could", "should",
+        "beginner", "beginners", "simple", "quick", "answer", "mistake",
+        "mistakes", "tradeoff", "tradeoffs", "decision", "decisions",
+        "step", "steps", "guide", "workflow", "system", "template",
+        "process", "screening", "monthly", "weekly", "review", "final",
+        "recommendation", "worth", "using", "start", "starts", "starting",
+        "pick", "wrong", "real", "actually", "happens", "matters",
+    }
+
+    preferred_terms = {
+        "dashboard", "laptop", "workspace", "desk", "screen", "chart",
+        "spreadsheet", "portfolio", "investment", "finance", "budget",
+        "stocks", "stock", "etf", "analysis", "tracker", "metrics",
+        "notebook", "office", "planning", "business", "crm", "automation",
+    }
+
+    words = [w for w in text.split() if len(w) >= 3 and w not in stop_words]
+    if not words:
+        return []
+
+    ranked = []
+    seen = set()
+
+    for w in words:
+        if w in seen:
+            continue
+        seen.add(w)
+        score = 2 if w in preferred_terms else 1
+        ranked.append((score, w))
+
+    ranked.sort(key=lambda x: (-x[0], x[1]))
+    return [w for _, w in ranked[:limit]]
+
+
+def auto_image_query(
+    heading: str,
+    image_query: str,
+    body: str = "",
+    visual_type: str = "photo",
+) -> str:
+    base = sanitize_query_for_image(image_query or heading)
+    heading_clean = sanitize_query_for_image(heading)
+    body_keywords = extract_visual_keywords_from_text(body, limit=4)
+
+    parts = []
+
+    if base:
+        parts.extend(base.split())
+
+    if heading_clean:
+        parts.extend(heading_clean.split())
+
+    parts.extend(body_keywords)
+
+    seen = set()
+    compact = []
+    for p in parts:
+        p = p.strip().lower()
+        if not p or p in seen:
+            continue
+        seen.add(p)
+        compact.append(p)
+
+    compact = compact[:4]
+
+    if compact:
+        query = " ".join(compact)
+    else:
+        query = ""
+
+    if not query:
+        if (visual_type or "").lower() == "diagram":
+            return "business dashboard laptop"
+        if (visual_type or "").lower() == "workspace":
+            return "workspace desk laptop"
+        return "modern office desk"
+
+    return sanitize_query_for_image(query)
+
+
 def build_image_query_candidates(query: str, heading: str = "", visual_type: str = "photo") -> List[str]:
     base = sanitize_query_for_image(query)
     heading_clean = sanitize_query_for_image(heading)
@@ -3506,11 +3596,15 @@ def build_image_asset_for_section(
     visual_type: str,
     alt_hint: str,
     used_ids: set,
+    body: str = "",
 ) -> Tuple[str, str, Optional[str], set]:
     alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
-    clean_query = sanitize_query_for_image(
-        (image_query or "").strip() or (heading or "").strip()
+    clean_query = auto_image_query(
+        heading=heading,
+        image_query=image_query,
+        body=body,
+        visual_type=visual_type,
     ) or "modern office workspace laptop"
 
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
@@ -3584,6 +3678,7 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
             visual_type=sec.get("visual_type", "photo"),
             alt_hint=sec.get("alt_text", sec.get("alt_hint", sec.get("heading", ""))),
             used_ids=used_ids,
+            body=sec.get("body", ""),
         )
         image_paths.append(path)
         alt_texts.append(alt or sec.get("heading", f"Section {i}"))
