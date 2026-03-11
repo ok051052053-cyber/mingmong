@@ -14,7 +14,22 @@ from typing import List, Tuple, Dict, Any, Optional
 import requests
 from slugify import slugify
 from openai import OpenAI
- 
+
+
+def safe_json_loads(text: str):
+    try:
+        return json.loads(text)
+    except Exception:
+        try:
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start != -1 and end != -1:
+                return json.loads(text[start:end])
+        except Exception:
+            pass
+    return {}
+
+
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
