@@ -3396,6 +3396,24 @@ def search_source(source: str, query: str, page: int = 1) -> List[dict]:
         return wikimedia_search(query, page=page)
     return []
 
+def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str]:
+    seen = set()
+    final_queries = []
+
+    for sec in sections[:IMG_COUNT]:
+        heading = sec.get("heading", "")
+        visual_type = sec.get("visual_type", "")
+        q = simplify_image_query(keyword, heading, visual_type)
+
+        if q in seen:
+            q = "workspace desk laptop"
+
+        seen.add(q)
+        final_queries.append(q)
+
+    return final_queries
+
+
 def search_unsplash_once(query: str) -> List[dict]:
     global UNSPLASH_CALL_COUNT
 
