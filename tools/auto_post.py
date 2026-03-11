@@ -139,17 +139,17 @@ log(
     f"wikimedia={ENABLE_WIKIMEDIA}"
 )
 
-UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "1400"))
-UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "900"))
-UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "10"))
+UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "1000"))
+UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "650"))
+UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "2"))
 UNSPLASH_PER_PAGE = int(os.environ.get("UNSPLASH_PER_PAGE", "30"))
  
-PEXELS_MIN_WIDTH = int(os.environ.get("PEXELS_MIN_WIDTH", "1400"))
-PEXELS_MIN_HEIGHT = int(os.environ.get("PEXELS_MIN_HEIGHT", "900"))
+PEXELS_MIN_WIDTH = int(os.environ.get("PEXELS_MIN_WIDTH", "1000"))
+PEXELS_MIN_HEIGHT = int(os.environ.get("PEXELS_MIN_HEIGHT", "650"))
 PEXELS_PER_PAGE = int(os.environ.get("PEXELS_PER_PAGE", "30"))
  
-PIXABAY_MIN_WIDTH = int(os.environ.get("PIXABAY_MIN_WIDTH", "1400"))
-PIXABAY_MIN_HEIGHT = int(os.environ.get("PIXABAY_MIN_HEIGHT", "900"))
+PIXABAY_MIN_WIDTH = int(os.environ.get("PIXABAY_MIN_WIDTH", "1000"))
+PIXABAY_MIN_HEIGHT = int(os.environ.get("PIXABAY_MIN_HEIGHT", "650"))
 PIXABAY_PER_PAGE = int(os.environ.get("PIXABAY_PER_PAGE", "50"))
  
 IMAGE_SOURCE_PRIORITY = [
@@ -2885,7 +2885,7 @@ def sanitize_query_for_image(q: str) -> str:
     }
     words = [w for w in words if w not in stop_words]
 
-    q = " ".join(words[:3])
+    q = " ".join(words[:2])
 
     return q or "business workspace laptop desk"
  
@@ -3136,7 +3136,9 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
         r.raise_for_status()
         data = r.json()
         results = data.get("results") or []
-
+     
+        log("IMG", f"Unsplash raw query='{query}' page={page} raw_results={len(results)}")
+     
         out = []
         for item in results:
             try:
@@ -3153,7 +3155,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     continue
 
                 ratio = w / max(h, 1)
-                if ratio < 1.2 or ratio > 2.2:
+                if ratio < 1.0 or ratio > 2.8:
                     continue
 
                 urls = item.get("urls") or {}
@@ -3222,7 +3224,9 @@ def pexels_search(query: str, page: int = 1) -> List[dict]:
         r.raise_for_status()
         data = r.json()
         results = data.get("photos") or []
- 
+
+        log("IMG", f"Pexels raw query='{query}' page={page} raw_results={len(results)}")
+     
         out = []
         for item in results:
             try:
@@ -3236,7 +3240,7 @@ def pexels_search(query: str, page: int = 1) -> List[dict]:
                     continue
  
                 ratio = w / max(h, 1)
-                if ratio < 1.2 or ratio > 2.2:
+                if ratio < 1.0 or ratio > 2.8:
                     continue
  
                 src = item.get("src") or {}
@@ -3298,7 +3302,9 @@ def pixabay_search(query: str, page: int = 1) -> List[dict]:
         r.raise_for_status()
         data = r.json()
         results = data.get("hits") or []
- 
+
+        log("IMG", f"Pixabay raw query='{query}' page={page} raw_results={len(results)}")
+     
         out = []
         for item in results:
             try:
@@ -3312,7 +3318,7 @@ def pixabay_search(query: str, page: int = 1) -> List[dict]:
                     continue
  
                 ratio = w / max(h, 1)
-                if ratio < 1.2 or ratio > 2.2:
+                if ratio < 1.0 or ratio > 2.8:
                     continue
  
                 download_url = (item.get("largeImageURL") or item.get("webformatURL") or "").strip()
@@ -3635,10 +3641,10 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
                     return picked
 
     fallback_queries = [
-        "laptop workspace",
-        "finance workspace",
-        "investment chart",
         "office desk",
+        "laptop workspace",
+        "finance desk",
+        "investment chart",
     ]
 
     for fq in fallback_queries:
