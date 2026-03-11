@@ -3395,7 +3395,27 @@ def search_source(source: str, query: str, page: int = 1) -> List[dict]:
     if source == "wikimedia":
         return wikimedia_search(query, page=page)
     return []
- 
+
+def search_unsplash_once(query: str) -> List[dict]:
+    global UNSPLASH_CALL_COUNT
+
+    query = (query or "").strip().lower()
+    if not query:
+        return []
+
+    if query in UNSPLASH_SEARCH_CACHE:
+        return UNSPLASH_SEARCH_CACHE[query]
+
+    if UNSPLASH_CALL_COUNT >= UNSPLASH_CALL_LIMIT:
+        log("IMG", f"Unsplash skipped due to call limit query='{query}'")
+        UNSPLASH_SEARCH_CACHE[query] = []
+        return []
+
+    UNSPLASH_CALL_COUNT += 1
+    results = search_source("unsplash", query, page=1) or []
+    UNSPLASH_SEARCH_CACHE[query] = results
+    return results
+
 
 def trigger_unsplash_download(asset: dict) -> None:
     if (asset.get("source") or "").strip().lower() != "unsplash":
@@ -3645,22 +3665,40 @@ def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> s
  
 
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
-    query_candidates = build_image_query_candidates(query, heading, visual_type)[:3]
+    cache_key = f"{query}|{heading}|{visual_type}"
+    if cache_key in IMAGE_RESULT_CACHE:
+        return IMAGE_RESULT_CACHE[cache_key]
 
-    for candidate_query in query_candidates:
-        for source in IMAGE_SOURCE_PRIORITY:
-            results = search_source(source, candidate_query, page=1)
-            if not results:
-                continue
+    simple_query = simplify_image_query(query, heading, visual_type)
 
-            filtered = [asset for asset in results if asset["id"] not in used_ids]
-            if filtered:
-                filtered.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-                best = filtered[0]
-                log("IMG", f"Best asset source={best.get('source')} id={best.get('id')} query='{candidate_query}'")
-                return best
+    unsplash_results = search_unsplash_once(simple_query)
+    for item in unsplash_results:
+        item_id = item.get("id") or item.get("url") or item.get("src")
+        if not item_id or item_id in used_ids:
+            continue
+        IMAGE_RESULT_CACHE[cache_key] = item
+        return item
 
-    log("IMG", f"No asset found for query='{query}' heading='{heading}'")
+    fallback_queries = [
+        simple_query,
+        "workspace desk laptop",
+        "modern office desk",
+    ]
+
+    fallback_sources = ["pexels", "pixabay"]
+
+    for fq in fallback_queries:
+        for source in fallback_sources:
+            results = search_source(source, fq, page=1) or []
+            for item in results:
+                item_id = item.get("id") or item.get("url") or item.get("src")
+                if not item_id or item_id in used_ids:
+                    continue
+                IMAGE_RESULT_CACHE[cache_key] = item
+                return item
+
+    log("IMG", f"No asset found for query='{simple_query}' heading='{heading}'")
+    IMAGE_RESULT_CACHE[cache_key] = None
     return None
     
  
