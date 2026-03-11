@@ -23,7 +23,7 @@ UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "5"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "4"))
 
 # =========================================================
@@ -48,7 +48,7 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
 POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
-IMG_COUNT = int(os.environ.get("IMG_COUNT", "7"))
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "5"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "7"))
 VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "5"))
 EXTRA_TABLE_BUFFER = int(os.environ.get("EXTRA_TABLE_BUFFER", "2"))
