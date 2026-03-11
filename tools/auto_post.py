@@ -20,6 +20,12 @@ UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
 UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
 
+UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
+IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
+
+IMG_COUNT = int(os.environ.get("IMG_COUNT", "4"))
+MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "4"))
+
 # =========================================================
 # Paths
 # =========================================================
