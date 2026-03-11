@@ -2880,6 +2880,10 @@ def sanitize_query_for_image(q: str) -> str:
         "monthly investing plan": "budget spreadsheet laptop",
         "etf comparison": "etf comparison chart",
         "risk tolerance": "investment risk chart",
+        "ai stocks": "stock market dashboard",
+        "investment performance": "investment dashboard laptop",
+        "screening process": "stock chart laptop",
+        "beginner investing": "finance workspace desk",
     }
 
     for src, dst in replacements.items():
@@ -2887,7 +2891,7 @@ def sanitize_query_for_image(q: str) -> str:
             q = q.replace(src, dst)
 
     q = re.sub(
-        r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to|why|what|when|best|mistake|tradeoff|decision|quick answer)\b",
+        r"\b(workflow|system|checklist|template|playbook|automation|process|guide|how to|why|what|when|best|mistake|tradeoff|decision|quick answer|final recommendation|for beginners|worth it)\b",
         "",
         q,
         flags=re.IGNORECASE,
@@ -2895,8 +2899,17 @@ def sanitize_query_for_image(q: str) -> str:
     q = re.sub(r"[^a-z0-9\s]", " ", q)
     q = re.sub(r"\s+", " ", q).strip()
 
-    words = q.split()[:5]
-    q = " ".join(words)
+    words = q.split()
+
+    stop_words = {
+        "the", "a", "an", "this", "that", "these", "those",
+        "most", "more", "less", "real", "simple", "wrong",
+        "pick", "using", "start", "with", "your", "their",
+        "into", "from", "begin", "easy", "easily", "guide",
+    }
+    words = [w for w in words if w not in stop_words]
+
+    q = " ".join(words[:4])
 
     return q or "modern office workspace laptop"
  
@@ -2918,9 +2931,9 @@ def build_image_query_candidates(query: str, heading: str = "", visual_type: str
     if (visual_type or "").lower() == "diagram":
         add("business dashboard laptop")
     elif (visual_type or "").lower() == "workspace":
-        add("workspace desk laptop notebook")
+        add("workspace desk laptop")
     else:
-        add("modern office workspace laptop")
+        add("modern office desk")
 
     return candidates[:3]
  
@@ -3496,10 +3509,9 @@ def build_image_asset_for_section(
 ) -> Tuple[str, str, Optional[str], set]:
     alt_text = alt_hint or build_image_alt(heading, heading, image_query)
 
-    clean_query = " ".join([
-        (image_query or "").strip(),
-        (heading or "").strip(),
-    ]).strip() or "modern office workspace laptop notes"
+    clean_query = sanitize_query_for_image(
+        (image_query or "").strip() or (heading or "").strip()
+    ) or "modern office workspace laptop"
 
     alt_text = alt_hint or build_image_alt(heading, heading, clean_query)
 
