@@ -16,6 +16,10 @@ from slugify import slugify
 from openai import OpenAI
 
 
+def log(tag: str, msg: str) -> None:
+    print(f"[{tag}] {msg}", flush=True)
+ 
+
 def safe_json_loads(text: str, default=None):
     try:
         return json.loads(text)
@@ -111,7 +115,15 @@ UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 ENABLE_WIKIMEDIA = os.environ.get("ENABLE_WIKIMEDIA", "1").strip() == "1"
- 
+
+log(
+    "IMG",
+    f"API keys loaded unsplash={bool(UNSPLASH_ACCESS_KEY)} "
+    f"pexels={bool(PEXELS_API_KEY)} "
+    f"pixabay={bool(PIXABAY_API_KEY)} "
+    f"wikimedia={ENABLE_WIKIMEDIA}"
+)
+
 UNSPLASH_MIN_WIDTH = int(os.environ.get("UNSPLASH_MIN_WIDTH", "1400"))
 UNSPLASH_MIN_HEIGHT = int(os.environ.get("UNSPLASH_MIN_HEIGHT", "900"))
 UNSPLASH_MIN_LIKES = int(os.environ.get("UNSPLASH_MIN_LIKES", "10"))
@@ -130,8 +142,6 @@ IMAGE_SOURCE_PRIORITY = [
     "pexels",
     "pixabay",
 ]
-
-log("IMG", f"API keys loaded unsplash={bool(UNSPLASH_ACCESS_KEY)} pexels={bool(PEXELS_API_KEY)} pixabay={bool(PIXABAY_API_KEY)} wikimedia={ENABLE_WIKIMEDIA}")
 
 RELATED_POST_LIMIT = int(os.environ.get("RELATED_POST_LIMIT", "3"))
  
