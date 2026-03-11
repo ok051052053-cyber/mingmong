@@ -41,8 +41,6 @@ UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 IMAGE_RESULT_CACHE: Dict[str, Optional[dict]] = {}
 UNSPLASH_CALL_COUNT = 0
 UNSPLASH_CALL_LIMIT = int(os.environ.get("UNSPLASH_CALL_LIMIT", "40"))
-
-UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
 PEXELS_SEARCH_CACHE: Dict[str, List[dict]] = {}
 PIXABAY_SEARCH_CACHE: Dict[str, List[dict]] = {}
 
@@ -98,8 +96,7 @@ print(
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
-MODEL_WRITER = os.environ.get("MODEL_WRITER", "gpt-4.1").strip()
- 
+MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "2200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "420"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "5"))
@@ -4548,6 +4545,13 @@ def main() -> int:
 
         try:
             log("PLAN", "Generating planning and article")
+
+            cand, cand_planning = generate_deep_post(
+                keyword=keyword,
+                cluster_name=effective_cluster_name,
+                post_type=post_type,
+                avoid_titles=existing_titles,
+            )
 
             cand = enforce_comparison_visuals(cand, keyword=keyword)
 
