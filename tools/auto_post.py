@@ -2784,9 +2784,12 @@ def post_semantically_too_close(
     return False
 
 def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
-    data = safe_json_loads(article_raw, {})
+    clean_raw = _find_balanced_json(article_raw)
+    data = safe_json_loads(clean_raw, {})
 
     if not isinstance(data, dict) or not data:
+        log("ARTICLE", f"JSON parse failed raw_preview={article_raw[:800]!r}")
+        log("ARTICLE", f"cleaned_preview={clean_raw[:800]!r}")
         raise ValueError("article JSON parse failed")
 
     title = _clean_text(data.get("title", "")) or keyword.title()
@@ -2879,6 +2882,8 @@ def generate_deep_post(
         model=MODEL_WRITER,
         temperature=0.6,
     )
+    log("ARTICLE", f"raw_len={len(article_raw)} preview={article_raw[:500]!r}")
+ 
     data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
     elapsed = time.time() - t0
