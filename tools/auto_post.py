@@ -649,6 +649,25 @@ def _find_balanced_json(s: str) -> str:
  
 def html_escape(s: str) -> str:
     return html.escape(s or "", quote=True)
+
+
+def build_svg_placeholder(*args, **kwargs):
+    return None
+
+
+def render_image_block(img_src: Optional[str], alt_text: str = "", caption: str = "", class_name: str = "post-image") -> str:
+    if not img_src:
+        return ""
+
+    alt_escaped = html_escape(alt_text)
+    caption_html = f"<figcaption>{html_escape(caption)}</figcaption>" if caption else ""
+
+    return f'''
+<figure class="{class_name}">
+  <img src="{img_src}" alt="{alt_escaped}" loading="lazy">
+  {caption_html}
+</figure>
+'''.strip()
  
  
 # =========================================================
@@ -3341,20 +3360,6 @@ def search_unsplash_once(query: str) -> List[dict]:
     results = search_source("unsplash", query, page=1) or []
     UNSPLASH_SEARCH_CACHE[cache_key] = results
     return results
- 
-
-def search_unsplash_once(query: str) -> List[dict]:
-    query = (query or "").strip().lower()
-    if not query:
-        return []
-
-    cache_key = f"{query}|1"
-    if cache_key in UNSPLASH_SEARCH_CACHE:
-        return UNSPLASH_SEARCH_CACHE[cache_key]
-
-    results = search_source("unsplash", query, page=1) or []
-    UNSPLASH_SEARCH_CACHE[cache_key] = results
-    return results
 
 
 def trigger_unsplash_download(asset: dict) -> None:
@@ -3400,59 +3405,6 @@ import math
 from html import escape as escape_xml
 
 
-def estimate_text_width(text: str, font_size: int = 12) -> float:
-    text = str(text or "")
-    wide = sum(1 for ch in text if ord(ch) > 127)
-    narrow = len(text) - wide
-    return narrow * font_size * 0.56 + wide * font_size * 0.9
-
-
-
-def svg_text_block(x: float, y: float, lines: list[str], font_size: int = 12,
-                   fill: str = "#1F2937", weight: str = "500",
-                   line_gap: float = 1.35, anchor: str = "start") -> str:
-    parts = [
-        f'<text x="{x}" y="{y}" font-size="{font_size}" '
-        f'font-weight="{weight}" fill="{fill}" text-anchor="{anchor}" '
-        f'font-family="Inter, Arial, sans-serif">'
-    ]
-
-    for i, line in enumerate(lines):
-        dy = "0" if i == 0 else str(font_size * line_gap)
-        parts.append(f'<tspan x="{x}" dy="{dy}">{escape_xml(line)}</tspan>')
-
-    parts.append("</text>")
-    return "".join(parts)
-
-def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
-    words = (text or "").split()
-    if not words:
-        return [""]
-
-    max_chars = max(10, int(max_width / (font_size * 0.55)))
-
-    lines = []
-    current = ""
-
-    for word in words:
-        test = f"{current} {word}".strip()
-        if len(test) <= max_chars:
-            current = test
-        else:
-            if current:
-                lines.append(current)
-            current = word
-
-    if current:
-        lines.append(current)
-
-    return lines
-
-
-def build_svg_placeholder(*args, **kwargs):
-    return None
-
-
 def ensure_minimum_image_paths(
     slug: str,
     image_paths: List[str],
@@ -3460,8 +3412,6 @@ def ensure_minimum_image_paths(
     sections: List[Dict[str, str]],
     min_count: int,
 ) -> Tuple[List[str], List[str]]:
-    folder = ASSETS_POSTS_DIR / slug
-
     if len(image_paths) < len(sections):
         image_paths.extend([""] * (len(sections) - len(image_paths)))
 
@@ -3480,36 +3430,23 @@ def ensure_minimum_image_paths(
         if isinstance(current_path, str) and current_path.strip():
             continue
 
-        idx = i + 1
-        heading = sec.get("heading", f"Section {idx}")
-        image_query = sec.get("image_query", heading)
+        heading = sec.get("heading", f"Section {i+1}")
         alt_text = sec.get("alt_text", heading) or heading
 
-        svg_path = folder / f"{idx}.svg"
-        build_svg_placeholder(
-            out_path=svg_path,
-            title=slug,
-            heading=heading,
-            image_query=image_query,
-            visual_type=sec.get("visual_type", "photo"),
-        )
-
-        rel_path = f"assets/posts/{slug}/{idx}.svg"
-
         if i < len(image_paths):
-            image_paths[i] = rel_path
+            image_paths[i] = ""
         else:
-            image_paths.append(rel_path)
+            image_paths.append("")
 
         if i < len(alt_texts):
             alt_texts[i] = alt_text
         else:
             alt_texts.append(alt_text)
 
-        non_empty_count += 1
-        log("IMG", f"Fallback filled empty slot slug='{slug}' idx={idx}")
+        log("IMG", f"No fallback image used slug='{slug}' idx={i+1}")
 
     return image_paths, alt_texts
+ 
  
 
 def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
@@ -3654,19 +3591,8 @@ def build_image_asset_for_section(
             log("IMG", f"Using external image for slug='{slug}' idx={idx} source='{asset.get('source')}'")
             return hotlink_url, alt_text, photo_credit_html, used_ids
 
-    folder = ASSETS_POSTS_DIR / slug
-    svg_path = folder / f"{idx}.svg"
-    build_svg_placeholder(
-        out_path=svg_path,
-        title=slug,
-        heading=heading or f"Section {idx}",
-        image_query=clean_query,
-        visual_type=visual_type or "photo",
-    )
-    rel_path = f"assets/posts/{slug}/{idx}.svg"
-
-    log("IMG", f"Fallback SVG created for slug='{slug}' idx={idx} query='{clean_query}'")
-    return rel_path, alt_text, None, used_ids
+    log("IMG", f"No image found for slug='{slug}' idx={idx} query='{clean_query}'")
+    return "", alt_text, None, used_ids
  
  
 def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
@@ -4570,16 +4496,9 @@ def main() -> int:
 
         image_paths, alt_texts, credits_li = build_visual_assets(slug, sections)
 
-        image_paths, alt_texts = ensure_minimum_image_paths(
-            slug=slug,
-            image_paths=image_paths,
-            alt_texts=alt_texts,
-            sections=sections,
-            min_count=MIN_REQUIRED_IMAGES,
-        )
-
         real_image_count = sum(1 for p in image_paths if isinstance(p, str) and p.strip())
         visible_image_count = 0
+
         for i, sec in enumerate(sections[:len(image_paths)]):
             path = image_paths[i] if i < len(image_paths) else ""
             if not path or not path.strip():
@@ -4588,19 +4507,10 @@ def main() -> int:
                 continue
             visible_image_count += 1
 
-        if real_image_count < MIN_REQUIRED_IMAGES:
-            log(
-                "IMG",
-                f"Rejecting post slug='{slug}' because only {real_image_count} images were found, need at least {MIN_REQUIRED_IMAGES}"
-            )
-            continue
-
-        if visible_image_count < VISIBLE_MIN_IMAGES:
-            log(
-                "IMG",
-                f"Rejecting post slug='{slug}' because only {visible_image_count} images would be visible, need at least {VISIBLE_MIN_IMAGES}"
-            )
-            continue
+        log(
+            "IMG",
+            f"slug='{slug}' real_image_count={real_image_count} visible_image_count={visible_image_count}"
+        )
 
         log(
             "IMG",
