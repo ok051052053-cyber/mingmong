@@ -16,7 +16,7 @@ from slugify import slugify
 from openai import OpenAI
 
 
-def safe_json_loads(text: str):
+def safe_json_loads(text: str, default=None):
     try:
         return json.loads(text)
     except Exception:
@@ -27,7 +27,10 @@ def safe_json_loads(text: str):
                 return json.loads(text[start:end])
         except Exception:
             pass
-    return {}
+
+    if default is None:
+        default = {}
+    return default
 
 
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
