@@ -3449,7 +3449,7 @@ def wrap_text_to_width(text: str, max_width: int, font_size: int = 20):
     return lines
 
 
-def build_svg_placeholder(
+def build_svg_placeholder()
     return None
 
 
