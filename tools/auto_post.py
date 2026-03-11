@@ -129,7 +129,7 @@ SERP_CHECK_LIMIT = int(os.environ.get("SERP_CHECK_LIMIT", "10"))
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
-ENABLE_WIKIMEDIA = os.environ.get("ENABLE_WIKIMEDIA", "1").strip() == "1"
+ENABLE_WIKIMEDIA = False
 
 log(
     "IMG",
@@ -3097,26 +3097,14 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
         r.raise_for_status()
         data = r.json()
         results = data.get("results") or []
-     
+
         log("IMG", f"Unsplash raw query='{query}' page={page} raw_results={len(results)}")
-     
+
         out = []
         for item in results:
             try:
                 pid = str(item.get("id") or "").strip()
                 if not pid:
-                    continue
-
-                w = int(item.get("width") or 0)
-                h = int(item.get("height") or 0)
-                likes = int(item.get("likes") or 0)
-                if w < UNSPLASH_MIN_WIDTH or h < UNSPLASH_MIN_HEIGHT:
-                    continue
-                if likes < UNSPLASH_MIN_LIKES:
-                    continue
-
-                ratio = w / max(h, 1)
-                if ratio < 0.9 or ratio > 3.0:
                     continue
 
                 urls = item.get("urls") or {}
@@ -3128,26 +3116,18 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                 download_location = (links.get("download_location") or "").strip()
 
                 user = item.get("user") or {}
-                user_name = (user.get("name") or "").strip()
-                user_link = ((user.get("links") or {}).get("html") or "").strip()
-                page_link = (links.get("html") or "").strip()
-                if not user_name or not user_link or not page_link:
-                    continue
-
-                desc = " ".join([
-                    str(item.get("description") or ""),
-                    str(item.get("alt_description") or ""),
-                    user_name,
-                ]).strip()
+                user_name = (user.get("name") or "").strip() or "Unsplash contributor"
+                user_link = ((user.get("links") or {}).get("html") or "").strip() or "https://unsplash.com"
+                page_link = (links.get("html") or "").strip() or user_link
 
                 out.append({
                     "download_location": download_location,
                     "source": "unsplash",
                     "id": normalize_asset_id("unsplash", pid),
                     "raw_id": pid,
-                    "width": w,
-                    "height": h,
-                    "score": score_query_match(query, desc) + min(likes / 500.0, 0.4),
+                    "width": int(item.get("width") or 0),
+                    "height": int(item.get("height") or 0),
+                    "score": 0.1,
                     "hotlink_url": hotlink_url,
                     "page_url": page_link,
                     "creator_name": user_name,
@@ -3156,7 +3136,6 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
             except Exception:
                 continue
 
-        out.sort(key=lambda x: x["score"], reverse=True)
         UNSPLASH_SEARCH_CACHE[cache_key] = out
         return out
     except Exception as e:
@@ -3171,7 +3150,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
 def pexels_search(query: str, page: int = 1) -> List[dict]:
     if not PEXELS_API_KEY:
         return []
- 
+
     try:
         url = "https://api.pexels.com/v1/search"
         headers = {"Authorization": PEXELS_API_KEY}
@@ -3187,54 +3166,38 @@ def pexels_search(query: str, page: int = 1) -> List[dict]:
         results = data.get("photos") or []
 
         log("IMG", f"Pexels raw query='{query}' page={page} raw_results={len(results)}")
-     
+
         out = []
         for item in results:
             try:
                 pid = str(item.get("id") or "").strip()
                 if not pid:
                     continue
- 
-                w = int(item.get("width") or 0)
-                h = int(item.get("height") or 0)
-                if w < PEXELS_MIN_WIDTH or h < PEXELS_MIN_HEIGHT:
-                    continue
- 
-                ratio = w / max(h, 1)
-                if ratio < 1.0 or ratio > 2.8:
-                    continue
- 
+
                 src = item.get("src") or {}
                 download_url = src.get("large2x") or src.get("large") or src.get("original")
                 if not download_url:
                     continue
- 
-                creator_name = (item.get("photographer") or "").strip()
-                creator_url = (item.get("photographer_url") or "").strip()
-                page_url = (item.get("url") or "").strip()
- 
-                desc = " ".join([
-                    creator_name,
-                    str(item.get("alt") or ""),
-                    str(item.get("avg_color") or ""),
-                ]).strip()
- 
+
+                creator_name = (item.get("photographer") or "").strip() or "Pexels contributor"
+                creator_url = (item.get("photographer_url") or "").strip() or "https://www.pexels.com"
+                page_url = (item.get("url") or "").strip() or creator_url
+
                 out.append({
                     "source": "pexels",
                     "id": normalize_asset_id("pexels", pid),
                     "raw_id": pid,
-                    "width": w,
-                    "height": h,
-                    "score": score_query_match(query, desc),
+                    "width": int(item.get("width") or 0),
+                    "height": int(item.get("height") or 0),
+                    "score": 0.1,
                     "download_url": download_url,
-                    "page_url": page_url or creator_url,
-                    "creator_name": creator_name or "Pexels contributor",
-                    "creator_url": creator_url or "https://www.pexels.com",
+                    "page_url": page_url,
+                    "creator_name": creator_name,
+                    "creator_url": creator_url,
                 })
             except Exception:
                 continue
- 
-        out.sort(key=lambda x: x["score"], reverse=True)
+
         return out
     except Exception as e:
         log("IMG", f"Pexels search failed for '{query}': {e}")
@@ -3247,7 +3210,7 @@ def pexels_search(query: str, page: int = 1) -> List[dict]:
 def pixabay_search(query: str, page: int = 1) -> List[dict]:
     if not PIXABAY_API_KEY:
         return []
- 
+
     try:
         url = "https://pixabay.com/api/"
         params = {
@@ -3265,52 +3228,41 @@ def pixabay_search(query: str, page: int = 1) -> List[dict]:
         results = data.get("hits") or []
 
         log("IMG", f"Pixabay raw query='{query}' page={page} raw_results={len(results)}")
-     
+
         out = []
         for item in results:
             try:
                 pid = str(item.get("id") or "").strip()
                 if not pid:
                     continue
- 
-                w = int(item.get("imageWidth") or 0)
-                h = int(item.get("imageHeight") or 0)
-                if w < PIXABAY_MIN_WIDTH or h < PIXABAY_MIN_HEIGHT:
-                    continue
- 
-                ratio = w / max(h, 1)
-                if ratio < 1.0 or ratio > 2.8:
-                    continue
- 
+
                 download_url = (item.get("largeImageURL") or item.get("webformatURL") or "").strip()
                 if not download_url:
                     continue
- 
-                creator_name = (item.get("user") or "").strip()
-                page_url = (item.get("pageURL") or "").strip()
-                tags = (item.get("tags") or "").strip()
- 
+
+                creator_name = (item.get("user") or "").strip() or "Pixabay contributor"
+                page_url = (item.get("pageURL") or "").strip() or "https://pixabay.com"
+
                 out.append({
                     "source": "pixabay",
                     "id": normalize_asset_id("pixabay", pid),
                     "raw_id": pid,
-                    "width": w,
-                    "height": h,
-                    "score": score_query_match(query, tags),
+                    "width": int(item.get("imageWidth") or 0),
+                    "height": int(item.get("imageHeight") or 0),
+                    "score": 0.1,
                     "download_url": download_url,
-                    "page_url": page_url or "https://pixabay.com",
-                    "creator_name": creator_name or "Pixabay contributor",
+                    "page_url": page_url,
+                    "creator_name": creator_name,
                     "creator_url": "https://pixabay.com",
                 })
             except Exception:
                 continue
- 
-        out.sort(key=lambda x: x["score"], reverse=True)
+
         return out
     except Exception as e:
         log("IMG", f"Pixabay search failed for '{query}': {e}")
         return []
- 
+     
  
 # -----------------------------
 # Wikimedia Commons
@@ -3602,16 +3554,12 @@ def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_i
                     return picked
 
     fallback_queries = [
-        "laptop desk",
-        "office desk",
-        "computer desk",
-        "workspace laptop",
-        "notebook desk",
-        "home office",
-        "business laptop",
-        "desk workspace",
+        "office",
+        "desk",
+        "laptop",
+        "workspace",
     ]
-
+ 
     for fq in fallback_queries:
         for source in source_priority:
             for page in [1, 2, 3, 4, 5]:
