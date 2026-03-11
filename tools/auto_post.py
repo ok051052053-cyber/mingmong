@@ -16,9 +16,10 @@ from slugify import slugify
 from openai import OpenAI
 
 
-def log(tag: str, msg: str) -> None:
-    print(f"[{tag}] {msg}", flush=True)
- 
+def log(stage: str, message: str) -> None:
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{ts}] [{stage}] {message
+                              
 
 def safe_json_loads(text: str, default=None):
     try:
@@ -492,13 +493,6 @@ DEFAULT_PILLAR_TOPICS = {
     ],
 }
  
-# =========================================================
-# Logging
-# =========================================================
-def log(stage: str, message: str) -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] [{stage}] {message}")
- 
  
 # =========================================================
 # OpenAI
@@ -679,6 +673,80 @@ def html_escape(s: str) -> str:
 
 def build_svg_placeholder(*args, **kwargs):
     return None
+
+def score_query_match(query: str, text: str) -> float:
+    q_words = set(normalize_keyword(query).split())
+    t_words = set(normalize_keyword(text).split())
+
+    if not q_words or not t_words:
+        return 0.0
+
+    inter = len(q_words & t_words)
+    union = len(q_words | t_words)
+
+    return inter / union if union else 0.0
+
+
+def build_image_alt(slug: str, heading: str, query: str) -> str:
+    text = (heading or query or slug or "article image").strip()
+    text = re.sub(r"\s+", " ", text)
+    return text[:140]
+
+
+def filter_reusable_assets(results: List[dict], used_ids: set) -> List[dict]:
+    out = []
+
+    for item in results:
+        asset_id = str(item.get("id") or "").strip()
+        source = str(item.get("source") or "").strip().lower()
+        width = int(item.get("width") or 0)
+        height = int(item.get("height") or 0)
+
+        image_url = (
+            str(item.get("hotlink_url") or "").strip()
+            or str(item.get("download_url") or "").strip()
+        )
+
+        if not asset_id:
+            continue
+
+        if asset_id in used_ids:
+            continue
+
+        if not image_url:
+            continue
+
+        if source == "unsplash":
+            if width < UNSPLASH_MIN_WIDTH or height < UNSPLASH_MIN_HEIGHT:
+                continue
+
+        elif source == "pexels":
+            if width < PEXELS_MIN_WIDTH or height < PEXELS_MIN_HEIGHT:
+                continue
+
+        elif source == "pixabay":
+            if width < PIXABAY_MIN_WIDTH or height < PIXABAY_MIN_HEIGHT:
+                continue
+
+        out.append(item)
+
+    return out
+
+
+def pick_best_asset(filtered: List[dict], heading: str = "", visual_type: str = "") -> Optional[dict]:
+    if not filtered:
+        return None
+
+    ranked = sorted(
+        filtered,
+        key=lambda x: (
+            float(x.get("score") or 0.0),
+            int(x.get("width") or 0) * int(x.get("height") or 0),
+        ),
+        reverse=True,
+    )
+
+    return ranked[0]
 
 
 def render_image_block(img_src: Optional[str], alt_text: str = "", caption: str = "", class_name: str = "post-image") -> str:
@@ -3071,7 +3139,12 @@ def build_post_level_image_queries(sections: List[Dict[str, str]]) -> List[str]:
         "business desk",
         "desk setup",
     ]
- 
+
+
+def normalize_asset_id(source: str, raw_id: str) -> str:
+    source = (source or "").strip().lower()
+    raw_id = str(raw_id or "").strip()
+    return f"{source}:{raw_id}"
 
 # -----------------------------
 # Unsplash
@@ -3134,6 +3207,7 @@ def unsplash_search(query: str, page: int = 1) -> List[dict]:
                     "height": int(item.get("height") or 0),
                     "score": 0.1,
                     "hotlink_url": hotlink_url,
+                    "download_url": hotlink_url,
                     "page_url": page_link,
                     "creator_name": user_name,
                     "creator_url": user_link,
@@ -3369,6 +3443,14 @@ def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str
     for sec in sections[:IMG_COUNT]:
         heading = sec.get("heading", "")
         visual_type = sec.get("visual_type", "")
+        image_query = sec.get("image_query", "")
+
+        q = auto_image_query(
+            heading=heading,
+            image_query=image_query,
+            body=sec.get("body", ""),
+            visual_type=visual_type,
+        )
 
         if q in seen:
             q = "workspace desk laptop"
@@ -3377,7 +3459,6 @@ def dedupe_section_image_queries(sections: List[dict], keyword: str) -> List[str
         final_queries.append(q)
 
     return final_queries
-
 
 def search_unsplash_once(query: str) -> List[dict]:
     query = (query or "").strip().lower()
@@ -3430,10 +3511,6 @@ def download_asset(asset: dict, out_path: Path) -> None:
     r.raise_for_status()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(r.content)
- 
-
-import math
-from html import escape as escape_xml
 
 
 def ensure_minimum_image_paths(
@@ -4464,14 +4541,15 @@ def main() -> int:
             )
 
             cand = enforce_comparison_visuals(cand, keyword=keyword)
+            cand_title = cand["title"]
 
             if post_semantically_too_close(keyword, cand_planning, posts):
                 log("DUP", f"Semantic overlap detected for keyword='{keyword}'")
-
-            cand_title = cand["title"]
+                continue
 
             if title_too_similar(cand_title, existing_titles, TITLE_SIM_THRESHOLD):
                 log("DUP", f"Title too similar: '{cand_title}'")
+                continue
 
             ok, reason = quality_check_post(
                 cand,
@@ -4480,10 +4558,12 @@ def main() -> int:
             )
             if not ok:
                 log("QUALITY", f"Post rejected: reason='{reason}'")
+                continue
 
             fp = make_fingerprint(cand_title, cand["sections"], cand["tldr"], cand["faq"])
             if fp in used_fps:
                 log("DUP", f"Fingerprint duplicate for keyword='{keyword}'")
+                continue
 
             data = cand
             planning = cand_planning
