@@ -3590,7 +3590,60 @@ def ensure_minimum_image_paths(
 
     return image_paths, alt_texts
  
+
+def simplify_image_query(keyword: str, heading: str, visual_type: str = "") -> str:
+    text = f"{keyword} {heading}".lower()
+
+    stopwords = {
+        "the", "a", "an", "and", "or", "but", "for", "with", "without",
+        "how", "why", "what", "when", "where", "which", "who",
+        "beginners", "beginner", "actually", "realistically", "ready",
+        "next", "concrete", "mistakes", "tradeoffs", "tradeoff",
+        "guide", "tips", "best", "smart", "wrong", "costly",
+        "use", "using", "start", "make", "avoid", "choose"
+    }
+
+    words = re.findall(r"[a-z0-9]+", text)
+    words = [w for w in words if w not in stopwords and len(w) >= 3]
+
+    priority_map = [
+        ("etf", "etf investing"),
+        ("stock", "stock market"),
+        ("invest", "investing"),
+        ("freelance", "freelancer workspace"),
+        ("software", "software workspace"),
+        ("design", "designer workspace"),
+        ("developer", "developer desk"),
+        ("laptop", "laptop desk"),
+        ("finance", "finance desk"),
+        ("budget", "budget planning"),
+        ("remote", "remote work desk"),
+        ("office", "modern office desk"),
+    ]
+
+    joined = " ".join(words)
+
+    for key, replacement in priority_map:
+        if key in joined:
+            return replacement
+
+    if "chart" in visual_type.lower():
+        if "etf" in joined or "invest" in joined:
+            return "investment chart"
+        return "business chart"
+
+    if "desk" in joined or "workspace" in joined:
+        return "workspace desk laptop"
+
+    if len(words) >= 2:
+        return " ".join(words[:2])
+
+    if len(words) == 1:
+        return words[0]
+
+    return "modern office desk"
  
+
 def find_best_asset_for_query(query: str, heading: str, visual_type: str, used_ids: set) -> Optional[dict]:
     query_candidates = build_image_query_candidates(query, heading, visual_type)[:3]
 
