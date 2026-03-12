@@ -2930,7 +2930,6 @@ def generate_deep_post(
 # =========================================================
 def sanitize_query_for_image(q: str) -> str:
     q = (q or "").strip().lower()
-
     q = re.sub(r"[^a-z0-9\s]", " ", q)
     q = re.sub(r"\s+", " ", q).strip()
 
@@ -2940,29 +2939,31 @@ def sanitize_query_for_image(q: str) -> str:
         "pick", "using", "start", "with", "your", "their",
         "into", "from", "begin", "guide", "which", "what",
         "why", "how", "for", "and", "or", "to", "of", "in",
-        "on", "by", "tools", "tool", "app", "apps", "stock",
-        "stocks", "trading", "investing", "investment", "chart",
-        "checklist", "strategy", "analysis", "beginner", "beginners",
-        "smart", "simple", "choose", "choosing", "ideal", "option",
-        "options", "finance", "financial", "etf", "etfs"
+        "on", "by", "tool", "tools", "app", "apps",
+        "beginner", "beginners", "simple", "smart", "ideal",
+        "option", "options", "checklist", "strategy", "analysis",
+        "review", "final", "answer", "mistake", "mistakes",
+        "tradeoff", "tradeoffs", "decision", "decisions",
+        "step", "steps", "process", "system", "workflow"
     }
 
     words = [w for w in q.split() if w not in stop_words and len(w) >= 3]
 
-    if "desk" in words or "workspace" in words or "office" in words:
-        return "office desk"
-    if "laptop" in words or "computer" in words or "screen" in words:
-        return "laptop desk"
-    if "notebook" in words or "planning" in words:
-        return "notebook desk"
+    if not words:
+        return ""
 
-    if len(words) >= 2:
-        return " ".join(words[:2])
+    seen = set()
+    cleaned = []
+    for w in words:
+        if w in seen:
+            continue
+        seen.add(w)
+        cleaned.append(w)
 
-    return "office desk"
+    return " ".join(cleaned[:5])
  
 
-def extract_visual_keywords_from_text(text: str, limit: int = 4) -> List[str]:
+def extract_visual_keywords_from_text(text: str, limit: int = 6) -> List[str]:
     text = (text or "").lower().strip()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -2982,10 +2983,12 @@ def extract_visual_keywords_from_text(text: str, limit: int = 4) -> List[str]:
     }
 
     preferred_terms = {
-        "dashboard", "laptop", "workspace", "desk", "screen", "chart",
-        "spreadsheet", "portfolio", "investment", "finance", "budget",
-        "stocks", "stock", "etf", "analysis", "tracker", "metrics",
-        "notebook", "office", "planning", "business", "crm", "automation",
+        "client", "meeting", "video", "call", "contract", "document",
+        "invoice", "payment", "checklist", "calendar", "dashboard",
+        "whiteboard", "team", "startup", "planning", "designer",
+        "developer", "consultant", "freelancer", "crm", "email",
+        "automation", "workflow", "analytics", "budget", "portfolio",
+        "spreadsheet", "finance", "presentation", "project"
     }
 
     words = [w for w in text.split() if len(w) >= 3 and w not in stop_words]
@@ -3012,19 +3015,35 @@ def auto_image_query(
     body: str = "",
     visual_type: str = "photo",
 ) -> str:
-    base = sanitize_query_for_image(image_query or heading)
-    heading_clean = sanitize_query_for_image(heading)
+    base = sanitize_query_for_image(image_query or "")
+    heading_clean = sanitize_query_for_image(heading or "")
     body_keywords = extract_visual_keywords_from_text(body, limit=6)
 
+    intent_text = f"{heading} {image_query} {body}".lower()
+
+    scenario_terms = []
+    if any(x in intent_text for x in ["client", "onboarding", "contract", "proposal"]):
+        scenario_terms.extend(["client", "meeting", "documents"])
+    if any(x in intent_text for x in ["invoice", "payment", "billing", "pricing"]):
+        scenario_terms.extend(["invoice", "payment", "laptop"])
+    if any(x in intent_text for x in ["team", "collaboration", "approval", "handoff"]):
+        scenario_terms.extend(["team", "meeting", "whiteboard"])
+    if any(x in intent_text for x in ["dashboard", "metrics", "analytics", "tracking"]):
+        scenario_terms.extend(["dashboard", "analytics", "screen"])
+    if any(x in intent_text for x in ["portfolio", "invest", "etf", "stock", "budget"]):
+        scenario_terms.extend(["finance", "dashboard", "spreadsheet"])
+    if any(x in intent_text for x in ["software", "crm", "saas", "platform"]):
+        scenario_terms.extend(["software", "dashboard", "workspace"])
+    if any(x in intent_text for x in ["remote", "video", "zoom", "call"]):
+        scenario_terms.extend(["video", "call", "laptop"])
+
     parts = []
-
-    if base:
-        parts.extend(base.split())
-
-    if heading_clean:
-        parts.extend(heading_clean.split())
+    for chunk in [base, heading_clean]:
+        if chunk:
+            parts.extend(chunk.split())
 
     parts.extend(body_keywords)
+    parts.extend(scenario_terms)
 
     seen = set()
     compact = []
@@ -3035,21 +3054,16 @@ def auto_image_query(
         seen.add(p)
         compact.append(p)
 
-    compact = compact[:6]
+    compact = compact[:5]
 
     if compact:
-        query = " ".join(compact)
-    else:
-        query = ""
+        return " ".join(compact)
 
-    if not query:
-        if (visual_type or "").lower() == "diagram":
-            return "business dashboard laptop"
-        if (visual_type or "").lower() == "workspace":
-            return "workspace desk laptop"
-        return "modern office desk"
-
-    return sanitize_query_for_image(query)
+    if (visual_type or "").lower() == "diagram":
+        return "comparison chart dashboard"
+    if (visual_type or "").lower() == "workspace":
+        return "team workspace planning"
+    return "business meeting planning"
 
 
 def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
@@ -3090,27 +3104,56 @@ def cached_search_source(source: str, query: str, page: int = 1) -> List[dict]:
 
 
 def build_image_query_candidates(query: str, heading: str, visual_type: str) -> List[str]:
-    candidates = []
-
     q1 = sanitize_query_for_image(query)
     q2 = sanitize_query_for_image(heading)
+    joined = f"{q1} {q2}".strip()
 
-    for q in [q1, q2]:
+    candidates = []
+
+    base_candidates = [
+        q1,
+        q2,
+        joined,
+    ]
+
+    for q in base_candidates:
+        q = (q or "").strip()
         if q and q not in candidates:
             candidates.append(q)
 
-    if (visual_type or "").lower() == "workspace":
-        extras = ["laptop desk", "office desk", "workspace laptop"]
-    elif (visual_type or "").lower() == "diagram":
-        extras = ["computer desk", "office desk", "business laptop"]
+    vt = (visual_type or "").lower()
+
+    if vt == "workspace":
+        extras = [
+            f"{joined} workspace",
+            f"{joined} meeting",
+            f"{joined} planning",
+            f"{joined} team",
+            "team workspace planning",
+        ]
+    elif vt == "diagram":
+        extras = [
+            f"{joined} infographic",
+            f"{joined} comparison chart",
+            f"{joined} dashboard",
+            "business comparison chart",
+            "analytics dashboard screen",
+        ]
     else:
-        extras = ["office desk", "laptop desk", "notebook desk"]
+        extras = [
+            f"{joined} meeting",
+            f"{joined} documents",
+            f"{joined} laptop",
+            f"{joined} whiteboard",
+            "business meeting planning",
+        ]
 
     for q in extras:
-        if q not in candidates:
+        q = re.sub(r"\s+", " ", (q or "").strip())
+        if q and q not in candidates:
             candidates.append(q)
 
-    return candidates[:5]
+    return candidates[:6]
  
 
 def detect_post_image_theme(sections: List[Dict[str, str]]) -> str:
@@ -3123,10 +3166,15 @@ def detect_post_image_theme(sections: List[Dict[str, str]]) -> str:
         ]
     ).lower()
 
-    if any(x in joined for x in ["stock", "stocks", "invest", "investment", "portfolio", "etf", "trading"]):
+    if any(x in joined for x in ["stock", "stocks", "invest", "investment", "portfolio", "etf", "trading", "budget"]):
         return "investing"
-    if any(x in joined for x in ["software", "app", "platform", "tool", "saas", "crm"]):
+
+    if any(x in joined for x in ["software", "app", "platform", "tool", "saas", "crm", "dashboard"]):
         return "software"
+
+    if any(x in joined for x in ["client", "onboarding", "contract", "invoice", "proposal", "call", "meeting"]):
+        return "client"
+
     return "workspace"
 
 
@@ -3135,37 +3183,41 @@ def build_post_level_image_queries(sections: List[Dict[str, str]]) -> List[str]:
 
     if theme == "investing":
         return [
-            "laptop desk",
-            "office desk",
-            "computer desk",
-            "notebook desk",
-            "workspace",
-            "home office",
-            "business desk",
-            "laptop workspace",
+            "finance dashboard spreadsheet",
+            "investment portfolio laptop",
+            "budget planning screen",
+            "stock market analytics",
+            "personal finance workspace",
+            "etf analysis laptop",
         ]
 
     if theme == "software":
         return [
-            "computer desk",
-            "laptop workspace",
-            "office desk",
-            "workspace",
-            "business desk",
-            "home office",
-            "notebook desk",
-            "desktop setup",
+            "software dashboard workspace",
+            "team planning whiteboard",
+            "client meeting laptop",
+            "project management screen",
+            "startup collaboration office",
+            "crm dashboard laptop",
+        ]
+
+    if theme == "client":
+        return [
+            "client meeting documents",
+            "video call laptop",
+            "contract review desk",
+            "freelancer planning workspace",
+            "business proposal meeting",
+            "invoice payment laptop",
         ]
 
     return [
-        "office desk",
-        "laptop workspace",
-        "notebook desk",
-        "home office",
-        "computer desk",
-        "workspace",
-        "business desk",
-        "desk setup",
+        "team meeting planning",
+        "business whiteboard discussion",
+        "project workflow laptop",
+        "startup collaboration workspace",
+        "calendar planning desk",
+        "professional meeting room",
     ]
 
 
