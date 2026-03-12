@@ -1242,20 +1242,32 @@ def pick_next_cluster(posts: List[dict], topic_clusters: Dict[str, List[str]]) -
     names = list(topic_clusters.keys())
     if not names:
         return "AI Tools"
- 
+
     recent = posts[:CLUSTER_ROTATION_WINDOW] if posts else []
+
     counts = {name: 0 for name in names}
- 
-    for p in recent:
+    last_seen_index = {name: 10**9 for name in names}
+
+    for idx, p in enumerate(recent):
         if not isinstance(p, dict):
             continue
-        cluster = p.get("cluster")
-        if isinstance(cluster, str) and cluster in counts:
+
+        cluster = str(p.get("cluster") or "").strip()
+        if cluster in counts:
             counts[cluster] += 1
- 
-    min_count = min(counts.values()) if counts else 0
-    candidates = [name for name, c in counts.items() if c == min_count]
-    return random.choice(candidates) if candidates else names[0]
+            if last_seen_index[cluster] == 10**9:
+                last_seen_index[cluster] = idx
+
+    ranked = sorted(
+        names,
+        key=lambda name: (
+            counts[name],
+            last_seen_index[name],
+            name,
+        )
+    )
+
+    return ranked[0]
  
  
 def cluster_recent_saturation(posts: List[dict], cluster_name: str, window: int = 10) -> int:
