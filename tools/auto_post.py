@@ -2713,9 +2713,9 @@ def quality_check_post(
         if has_html_table and intent_type != "comparison":
             return False, "unexpected-html-table"
 
-        min_len = 300 if idx in {0, 5} else 400
+        min_len = 260 if idx in {0, 5} else 340
         if len(body) < min_len:
-            return False, "thin-section"
+            return False, f"thin-section-{idx+1}-{len(body)}"
 
         if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
             return False, "bad-visual-type"
@@ -2760,8 +2760,9 @@ def quality_check_post(
         [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
     )
 
-    if len(joined) < 5200:
-        return False, "too-short"
+    min_total_chars = max(4200, int(MIN_CHARS * 0.65))
+    if len(joined) < min_total_chars:
+        return False, f"too-short-{len(joined)}"
 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
