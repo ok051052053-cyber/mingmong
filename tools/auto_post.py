@@ -3,7 +3,7 @@ import re
 import json
 import time
 import math
-import html
+import htㅁml
 import random
 import hashlib
 from collections import Counter
@@ -1843,6 +1843,9 @@ Schema:
 }}
 
 Hard rules:
+- Each section goal must be rich enough to support a long-form article section
+- At least 4 sections must require a concrete example, timing detail, and tradeoff
+- Avoid section plans that can be answered in 2 or 3 short paragraphs
 - The article must fit into a broader topic cluster
 - The plan should identify at least 2 adjacent follow-up topics a reader would logically need next
 - These adjacent topics should be reflected in section goals or must_include points
@@ -2429,14 +2432,15 @@ Length rules:
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 350 characters.
-- Sections 2, 3, 4, and 5 must each be at least 550 characters.
+- Section 1 and section 6 must each be at least 700 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1100 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
   one tradeoff
   one consequence
   one next-step decision
+  one realistic scenario with timing, money, or workflow detail
 - Before finishing, check every section length and expand weak sections.
 
 TLDR rules:
@@ -2530,7 +2534,9 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least {MIN_CHARS} characters
+- Total text must be at least 8000 characters
+- Do not finish early if the article is under 8000 characters
+- Expand sections with more concrete examples and operational detail until the article passes 8000 characters
 - Each section body must meet the minimum length target before you finish.
 - Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
@@ -2909,6 +2915,35 @@ def generate_deep_post(
  
     data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
+    total_body_len = len(
+        (data.get("title", "") or "") +
+        (data.get("description", "") or "") +
+        (data.get("tldr", "") or "") +
+        "".join((s.get("body", "") or "") for s in data.get("sections", [])) +
+        "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
+    )
+
+    if total_body_len < 8000:
+        log("ARTICLE", f"First draft too short len={total_body_len}, retrying expansion")
+
+        retry_prompt = build_article_prompt(keyword, cluster_name, post_type, planning) + """
+
+Important revision:
+- Your first draft was too short.
+- Expand all 6 sections.
+- Add more concrete examples, more realistic scenarios, more tradeoffs, and more consequences.
+- The final article must be at least 8000 characters.
+- Keep valid JSON only.
+"""
+
+        article_raw = openai_generate_text(
+            retry_prompt,
+            model=MODEL_WRITER,
+            temperature=0.6,
+        )
+        log("ARTICLE", f"retry_raw_len={len(article_raw)} preview={article_raw[:500]!r}")
+        data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+ 
     elapsed = time.time() - t0
     log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
 
