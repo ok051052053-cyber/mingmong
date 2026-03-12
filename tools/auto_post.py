@@ -95,7 +95,7 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "5500"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "8000"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "800"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
  
@@ -165,8 +165,8 @@ CLUSTER_ROTATION_WINDOW = int(os.environ.get("CLUSTER_ROTATION_WINDOW", "18"))
 TOPIC_CLUSTERS_JSON = os.environ.get("TOPIC_CLUSTERS_JSON", "").strip()
 PILLAR_INTERVAL = int(os.environ.get("PILLAR_INTERVAL", "6"))
  
-SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "4"))
-SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "7"))
+SECTION_COUNT_MIN = int(os.environ.get("SECTION_COUNT_MIN", "6"))
+SECTION_COUNT_MAX = int(os.environ.get("SECTION_COUNT_MAX", "8"))
  
 SEARCH_JS_VERSION = hashlib.sha1(str(int(time.time() // 3600)).encode("utf-8")).hexdigest()[:8]
 BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.random()}".encode("utf-8")).hexdigest()[:10]
