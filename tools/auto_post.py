@@ -1358,7 +1358,8 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
 def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
     return cluster_to_category(cluster_name, keyword, post_type)
 
- def detect_category_from_keyword(keyword: str) -> str:
+
+def detect_category_from_keyword(keyword: str) -> str:
     return cluster_to_category("", keyword, "")
   
  
