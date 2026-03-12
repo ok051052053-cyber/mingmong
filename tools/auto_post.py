@@ -2423,7 +2423,7 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- Aim for 8000 to 9500 characters for most articles
+- Aim for 8000 to 9500 characters for all articles
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
