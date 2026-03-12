@@ -1345,7 +1345,10 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
  
 def pick_category(keyword: str, cluster_name: str = "", post_type: str = "") -> str:
     return cluster_to_category(cluster_name, keyword, post_type)
- 
+
+ def detect_category_from_keyword(keyword: str) -> str:
+    return cluster_to_category("", keyword, "")
+  
  
 # =========================================================
 # Keyword generation
@@ -1643,7 +1646,14 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 return pillar_pool, cluster_name, "pillar", current_pillar_slug
  
         seeds = topic_clusters.get(cluster_name) or []
-        merged_seed = clean_base + seeds
+        target_category = cluster_to_category(cluster_name)
+
+        cluster_base = [
+            kw for kw in clean_base
+            if detect_category_from_keyword(kw) == target_category
+        ]
+
+        merged_seed = cluster_base + seeds
         merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
  
         try:
@@ -1660,7 +1670,7 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             target_category = cluster_to_category(cluster_name)
             merged_all = [
                 kw for kw in merged_all
-                if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
+                if detect_category_from_keyword(kw) == target_category
             ]
 
             if merged_all:
@@ -1676,7 +1686,7 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
         target_category = cluster_to_category(cluster_name)
         fallback = [
             kw for kw in fallback
-            if pick_category(keyword=kw, cluster_name=cluster_name, post_type="normal") == target_category
+            if detect_category_from_keyword(kw) == target_category
         ]
 
         return fallback, cluster_name, "normal", current_pillar_slug
@@ -1701,11 +1711,56 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 # =========================================================
 # Strategy and article generation
 # =========================================================
+def build_cluster_guardrails(cluster_name: str) -> str:
+    c = (cluster_name or "").strip()
+
+    if c == "AI Tools":
+        return """
+- The article must stay focused on practical AI tool usage, prompt workflows, automation, integrations, or tool selection
+- Do not turn the topic into stock investing, ETF selection, portfolio allocation, trading, or valuation
+- Do not frame AI mainly as an investing theme
+- Focus on how people use AI tools in real work
+""".strip()
+
+    if c == "Investing":
+        return """
+- The article must stay focused on investing decisions, ETFs, stocks, allocation, risk, and portfolio construction
+- Do not drift into general productivity advice or generic AI workflow content
+""".strip()
+
+    if c == "Productivity":
+        return """
+- Focus on planning, focus, task execution, meeting workflow, organization, or time management
+- Do not turn the article into investing or stock selection content
+""".strip()
+
+    if c == "Software Reviews":
+        return """
+- Focus on comparing real software tools or platforms
+- Do not drift into investing advice unless the software itself is specifically an investing product
+""".strip()
+
+    if c == "Make Money":
+        return """
+- Focus on income generation, monetization, services, digital products, or repeatable income systems
+- Do not turn the article into ETF or stock investing content
+""".strip()
+
+    if c == "Side Hustles":
+        return """
+- Focus on practical side hustle models and execution after work
+- Do not turn the article into long term portfolio investing content
+""".strip()
+
+    return ""
+
+
 def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
     avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:40]]) if avoid_titles else "- none"
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     intent_type = infer_search_intent_type(keyword, category_hint)
-
+    cluster_guardrails = build_cluster_guardrails(cluster_name)
+ 
     audience_segmentation_note = """
 - For freelancer topics do not treat all freelancers as one group
 - Split recommendations by at least 2 concrete freelancer types
@@ -1959,7 +2014,10 @@ Hard rules:
 {review_depth_note}
 {originality_note}
 {post_guidance}
+Cluster-specific guardrails:
+{cluster_guardrails}
 """.strip()
+ 
 
 def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
     data = safe_json_loads(text, {})
@@ -2078,7 +2136,26 @@ def infer_search_intent_type(keyword: str, category: str = "") -> str:
     return "howto"
 
 def infer_content_mode(category: str, text: str, intent: str = "cluster") -> str:
+    c = (category or "").lower().strip()
     joined = f"{category} {text} {intent}".lower()
+
+    if c == "investing":
+        return "investing"
+
+    if c == "software reviews":
+        return "review"
+
+    if c == "ai tools":
+        return "workflow"
+
+    if c == "productivity":
+        return "workflow"
+
+    if c == "make money":
+        return "money"
+
+    if c == "side hustles":
+        return "money"
 
     if any(x in joined for x in ["template", "checklist", "workflow", "system", "process"]):
         return "workflow"
@@ -2088,6 +2165,7 @@ def infer_content_mode(category: str, text: str, intent: str = "cluster") -> str
         return "investing"
     if any(x in joined for x in ["make money", "income", "side hustle", "monetization"]):
         return "money"
+
     return "workflow"
 
 def build_mode_rules(mode: str) -> str:
