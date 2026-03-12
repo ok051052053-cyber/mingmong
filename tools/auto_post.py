@@ -95,8 +95,8 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "10000"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "800"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
  
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
@@ -2423,7 +2423,7 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- Aim for 6500 to 9500 characters for most articles
+- Aim for 8000 to 9500 characters for most articles
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
