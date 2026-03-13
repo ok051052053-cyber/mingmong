@@ -1529,7 +1529,7 @@ def generate_cluster_keywords(
 ) -> List[str]:
     prompt = build_cluster_keyword_prompt(cluster_name, seed_keywords, existing_titles, existing_keywords)
     raw = openai_generate_text(prompt, model=MODEL_PLANNER, temperature=0.6)
-    data = json.loads(_find_balanced_json(raw))
+    data = safe_json_loads(_find_balanced_json(raw), {})
  
     kws = data.get("keywords") or []
     if not isinstance(kws, list):
@@ -2136,7 +2136,8 @@ Cluster-specific guardrails:
  
 
 def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
-    data = safe_json_loads(text, {})
+    clean_raw = _find_balanced_json(text)
+    data = safe_json_loads(clean_raw, {})
 
     if not isinstance(data, dict) or not data:
         raise ValueError("planning JSON parse failed")
@@ -2168,42 +2169,39 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         raise ValueError("section_plan must be exactly 6")
 
     clean_sections = []
-    for s in sections:
+    for s in section_plan:
         if not isinstance(s, dict):
-            continue
+            raise ValueError("section item must be object")
 
         heading = _clean_text(s.get("heading", ""))
-        body = _clean_text(s.get("body", ""))
+        goal = _clean_text(s.get("goal", ""))
+        section_role = _clean_text(s.get("section_role", "")).lower()
         image_query = _clean_text(s.get("image_query", ""))
-        visual_type = _clean_text(s.get("visual_type", "photo")).lower()
-        alt_text = _clean_text(s.get("alt_text", "")) or heading
+        visual_type = _clean_text(s.get("visual_type", "diagram")).lower()
+        alt_hint = _clean_text(s.get("alt_hint", ""))
+        must_include = s.get("must_include") or []
 
-        if intent_type != "comparison":
-            body = re.sub(
-                r'<div class="table-wrap">.*?</div>',
-                '',
-                body,
-                flags=re.IGNORECASE | re.DOTALL,
-            )
-            body = re.sub(
-                r'<table.*?>.*?</table>',
-                '',
-                body,
-                flags=re.IGNORECASE | re.DOTALL,
-            )
-            body = re.sub(r"\n{3,}", "\n\n", body).strip()
+        if not isinstance(must_include, list):
+            must_include = []
+        must_include = [_clean_text(x) for x in must_include if isinstance(x, str) and _clean_text(x)]
 
         if visual_type not in {"photo", "diagram", "workspace"}:
-            visual_type = "photo"
+            visual_type = "diagram"
+        if section_role not in {"problem", "insight", "solution", "example", "decision", "checklist", "ending"}:
+            section_role = "solution"
 
-        if heading and body:
-            clean_sections.append({
-                "heading": heading,
-                "body": body,
-                "image_query": image_query or heading,
-                "visual_type": visual_type,
-                "alt_text": alt_text,
-            })
+        if not heading or not goal or not image_query or len(must_include) < 2:
+            raise ValueError("section_plan item missing required fields")
+
+        clean_sections.append({
+            "heading": heading,
+            "goal": goal,
+            "section_role": section_role,
+            "image_query": image_query,
+            "visual_type": visual_type,
+            "must_include": must_include[:6],
+            "alt_hint": alt_hint or heading,
+        })
 
     faq_questions = data.get("faq_questions") or []
     if not isinstance(faq_questions, list):
@@ -2234,7 +2232,8 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
         "section_plan": clean_sections,
         "faq_questions": faq_questions,
         "tldr_focus": tldr_focus,
-    } 
+    }
+ 
 
 def infer_search_intent_type(keyword: str, category: str = "") -> str:
     k = (keyword or "").lower().strip()
