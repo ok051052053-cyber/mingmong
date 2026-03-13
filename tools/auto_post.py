@@ -87,19 +87,20 @@ COLLECT_TARGET_IMAGES = int(
 )
 
 print(
-    f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT} "
-    f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={VISIBLE_MIN_IMAGES} "
+    f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={5} "
+    f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={4} "
     f"EXTRA_TABLE_BUFFER={EXTRA_TABLE_BUFFER} COLLECT_TARGET_IMAGES={COLLECT_TARGET_IMAGES}"
 )
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "700"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "3200"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "260"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "650"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
-print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
+print(f"[CONFIG] MIN_CHARS={5000} MIN_SECTION_CHARS={260}")
 
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
@@ -2624,7 +2625,7 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 6000 characters
+- The combined length of all 6 section bodies alone must be at least 3000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
 - Aim for 9000 to 11000 total characters in the full JSON response
 - Keep sections focused and avoid filler
@@ -2632,8 +2633,8 @@ Length rules:
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 900 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
+- Section 1 and section 6 must each be at least 400 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1000 characters.
 - The combined body length of all sections must be at least 6000 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
@@ -2915,7 +2916,7 @@ def quality_check_post(
         if has_html_table and intent_type != "comparison":
             return False, "unexpected-html-table"
 
-        min_len = 260 if idx in {0, 5} else 340
+        min_len = 180 if idx in {0, 5} else 300
         if len(body) < min_len:
             return False, f"thin-section-{idx+1}-{len(body)}"
 
@@ -2962,7 +2963,7 @@ def quality_check_post(
         [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
     )
 
-    min_total_chars = max(4200, int(MIN_CHARS * 0.65))
+    min_total_chars = max(3000, int(MIN_CHARS * 0.75))
     if len(joined) < min_total_chars:
         return False, f"too-short-{len(joined)}"
 
@@ -3070,6 +3071,8 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
             )
             body = re.sub(r"\n{3,}", "\n\n", body).strip()
 
+body = trim_section_body(body, MAX_SECTION_CHARS)
+
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "photo"
 
@@ -3122,7 +3125,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [900, 1400, 1400, 1400, 1400, 900]
+    min_targets = [600, 1000, 1000, 1000, 1000, 600]
 
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
@@ -3207,7 +3210,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 8600
+    min_target_len = 6000
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3221,8 +3224,8 @@ Important revision:
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand every weak section materially.
-- Section 1 and section 6 must each be at least 900 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
+- Section 1 and section 6 must each be at least 600 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1000 characters.
 - Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
 - Add at least one extra paragraph to every section.
 - Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
@@ -3946,6 +3949,19 @@ def download_asset(asset: dict, out_path: Path) -> None:
     out_path.write_bytes(r.content)
 
 
+def build_local_image_relpath(slug: str, idx: int, asset: dict) -> str:
+    source = (asset.get("source") or "img").strip().lower()
+    ext = ".jpg"
+
+    download_url = (asset.get("download_url") or asset.get("hotlink_url") or "").lower()
+    if ".png" in download_url:
+        ext = ".png"
+    elif ".webp" in download_url:
+        ext = ".webp"
+
+    return f"assets/posts/{slug}/{source}-{idx}{ext}"
+
+
 def ensure_minimum_image_paths(
     slug: str,
     image_paths: List[str],
@@ -4189,7 +4205,16 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
             f'via <a href="{page_url}" target="_blank" rel="noopener noreferrer">{source_label}</a></li>'
         )
 
-        image_paths.append(hotlink_url)
+        rel_path = build_local_image_relpath(slug, i, asset)
+        out_path = ROOT / rel_path
+
+        try:
+            download_asset(asset, out_path)
+            image_paths.append(rel_path.replace("\\", "/"))
+        except Exception as e:
+            log("IMG", f"Local download failed slug='{slug}' idx={i} error={e}")
+            image_paths.append("")
+
         alt_texts.append(alt_text)
         credits_li.append(photo_credit_html)
 
@@ -4412,13 +4437,34 @@ def normalize_existing_post(p: dict) -> dict:
         p["updated"] = p["date"]
  
     return p
- 
+
+
+def is_valid_image_path(path: str) -> bool:
+    if not isinstance(path, str):
+        return False
+
+    path = path.strip()
+    if not path:
+        return False
+
+    bad_values = {"none", "null", "undefined", "#"}
+    if path.lower() in bad_values:
+        return False
+
+    if path.startswith("http://") or path.startswith("https://"):
+        return True
+
+    file_path = ROOT / path
+    return file_path.exists()
+
+
 def first_non_empty_image(image_paths: List[str]) -> str:
     for p in image_paths:
-        if isinstance(p, str) and p.strip():
+        if is_valid_image_path(p):
             return p.strip()
     return ""
-    
+
+
 # =========================================================
 # HTML rendering helpers
 # =========================================================
@@ -4511,6 +4557,29 @@ def paragraphs_to_html(text: str) -> str:
 def section_has_html_table(section: Dict[str, str]) -> bool:
     body = (section.get("body") or "").lower()
     return "<table" in body and "</table>" in body
+
+def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
+    text = _clean_text(text)
+    if not text:
+        return ""
+
+    if len(text) <= max_chars:
+        return text
+
+    cut = text[:max_chars]
+    last_break = max(
+        cut.rfind(". "),
+        cut.rfind("? "),
+        cut.rfind("! "),
+        cut.rfind("\n\n"),
+    )
+
+    if last_break >= 160:
+        trimmed = cut[:last_break + 1].strip()
+    else:
+        trimmed = cut.strip()
+
+    return trimmed.rstrip(" .") + "..."
 
 
 def body_to_html(text: str) -> str:
@@ -4655,7 +4724,7 @@ def render_post_html(
 
         section_body_html = body_to_html(sec["body"])
  
-        if img_path:
+        if is_valid_image_path(img_path):
             img_src = img_path if img_path.startswith("http://") or img_path.startswith("https://") else f"../{img_path}"
 
             if is_diagram:
