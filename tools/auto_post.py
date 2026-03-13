@@ -2627,15 +2627,15 @@ Opening rules:
 Length rules:
 - The combined length of all 6 section bodies alone must be at least 3000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 5000 to 7000 total characters in the full JSON response
+- Aim for 3200 to 4000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 400 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1000 characters.
-- The combined body length of all sections must be at least 6000 characters.
+- Section 1 and section 6 must each be at least 300 characters.
+- Sections 2, 3, 4, and 5 must each be at least 800 characters.
+- The combined body length of all sections must be at least 4000 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -2737,9 +2737,9 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least 6000 characters
-- Do not finish early if the article is under 6000 characters
-- Expand sections with more concrete examples and operational detail until the article passes 6000 characters
+- Total text must be at least 4000 characters
+- Do not finish early if the article is under 4000 characters
+- Expand sections with more concrete examples and operational detail until the article passes 4000 characters
 - Each section body must meet the minimum length target before you finish.
 - Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
@@ -3210,7 +3210,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 6000
+    min_target_len = 4000
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
