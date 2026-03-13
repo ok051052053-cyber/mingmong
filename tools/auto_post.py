@@ -3206,7 +3206,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 8000
+    min_target_len = 8600
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3244,11 +3244,7 @@ Important revision:
         )
 
         total_body_len = len(
-            (data.get("title", "") or "") +
-            (data.get("description", "") or "") +
-            (data.get("tldr", "") or "") +
-            "".join((s.get("body", "") or "") for s in data.get("sections", [])) +
-            "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
+            "".join((s.get("body", "") or "") for s in data.get("sections", []))
         )
 
     data = expand_short_sections(
