@@ -77,7 +77,7 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 # =========================================================
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
-POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "3"))
+POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "6"))
 IMG_COUNT = int(os.environ.get("IMG_COUNT", "6"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "5"))
 VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "4"))
@@ -1719,7 +1719,101 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
  
     clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
     return clean_base, "General", "normal", ""
- 
+
+
+def build_run_plan(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> List[Dict[str, str]]:
+    topic_clusters = load_topic_clusters()
+    existing_keywords = get_existing_keywords_from_posts(posts)
+    clean_base = dedupe_keywords(base_keywords, existing_titles, existing_keywords)
+
+    category_order = [
+        "AI Tools",
+        "Investing",
+        "Make Money",
+        "Productivity",
+        "Software Reviews",
+        "Side Hustles",
+    ]
+
+    run_plan: List[Dict[str, str]] = []
+
+    for category_name in category_order:
+        cluster_name = category_name
+        current_pillar = get_cluster_pillar(posts, cluster_name)
+        current_pillar_slug = (current_pillar.get("slug") or "").strip()
+
+        pillar_mode = should_make_pillar(posts, cluster_name)
+        post_type = "pillar" if pillar_mode else "normal"
+
+        if pillar_mode:
+            keyword_pool = build_pillar_keyword_pool(cluster_name, posts, existing_titles)
+        else:
+            seeds = topic_clusters.get(cluster_name) or []
+
+            cluster_base = [
+                kw for kw in clean_base
+                if detect_category_from_keyword(kw) == category_name
+            ]
+
+            merged_seed = cluster_base + seeds
+            merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
+
+            keyword_pool: List[str] = []
+
+            try:
+                cluster_keywords = generate_cluster_keywords(
+                    cluster_name=cluster_name,
+                    seed_keywords=merged_seed,
+                    existing_titles=existing_titles,
+                    existing_keywords=existing_keywords,
+                )
+                google_keywords = expand_keywords_from_google(
+                    merged_seed,
+                    existing_titles,
+                    existing_keywords,
+                )
+                merged_all = dedupe_keywords(
+                    cluster_base + seeds + cluster_keywords + google_keywords,
+                    existing_titles,
+                    existing_keywords,
+                )
+                merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
+
+                keyword_pool = [
+                    kw for kw in merged_all
+                    if detect_category_from_keyword(kw) == category_name
+                ]
+
+            except Exception as e:
+                log("KW", f"Run-plan keyword generation failed for cluster='{cluster_name}': {e}")
+
+            if not keyword_pool:
+                fallback = dedupe_keywords(seeds + cluster_base, existing_titles, existing_keywords)
+                fallback = filter_keywords_by_opportunity(fallback, existing_titles)
+                keyword_pool = [
+                    kw for kw in fallback
+                    if detect_category_from_keyword(kw) == category_name
+                ]
+
+        if not keyword_pool:
+            log("PLAN", f"No keyword pool for category='{category_name}'")
+            continue
+
+        chosen_keyword = random.choice(keyword_pool[:min(5, len(keyword_pool))]).strip()
+        if not chosen_keyword:
+            continue
+
+        run_plan.append({
+            "keyword": chosen_keyword,
+            "cluster_name": cluster_name,
+            "post_type": post_type,
+            "pillar_slug": current_pillar_slug,
+            "category": category_name,
+        })
+
+        existing_titles.insert(0, chosen_keyword)
+
+    return run_plan[:POSTS_PER_RUN]
  
 # =========================================================
 # Strategy and article generation
@@ -4694,13 +4788,13 @@ def main() -> int:
     existing_slugs = set(p.get("slug") for p in posts if isinstance(p, dict))
     existing_titles = [p.get("title", "") for p in posts if isinstance(p, dict) and p.get("title")]
 
-    keyword_pool, cluster_name, post_type, current_pillar_slug = build_keyword_pool(
+    run_plan = build_run_plan(
         base_keywords,
-        existing_titles,
+        existing_titles[:],
         posts,
     )
-    if not keyword_pool:
-        log("MAIN", "No keyword pool available")
+    if not run_plan:
+        log("MAIN", "No run plan available")
         return 0
 
     used_texts_raw = load_json(USED_TEXTS_JSON, {})
@@ -4708,26 +4802,18 @@ def main() -> int:
     used_fps = set(used_texts.get("fingerprints") or [])
 
     made = 0
-    tries = 0
-    tried_keywords = set()
 
-    while made < POSTS_PER_RUN and tries < MAX_KEYWORD_TRIES:
-        tries += 1
-
-        remaining_keywords = [k for k in keyword_pool if normalize_keyword(k) not in tried_keywords]
-        if not remaining_keywords:
-            log("MAIN", "Keyword pool exhausted for this run")
-            break
-
-        keyword = random.choice(remaining_keywords).strip()
-        effective_cluster_name = cluster_name
-        effective_category = pick_category(
+    for plan_item in run_plan:
+        keyword = (plan_item.get("keyword") or "").strip()
+        effective_cluster_name = plan_item.get("cluster_name") or ""
+        post_type = plan_item.get("post_type") or "normal"
+        current_pillar_slug = plan_item.get("pillar_slug") or ""
+        effective_category = plan_item.get("category") or pick_category(
             keyword=keyword,
-            cluster_name=cluster_name,
+            cluster_name=effective_cluster_name,
             post_type=post_type,
         )
 
-        tried_keywords.add(normalize_keyword(keyword))
         if not keyword:
             continue
 
