@@ -624,46 +624,55 @@ def _find_balanced_json(s: str) -> str:
     s = (s or "").strip()
     if not s:
         return s
- 
+
     s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
     s = re.sub(r"\s*```$", "", s)
- 
-    start_positions = [i for i, ch in enumerate(s) if ch in "{["]
-    for start in start_positions:
-        opener = s[start]
-        closer = "}" if opener == "{" else "]"
-        depth = 0
-        in_string = False
-        escape = False
- 
-        for i in range(start, len(s)):
-            ch = s[i]
- 
-            if in_string:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    in_string = False
-                continue
- 
-            if ch == '"':
-                in_string = True
-                continue
- 
-            if ch == opener:
-                depth += 1
-            elif ch == closer:
-                depth -= 1
-                if depth == 0:
-                    candidate = s[start:i + 1]
-                    try:
-                        json.loads(candidate)
-                        return candidate
-                    except Exception:
-                        break
- 
+
+    def extract_balanced(text: str, opener: str, closer: str) -> Optional[str]:
+        start_positions = [i for i, ch in enumerate(text) if ch == opener]
+
+        for start in start_positions:
+            depth = 0
+            in_string = False
+            escape = False
+
+            for i in range(start, len(text)):
+                ch = text[i]
+
+                if in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                    continue
+
+                if ch == '"':
+                    in_string = True
+                    continue
+
+                if ch == opener:
+                    depth += 1
+                elif ch == closer:
+                    depth -= 1
+                    if depth == 0:
+                        candidate = text[start:i + 1]
+                        try:
+                            json.loads(candidate)
+                            return candidate
+                        except Exception:
+                            break
+        return None
+
+    obj = extract_balanced(s, "{", "}")
+    if obj:
+        return obj
+
+    arr = extract_balanced(s, "[", "]")
+    if arr:
+        return arr
+
     return s
  
  
@@ -3002,6 +3011,10 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
     clean_raw = _find_balanced_json(article_raw)
     data = safe_json_loads(clean_raw, {})
 
+    if isinstance(data, list):
+        log("ARTICLE", f"JSON parsed as list, not object. cleaned_preview={clean_raw[:800]!r}")
+        raise ValueError("article JSON parse failed: got list instead of object")
+
     if not isinstance(data, dict) or not data:
         log("ARTICLE", f"JSON parse failed raw_preview={article_raw[:800]!r}")
         log("ARTICLE", f"cleaned_preview={clean_raw[:800]!r}")
@@ -3028,11 +3041,20 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         if not isinstance(s, dict):
             continue
 
-        heading = _clean_text(s.get("heading", ""))
-        body = _clean_text(s.get("body", ""))
-        image_query = _clean_text(s.get("image_query", ""))
-        visual_type = _clean_text(s.get("visual_type", "photo")).lower()
-        alt_text = _clean_text(s.get("alt_text", "")) or heading
+        if intent_type != "comparison":
+            body = re.sub(
+                r'<div class="table-wrap">.*?</div>',
+                '',
+                body,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+            body = re.sub(
+                r'<table.*?>.*?</table>',
+                '',
+                body,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+            body = re.sub(r"\n{3,}", "\n\n", body).strip()
 
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "photo"
@@ -3109,16 +3131,21 @@ def generate_deep_post(
         "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
     )
 
-    if total_body_len < 8000:
-        log("ARTICLE", f"First draft too short len={total_body_len}, retrying expansion")
+    min_target_len = 8000
+    retry_count = 0
 
-        retry_prompt = build_article_prompt(keyword, cluster_name, post_type, planning) + """
+    while total_body_len < min_target_len and retry_count < 2:
+        retry_count += 1
+        log("ARTICLE", f"Draft too short len={total_body_len}, retrying expansion #{retry_count}")
+
+        retry_prompt = build_article_prompt(keyword, cluster_name, post_type, planning) + f"""
 
 Important revision:
-- Your first draft was too short.
-- Expand all 6 sections.
+- Your previous draft was too short.
+- Expand all 6 sections materially.
 - Add more concrete examples, more realistic scenarios, more tradeoffs, and more consequences.
-- The final article must be at least 8000 characters.
+- Each section must become more detailed, not just longer.
+- The final article must be at least {min_target_len} characters.
 - Keep valid JSON only.
 """
 
@@ -3128,7 +3155,21 @@ Important revision:
             temperature=0.6,
         )
         log("ARTICLE", f"retry_raw_len={len(article_raw)} preview={article_raw[:500]!r}")
-        data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+        data = parse_article_json(
+            article_raw,
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
+
+        total_body_len = len(
+            (data.get("title", "") or "") +
+            (data.get("description", "") or "") +
+            (data.get("tldr", "") or "") +
+            "".join((s.get("body", "") or "") for s in data.get("sections", [])) +
+            "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
+        )
  
     elapsed = time.time() - t0
     log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
