@@ -87,7 +87,7 @@ COLLECT_TARGET_IMAGES = int(
 )
 
 print(
-    f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={5} "
+    f"[CONFIG] POSTS_PER_RUN={POSTS_PER_RUN} IMG_COUNT={IMG_COUNT} "
     f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={4} "
     f"EXTRA_TABLE_BUFFER={EXTRA_TABLE_BUFFER} COLLECT_TARGET_IMAGES={COLLECT_TARGET_IMAGES}"
 )
@@ -97,11 +97,10 @@ MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "3200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "260"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "650"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "420"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
-print(f"[CONFIG] MIN_CHARS={5000} MIN_SECTION_CHARS={260}")
-
+print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
  
@@ -2633,9 +2632,9 @@ Length rules:
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 300 characters.
-- Sections 2, 3, 4, and 5 must each be at least 800 characters.
-- The combined body length of all sections must be at least 4000 characters.
+- Section 1 and section 6 must each be at least 250 characters.
+- Sections 2, 3, 4, and 5 must each be at least 450 characters.
+- The combined body length of all sections must be at least 2600 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -3125,7 +3124,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [600, 1000, 1000, 1000, 1000, 600]
+    min_targets = [350, 500, 500, 500, 500, 350]
 
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
@@ -3224,8 +3223,8 @@ Important revision:
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand every weak section materially.
-- Section 1 and section 6 must each be at least 600 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1000 characters.
+- Section 1 and section 6 must each be at least 350 characters.
+- Sections 2, 3, 4, and 5 must each be at least 500 characters.
 - Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
 - Add at least one extra paragraph to every section.
 - Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
