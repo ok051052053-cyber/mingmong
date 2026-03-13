@@ -3071,7 +3071,7 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
             )
             body = re.sub(r"\n{3,}", "\n\n", body).strip()
 
-body = trim_section_body(body, MAX_SECTION_CHARS)
+            body = trim_section_body(body, MAX_SECTION_CHARS)
 
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "photo"
