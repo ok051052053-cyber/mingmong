@@ -2624,7 +2624,7 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 8000 characters
+- The combined length of all 6 section bodies alone must be at least 6000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
 - Aim for 9000 to 11000 total characters in the full JSON response
 - Keep sections focused and avoid filler
@@ -2634,7 +2634,7 @@ Hard section length rules:
 - Every section body must be substantial.
 - Section 1 and section 6 must each be at least 900 characters.
 - Sections 2, 3, 4, and 5 must each be at least 1400 characters.
-- The combined body length of all sections must be at least 8000 characters.
+- The combined body length of all sections must be at least 6000 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -2736,9 +2736,9 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least 8000 characters
-- Do not finish early if the article is under 8000 characters
-- Expand sections with more concrete examples and operational detail until the article passes 8000 characters
+- Total text must be at least 6000 characters
+- Do not finish early if the article is under 6000 characters
+- Expand sections with more concrete examples and operational detail until the article passes 6000 characters
 - Each section body must meet the minimum length target before you finish.
 - Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
