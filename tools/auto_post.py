@@ -91,6 +91,7 @@ print(
     f"MIN_REQUIRED_IMAGES={MIN_REQUIRED_IMAGES} VISIBLE_MIN_IMAGES={VISIBLE_MIN_IMAGES} "
     f"EXTRA_TABLE_BUFFER={EXTRA_TABLE_BUFFER} COLLECT_TARGET_IMAGES={COLLECT_TARGET_IMAGES}"
 )
+print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
  
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
@@ -2622,14 +2623,17 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- Aim for 8000 to 9500 characters for all articles
+- The combined length of all 6 section bodies alone must be at least 8000 characters
+- Do not count the title, description, faq, tldr, or editorial_note toward this minimum
+- Aim for 9000 to 11000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 700 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1100 characters.
+- Section 1 and section 6 must each be at least 900 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
+- The combined body length of all sections must be at least 8000 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -2637,7 +2641,8 @@ Hard section length rules:
   one consequence
   one next-step decision
   one realistic scenario with timing, money, or workflow detail
-- Before finishing, check every section length and expand weak sections.
+- Before finishing, check every section body length and expand weak sections.
+- Do not finish until every section meets its minimum length target.
 
 TLDR rules:
 - TLDR must be 3 to 5 short lines
@@ -3105,6 +3110,72 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         "editorial_note": editorial_note,
     }
 
+
+def expand_short_sections(
+    data: Dict[str, Any],
+    keyword: str,
+    cluster_name: str,
+    post_type: str,
+) -> Dict[str, Any]:
+    sections = data.get("sections", []) or []
+    if not isinstance(sections, list):
+        return data
+
+    min_targets = [900, 1400, 1400, 1400, 1400, 900]
+
+    for idx, sec in enumerate(sections[:6]):
+        if not isinstance(sec, dict):
+            continue
+
+        body = (sec.get("body") or "").strip()
+        heading = (sec.get("heading") or "").strip()
+        target_len = min_targets[idx] if idx < len(min_targets) else 1200
+
+        if len(body) >= target_len:
+            continue
+
+        prompt = f"""
+You are expanding one article section for a practical editorial blog post.
+
+Keyword:
+{keyword}
+
+Cluster:
+{cluster_name}
+
+Post type:
+{post_type}
+
+Section heading:
+{heading}
+
+Current body:
+{body}
+
+Task:
+- Rewrite and expand this section only
+- Keep the same heading and same core topic
+- Make the section at least {target_len} characters
+- Add concrete examples
+- Add realistic numbers, timing, tradeoffs, and consequences
+- Add one scenario or case
+- Do not write a conclusion for the whole article
+- Do not output JSON
+- Output plain section body text only
+"""
+
+        expanded = openai_generate_text(
+            prompt,
+            model=MODEL_WRITER,
+            temperature=0.6,
+        ).strip()
+
+        if expanded and len(expanded) > len(body):
+            sections[idx]["body"] = _clean_text(expanded)
+
+    data["sections"] = sections
+    return data
+ 
  
 def generate_deep_post(
     *,
@@ -3132,12 +3203,8 @@ def generate_deep_post(
     data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
 
     total_body_len = len(
-        (data.get("title", "") or "") +
-        (data.get("description", "") or "") +
-        (data.get("tldr", "") or "") +
-        "".join((s.get("body", "") or "") for s in data.get("sections", [])) +
-        "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
-    )
+        "".join((s.get("body", "") or "") for s in data.get("sections", []))
+)
 
     min_target_len = 8000
     retry_count = 0
@@ -3150,11 +3217,16 @@ def generate_deep_post(
 
 Important revision:
 - Your previous draft was too short.
-- Expand all 6 sections materially.
-- Add more concrete examples, more realistic scenarios, more tradeoffs, and more consequences.
-- Each section must become more detailed, not just longer.
-- The final article must be at least {min_target_len} characters.
-- Keep valid JSON only.
+- The combined length of all 6 section bodies must be at least {min_target_len} characters.
+- Do not count title, description, faq, tldr, or editorial_note toward this minimum.
+- Expand every weak section materially.
+- Section 1 and section 6 must each be at least 900 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
+- Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
+- Add at least one extra paragraph to every section.
+- Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
+- If a section is still short, keep expanding that section instead of rewriting the title or faq.
+- Return valid JSON only.
 """
 
         article_raw = openai_generate_text(
@@ -3178,6 +3250,20 @@ Important revision:
             "".join((s.get("body", "") or "") for s in data.get("sections", [])) +
             "".join((item.get("q", "") or "") + (item.get("a", "") or "") for item in data.get("faq", []))
         )
+
+    data = expand_short_sections(
+        data=data,
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
+
+    total_body_len = len(
+        "".join((s.get("body", "") or "") for s in data.get("sections", []))
+    )
+
+    if total_body_len < min_target_len:
+        log("ARTICLE", f"After section expansion still short len={total_body_len}")
  
     elapsed = time.time() - t0
     log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
