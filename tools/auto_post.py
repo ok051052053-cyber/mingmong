@@ -2627,7 +2627,7 @@ Opening rules:
 Length rules:
 - The combined length of all 6 section bodies alone must be at least 3000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 9000 to 11000 total characters in the full JSON response
+- Aim for 5000 to 7000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
