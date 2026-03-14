@@ -3320,7 +3320,12 @@ def generate_deep_post(
         model=MODEL_PLANNER,
         temperature=0.55,
     )
-    planning = parse_planning_json(planning_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+    planning = parse_planning_json(
+        planning_raw,
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
 
     article_raw = openai_generate_text(
         build_article_prompt(keyword, cluster_name, post_type, planning),
@@ -3328,12 +3333,17 @@ def generate_deep_post(
         temperature=0.6,
     )
     log("ARTICLE", f"raw_len={len(article_raw)} preview={article_raw[:500]!r}")
- 
-    data = parse_article_json(article_raw, keyword=keyword, cluster_name=cluster_name, post_type=post_type)
+
+    data = parse_article_json(
+        article_raw,
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
+    )
 
     total_body_len = len(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
-)
+    )
 
     min_target_len = MIN_CHARS
     max_target_len = MAX_CHARS
@@ -3384,30 +3394,29 @@ Important revision:
         post_type=post_type,
     )
 
-data = trim_article_to_max_chars(data, MAX_CHARS)
+    data = trim_article_to_max_chars(data, MAX_CHARS)
 
-total_body_len = len(
-    "".join((s.get("body", "") or "") for s in data.get("sections", []))
-)
-
-if total_body_len < min_target_len:
-    log("ARTICLE", f"After section expansion still short len={total_body_len}")
-
-elapsed = time.time() - t0
-log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
-
-if not data.get("description"):
-    data["description"] = planning.get("description") or short_desc(data.get("title", ""))
-
-if not data.get("category"):
-    data["category"] = planning.get("category") or pick_category(
-        keyword=keyword,
-        cluster_name=cluster_name,
-        post_type=post_type,
+    total_body_len = len(
+        "".join((s.get("body", "") or "") for s in data.get("sections", []))
     )
 
-return data, planning
+    if total_body_len < min_target_len:
+        log("ARTICLE", f"After section expansion still short len={total_body_len}")
 
+    elapsed = time.time() - t0
+    log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
+
+    if not data.get("description"):
+        data["description"] = planning.get("description") or short_desc(data.get("title", ""))
+
+    if not data.get("category"):
+        data["category"] = planning.get("category") or pick_category(
+            keyword=keyword,
+            cluster_name=cluster_name,
+            post_type=post_type,
+        )
+
+    return data, planning
 
 def trim_article_to_max_chars(text: str, max_chars: int) -> str:
     text = (text or "").strip()
