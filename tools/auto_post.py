@@ -99,9 +99,12 @@ MIN_CHARS = int(os.environ.get("MIN_CHARS", "5300"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "350"))
 MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "1350"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
+MAX_CHARS = int(os.environ.get("MAX_CHARS", str(int(MIN_CHARS * 1.3))))
 
-print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
-HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
+print(
+    f"[CONFIG] MIN_CHARS={MIN_CHARS} MAX_CHARS={MAX_CHARS} "
+    f"MIN_SECTION_CHARS={MIN_SECTION_CHARS} MAX_SECTION_CHARS={MAX_SECTION_CHARS}"
+)HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
  
 AUTHOR_NAME = os.environ.get("AUTHOR_NAME", "MingMong Editorial").strip()
@@ -1688,14 +1691,50 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 existing_keywords=existing_keywords,
             )
             google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
-            merged_all = dedupe_keywords(clean_base + cluster_keywords + google_keywords, existing_titles, existing_keywords)
-            merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
+            merged_all = dedupe_keywords(
+    cluster_base + seeds + cluster_keywords + google_keywords,
+    existing_titles,
+    existing_keywords,
+)
+merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
 
-            target_category = cluster_to_category(cluster_name)
-            merged_all = [
-                kw for kw in merged_all
-                if detect_category_from_keyword(kw) == target_category
-            ]
+target_category = cluster_to_category(cluster_name)
+strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
+
+def is_cluster_relevant(kw: str) -> bool:
+    if detect_category_from_keyword(kw) != target_category:
+        return False
+
+    nkw = normalize_keyword(kw)
+    kw_tokens = set(nkw.split())
+
+    if target_category == "AI Tools":
+        banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
+        if kw_tokens & banned:
+            return False
+
+    if target_category == "Investing":
+        banned = {"chatgpt", "prompt", "prompts", "ai writing", "meeting notes", "crm", "invoicing"}
+        if any(x in nkw for x in banned):
+            return False
+
+    if target_category == "Software Reviews":
+        must_have = {
+            "software", "tool", "tools", "app", "apps", "platform",
+            "crm", "invoicing", "notion", "clickup", "review",
+            "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
+        }
+        if not (kw_tokens & must_have):
+            return False
+
+    if strict_cluster_terms:
+        overlap = len(kw_tokens & strict_cluster_terms)
+        if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
+            return False
+
+    return True
+
+merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
 
             if merged_all:
                 save_keywords(merged_all)
@@ -1708,10 +1747,7 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
         fallback = filter_keywords_by_opportunity(fallback, existing_titles)
 
         target_category = cluster_to_category(cluster_name)
-        fallback = [
-            kw for kw in fallback
-            if detect_category_from_keyword(kw) == target_category
-        ]
+        fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
 
         return fallback, cluster_name, "normal", current_pillar_slug
  
@@ -1887,20 +1923,31 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
 """
 
     review_depth_note = """
-- If the article mentions software tools it must not read like a vague roundup
-- Do not just name tools as examples
-- Force a real buying or selection decision
+- If the article is about software it must feel like a buying guide or upgrade decision article
+- Do not write a generic educational article
+- Do not just explain invoicing, crm, or project management in general
+- Force a real software decision
 - Include at least:
   - price reality
   - free plan status
   - setup difficulty
   - automation depth
-  - client communication fit
-  - invoicing or portal fit when relevant
-- The structure must answer:
-  - who should pick what
-  - when to avoid a tool
-  - what becomes painful after setup
+  - switching cost
+  - migration friction
+  - best for
+  - not ideal for
+- The article must answer:
+  - who should stay on a free tool
+  - who should upgrade
+  - when the free option starts breaking
+  - what premium feature actually saves time
+  - what is overkill for smaller users
+- At least one section must compare 2 to 4 named tools directly
+- At least one section must include a clear upgrade threshold with numbers such as:
+  revenue
+  monthly invoices
+  client count
+  admin hours
 """
 
     originality_note = """
@@ -1918,36 +1965,36 @@ def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: s
 
     INTENT_BLUEPRINTS = {
         "comparison": [
-            "quick verdict and who each option is for",
-            "who each option is actually for",
-            "where the differences start to matter",
-            "a real setup or buying scenario",
-            "mistakes and overkill choices",
-            "final recommendation by user type",
+            "quick verdict and the decision most people get wrong",
+            "who should choose each option before costs pile up",
+            "where the differences start costing time or money",
+            "a realistic setup or switching scenario",
+            "mistakes, overkill choices, and regret points",
+            "the best pick by user type and growth stage",
         ],
         "template": [
-            "quick answer and who this template is for",
-            "why the default approach fails",
+            "quick answer and who should copy this template",
+            "why the default version usually fails",
             "the copyable template or checklist",
-            "a real example or customization scenario",
+            "a realistic customization example",
             "mistakes and misuse cases",
-            "what to use next",
+            "what to use next after this template",
         ],
         "review": [
-            "quick verdict and target user",
-            "who each option is actually for",
-            "where the differences start to matter",
-            "a real setup or buying scenario",
-            "mistakes and overkill choices",
-            "final recommendation by user type",
+            "quick verdict and the decision most people delay",
+            "who should stay free and who should upgrade",
+            "where premium starts paying for itself",
+            "a realistic setup or buying scenario",
+            "mistakes, overkill choices, and hidden costs",
+            "the best option by freelancer type",
         ],
         "howto": [
-            "quick answer and who this is for",
-            "why the default approach fails",
-            "the core workflow",
-            "a real example or scenario",
-            "mistakes and tradeoffs",
-            "what to use next",
+            "quick answer and who this is really for",
+            "why the default approach breaks under pressure",
+            "the core workflow that actually holds up",
+            "a realistic example with timing and consequence",
+            "mistakes and tradeoffs that show up later",
+            "what to use next once this works",
         ],
     }
 
@@ -2094,17 +2141,28 @@ Hard rules:
 - Prefer headings that imply a hidden truth, invisible moment, overlooked tradeoff, or real-world consequence
 - The last section must not feel like a generic summary
 - The final section should leave the reader with a decision, a reflection, or a pressure point
-- The title may use high CTR formats when natural:
-  - best X for Y
-  - X vs Y
-  - is X worth it for Y
-  - X for beginners
-  - how to choose X
+- The title must be CTR-friendly and search-like
+- The title must sound like a query a real person would click
+- Prefer one of these formats depending on intent:
+  - comparison: "X vs Y for Z" or "Is X Worth It for Z?"
+  - review: "Best X for Y" or "When Should Y Upgrade to X?"
+  - howto: "How to Choose X for Y" or "How Y Can Start X"
+- The title must include at least one of:
+  - a real audience
+  - a real decision point
+  - a real constraint
+- Avoid soft words like:
+  smartly
+  effectively
+  unlock
+  transform
+  essential
 - Avoid vague clickbait
 - Avoid generic titles like Top Tools or Best Apps
 - Do not restate the seed keyword as the title
-- The title must include a real audience or real decision point
-- Keep title under 72 characters when possible
+- Keep the title between 45 and 68 characters when possible
+- The title should create a selection decision or timing decision
+- If the keyword is about software comparison or upgrade timing, the title must clearly signal comparison, upgrade, worth it, or best for
 - Section count must be exactly {section_count}
 - The section flow should roughly cover this structure:
 {json.dumps(blueprint, ensure_ascii=False, indent=2)}
@@ -2243,19 +2301,41 @@ def infer_search_intent_type(keyword: str, category: str = "") -> str:
     k = (keyword or "").lower().strip()
     c = (category or "").lower().strip()
 
-    if " vs " in k or "versus" in k or "alternative" in k or "alternatives" in k or "compare" in k:
+    comparison_markers = [
+        " vs ", "versus", "compare", "comparison",
+        "alternative", "alternatives"
+    ]
+    template_markers = [
+        "template", "checklist", "script", "email example"
+    ]
+    review_markers = [
+        "best ", "review", "reviews", "worth it",
+        "pricing", "free plan", "upgrade", "should i switch",
+        "when should", "which tool", "which software"
+    ]
+    howto_markers = [
+        "how to", "system", "workflow", "process", "setup"
+    ]
+
+    if any(x in k for x in comparison_markers):
         return "comparison"
 
-    if "template" in k or "checklist" in k or "script" in k or "email example" in k:
+    if any(x in k for x in template_markers):
         return "template"
 
-    if "best " in k or "review" in k or "worth it" in k or c == "software reviews":
+    if c == "software reviews":
+        if any(x in k for x in comparison_markers):
+            return "comparison"
         return "review"
 
-    if "how to" in k or "system" in k or "workflow" in k or "process" in k:
+    if any(x in k for x in review_markers):
+        return "review"
+
+    if any(x in k for x in howto_markers):
         return "howto"
 
     return "howto"
+ 
 
 def infer_content_mode(category: str, text: str, intent: str = "cluster") -> str:
     c = (category or "").lower().strip()
@@ -2389,19 +2469,26 @@ Structure rules:
 - The sections must appear in this exact order:
 
   1. Quick Verdict
-  2. Who Each Option Is Actually For
-  3. Where the Differences Start to Matter
-  4. A Real Setup or Buying Scenario
-  5. Mistakes and Overkill Choices
-  6. Final Recommendation by User Type
+  2. Who Should Stay Free and Who Should Upgrade
+  3. Where Premium Starts Paying for Itself
+  4. A Real Setup or Switching Scenario
+  5. Mistakes, Hidden Costs, and Overkill Choices
+  6. Best Pick by User Type
 
 Section heading rules:
-- Section 1 must directly answer the comparison or buying question
+- Section 1 must directly answer the buying question
+- Section 1 must mention at least one named tool or one upgrade threshold
 - Section 2 must split users into concrete user types
-- Section 3 must explain practical tradeoffs
-- Section 4 must show a realistic use case or setup path
+- Section 3 must explain practical tradeoffs with time, money, or workflow impact
+- Section 4 must show a realistic switch path with sequence and consequence
 - Section 5 must explain what people choose badly and why
-- Section 6 must tell the reader what to pick based on need and budget
+- Section 6 must tell the reader what to pick based on fit, budget, and stage
+
+Section body rules:
+- At least 2 sections must include named tools
+- At least 2 sections must include numbers such as price, revenue, invoices, hours, or client count
+- At least 1 section must explain when staying on free software is still the better decision
+- The article must not sound like a generic feature list
 """
 
 WORKFLOW_STRUCTURE_RULES = """
@@ -2578,6 +2665,14 @@ Core writing standard:
 - Depth matters more than fluff
 
 Title and heading quality rules:
+- For Software Reviews articles, the title should usually signal comparison, switching, upgrade timing, worth it, or best for
+- Avoid soft title words such as:
+  smartly
+  effectively
+  essential
+  transform
+  optimize
+- Prefer shorter title structures with a clear user decision
 - The title must start with a search-friendly phrase when natural
 - Prefer concrete title patterns such as:
   Best X for beginners
@@ -2626,9 +2721,10 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 6000 characters
+- The combined length of all 6 section bodies alone must be at least {MIN_CHARS} characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 6400 to 8000 total characters in the full JSON response
+- The combined length of all 6 section bodies should stay under {MAX_CHARS} characters
+- Aim to stay in the range of {MIN_CHARS} to {MAX_CHARS} characters for all section bodies combined
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
@@ -2742,11 +2838,10 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least 10500 characters
-- Do not finish early if the article is under 10500 characters
-- Expand sections with more concrete examples and operational detail until the article passes 10500 characters
-- Each section body must meet the minimum length target before you finish.
-- Do not return the article until all 6 sections are fully developed.
+- Each section body must meet the minimum length target before you finish
+- Do not return the article until all 6 sections are fully developed
+- Stop expanding once the combined section body length is comfortably within the target range
+- Do not overwrite clarity with extra filler once the article is long enough
 - FAQ must have 3 to 5 realistic follow-up questions
 - editorial_note should briefly explain that the article is reviewed for practical usefulness and updated when information changes
 
@@ -2886,6 +2981,9 @@ def quality_check_post(
     if not title:
         return False, "missing-title"
 
+    if is_generic_title(title):
+        return False, "generic-title"
+
     if category not in ALLOWED_CATEGORIES:
         return False, "bad-category"
 
@@ -2972,6 +3070,14 @@ def quality_check_post(
     if len(joined) < min_total_chars:
         return False, f"too-short-{len(joined)}"
 
+    total_body_len = sum(
+        len((_clean_text(s.get("body", "")) if isinstance(s, dict) else ""))
+        for s in sections
+    )
+
+    if total_body_len > MAX_CHARS + 300:
+        return False, f"too-long-{total_body_len}"
+ 
     nk = normalize_keyword(keyword)
     nt = normalize_keyword(title)
     if nk and nt and nk == nt and len(nt.split()) <= 6:
@@ -3134,6 +3240,8 @@ def expand_short_sections(
 
     min_targets = [450, 700, 700, 700, 700, 450]
 
+    current_total_len = sum(len((s.get("body") or "").strip()) for s in sections if isinstance(s, dict))
+
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
             continue
@@ -3143,6 +3251,8 @@ def expand_short_sections(
         target_len = min_targets[idx] if idx < len(min_targets) else 1200
 
         if len(body) >= target_len:
+
+        if current_total_len >= MAX_CHARS:
             continue
 
         prompt = f"""
@@ -3184,6 +3294,14 @@ Task:
         if expanded and len(expanded) > len(body):
             sections[idx]["body"] = format_generated_body(expanded)
 
+    current_total_len = sum(
+        len((s.get("body") or "").strip())
+        for s in sections
+        if isinstance(s, dict)
+    )
+
+    for idx, sec in enumerate(sections[:6]):
+ 
     data["sections"] = sections
     return data
  
@@ -3217,7 +3335,8 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 4500
+    min_target_len = MIN_CHARS
+    max_target_len = MAX_CHARS
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3229,6 +3348,7 @@ def generate_deep_post(
 Important revision:
 - Your previous draft was too short.
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
+- The combined length of all 6 section bodies should stay under {max_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand only sections that are clearly too thin.
 - Section 1 and section 6 must each be at least 450 characters.
@@ -3264,6 +3384,9 @@ Important revision:
         post_type=post_type,
     )
 
+data = trim_article_to_max_chars(data, MAX_CHARS)
+
+
     total_body_len = len(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
     )
@@ -3285,7 +3408,26 @@ Important revision:
         )
 
     return data, planning
- 
+
+
+def trim_article_to_max_chars(text: str, max_chars: int) -> str:
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return text
+
+    cut = text[:max_chars]
+
+    last_break = max(
+        cut.rfind("\n\n"),
+        cut.rfind(". "),
+        cut.rfind("! "),
+        cut.rfind("? "),
+    )
+
+    if last_break > int(max_chars * 0.82):
+        cut = cut[:last_break].strip()
+
+    return cut.strip()
  
 # =========================================================
 # Images and visuals
@@ -4680,6 +4822,74 @@ def section_has_html_table(section: Dict[str, str]) -> bool:
     body = (section.get("body") or "").lower()
     return "<table" in body and "</table>" in body
 
+
+def trim_article_to_max_chars(data: Dict[str, Any], max_chars: int = MAX_CHARS) -> Dict[str, Any]:
+    sections = data.get("sections", []) or []
+    if not isinstance(sections, list) or not sections:
+        return data
+
+    total_body_len = sum(len((s.get("body") or "").strip()) for s in sections if isinstance(s, dict))
+    if total_body_len <= max_chars:
+        return data
+
+    min_targets = [420, 620, 620, 620, 620, 420]
+    section_bodies = []
+
+    for idx, sec in enumerate(sections[:6]):
+        body = (sec.get("body") or "").strip()
+        section_bodies.append(body)
+
+    current_total = sum(len(x) for x in section_bodies)
+    overflow = current_total - max_chars
+
+    if overflow <= 0:
+        return data
+
+    reducible = []
+    for idx, body in enumerate(section_bodies):
+        min_len = min_targets[idx] if idx < len(min_targets) else 400
+        spare = max(0, len(body) - min_len)
+        reducible.append(spare)
+
+    total_spare = sum(reducible)
+    if total_spare <= 0:
+        return data
+
+    new_sections = []
+    for idx, sec in enumerate(sections):
+        if not isinstance(sec, dict):
+            new_sections.append(sec)
+            continue
+
+        body = (sec.get("body") or "").strip()
+        min_len = min_targets[idx] if idx < len(min_targets) else 400
+        spare = max(0, len(body) - min_len)
+
+        reduce_by = int((spare / total_spare) * overflow) if total_spare > 0 else 0
+        target_len = max(min_len, len(body) - reduce_by)
+
+        trimmed = body
+        if len(body) > target_len:
+            cut = body[:target_len]
+            last_break = max(
+                cut.rfind("\n\n"),
+                cut.rfind(". "),
+                cut.rfind("! "),
+                cut.rfind("? "),
+            )
+            if last_break >= int(target_len * 0.75):
+                trimmed = cut[:last_break].strip()
+            else:
+                trimmed = cut.strip()
+
+        new_sec = dict(sec)
+        new_sec["body"] = format_generated_body(trimmed)
+        new_sections.append(new_sec)
+
+    data["sections"] = new_sections
+    return data
+
+
 def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     text = _clean_text(text)
     if not text:
@@ -5255,6 +5465,10 @@ def main() -> int:
         sections = data["sections"]
         for sec in sections:
             sec["body"] = format_generated_body(sec.get("body", ""))
+
+        data["sections"] = sections
+        data = trim_article_to_max_chars(data, MAX_CHARS)
+        sections = data["sections"]
         tldr = data["tldr"]
         faq = data["faq"]
         editorial_note = data.get("editorial_note", "")
