@@ -95,9 +95,9 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "3200"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "260"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "650"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "12800"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "1040"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "2600"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
 print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
@@ -2016,8 +2016,10 @@ Schema:
 }}
 
 Hard rules:
-- Each section goal must be rich enough to support a long-form article section
-- At least 4 sections must require a concrete example, timing detail, and tradeoff
+- Each section goal must be rich enough to support a very long-form article section of 800 to 1200+ characters
+- All 6 sections must require concrete examples, timing detail, tradeoffs, consequences, and operational specifics
+- At least 4 sections must require a concrete example with numbers, timing, cost, percentage, amount, or workflow detail
+- No section may be planned as a short explanation-only section
 - Avoid section plans that can be answered in 2 or 3 short paragraphs
 - The article must fit into a broader topic cluster
 - The plan should identify at least 2 adjacent follow-up topics a reader would logically need next
@@ -2624,17 +2626,17 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 3000 characters
+- The combined length of all 6 section bodies alone must be at least 12000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 3200 to 4000 total characters in the full JSON response
+- Aim for 12800 to 16000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 200 characters.
-- Sections 2, 3, 4, and 5 must each be at least 280 characters.
-- The combined body length of all sections must be at least 1900 characters.
+- Section 1 and section 6 must each be at least 800 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1120 characters.
+- The combined body length of all sections must be at least 7600 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -2740,9 +2742,9 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least 4000 characters
-- Do not finish early if the article is under 4000 characters
-- Expand sections with more concrete examples and operational detail until the article passes 4000 characters
+- Total text must be at least 16000 characters
+- Do not finish early if the article is under 16000 characters
+- Expand sections with more concrete examples and operational detail until the article passes 16000 characters
 - Each section body must meet the minimum length target before you finish.
 - Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
