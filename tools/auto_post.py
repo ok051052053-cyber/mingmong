@@ -95,9 +95,9 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "12800"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "1040"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "2600"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "8000"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "525"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "2000"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
 print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
@@ -2016,7 +2016,7 @@ Schema:
 }}
 
 Hard rules:
-- Each section goal must be rich enough to support a very long-form article section of 800 to 1200+ characters
+- Each section goal must be rich enough to support a very long-form article section of 700 to 900+ characters
 - All 6 sections must require concrete examples, timing detail, tradeoffs, consequences, and operational specifics
 - At least 4 sections must require a concrete example with numbers, timing, cost, percentage, amount, or workflow detail
 - No section may be planned as a short explanation-only section
@@ -2626,17 +2626,17 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 12000 characters
+- The combined length of all 6 section bodies alone must be at least 9000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 12800 to 16000 total characters in the full JSON response
+- Aim for 9600 to 12000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 800 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1120 characters.
-- The combined body length of all sections must be at least 7600 characters.
+- Section 1 and section 6 must each be at least 600 characters.
+- Sections 2, 3, 4, and 5 must each be at least 840 characters.
+- The combined body length of all sections must be at least 5700 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -3132,7 +3132,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [900, 1400, 1400, 1400, 1400, 900]
+    min_targets = [675, 1050, 1050, 1050, 1050, 675]
 
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
@@ -3217,7 +3217,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 9000
+    min_target_len = 6750
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3231,8 +3231,8 @@ Important revision:
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand every weak section materially.
-- Section 1 and section 6 must each be at least 900 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
+- Section 1 and section 6 must each be at least 675 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1050 characters.
 - Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
 - Add at least one extra paragraph to every section.
 - Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
@@ -4702,7 +4702,7 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     else:
         trimmed = cut.strip()
 
-    return trimmed.rstrip(" .") + "..."
+    return trimmed.rstrip(" .")
 
 
 def body_to_html(text: str) -> str:
@@ -5255,10 +5255,7 @@ def main() -> int:
         category = data["category"] or planning.get("category") or effective_category
         sections = data["sections"]
         for sec in sections:
-            sec["body"] = trim_section_body(
-                format_generated_body(sec.get("body", "")),
-                MAX_SECTION_CHARS,
-            )
+            sec["body"] = format_generated_body(sec.get("body", ""))
         tldr = data["tldr"]
         faq = data["faq"]
         editorial_note = data.get("editorial_note", "")
