@@ -3302,8 +3302,6 @@ Task:
         if isinstance(s, dict)
     )
 
-    for idx, sec in enumerate(sections[:6]):
- 
     data["sections"] = sections
     return data
  
