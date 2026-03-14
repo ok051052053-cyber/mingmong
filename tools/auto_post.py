@@ -104,8 +104,8 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "5300"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "350"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "400"))
 MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "1350"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 MAX_CHARS = int(os.environ.get("MAX_CHARS", str(int(MIN_CHARS * 1.3))))
@@ -3250,6 +3250,37 @@ def post_semantically_too_close(
  
     return False
 
+def build_real_scenario_section(keyword: str, category: str = "") -> Dict[str, str]:
+    heading = "A Real Scenario for Beginner Investors"
+
+    body = (
+        "Imagine a beginner investor starting with just $100 per month. "
+        "Instead of waiting until they have a large lump sum, they begin with a simple recurring plan. "
+        "For example, they may put $60 into a broad market ETF, $20 into a dividend ETF, and keep the last $20 in cash or a bond fund for stability. "
+        "The account may still look small in the first few months, but the important shift is behavioral. "
+        "They are building consistency, reducing the urge to time the market, and learning how a real portfolio behaves through ups and downs. "
+        "After a year, this investor has not only contributed $1,200, but also built a repeatable long-term habit that is much easier to maintain than chasing quick gains."
+    )
+
+    return {
+        "heading": heading,
+        "body": body,
+        "image_query": "beginner investor monthly ETF portfolio plan",
+        "visual_type": "diagram",
+        "alt_text": "Example of a beginner investor building a portfolio with small monthly contributions",
+    }
+
+
+def has_real_scenario_section(sections: List[Dict[str, Any]]) -> bool:
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        heading = (sec.get("heading") or "").strip().lower()
+        if "real scenario" in heading:
+            return True
+    return False
+
+
 def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
     clean_raw = _find_balanced_json(article_raw)
     data = safe_json_loads(clean_raw, {})
@@ -3290,6 +3321,13 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         visual_type = _clean_text(s.get("visual_type", "photo")).lower()
         alt_text = _clean_text(s.get("alt_text", "")) or heading
 
+    if category == "Investing" and clean_sections and not has_real_scenario_section(clean_sections):
+        insert_at = max(1, len(clean_sections) // 2)
+        clean_sections.insert(
+            insert_at,
+            build_real_scenario_section(keyword=keyword, category=category)
+        )
+     
         if intent_type != "comparison":
             body = re.sub(
                 r'<div class="table-wrap">.*?</div>',
@@ -3320,6 +3358,13 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
                 "visual_type": visual_type,
                 "alt_text": alt_text,
             })
+
+    if category == "Investing" and clean_sections and not has_real_scenario_section(clean_sections):
+        insert_at = max(1, len(clean_sections) // 2)
+        clean_sections.insert(
+            insert_at,
+            build_real_scenario_section(keyword=keyword, category=category)
+        )
 
     faq = data.get("faq") or []
     if not isinstance(faq, list):
