@@ -70,6 +70,7 @@ jobs:
           MIN_CHARS: "4500"
           MIN_SECTION_CHARS: "350"
           MAX_SECTION_CHARS: "1000"
+          MAX_CHARS: "5400"
           
           MAX_KEYWORD_TRIES: "100"
           MAX_GENERATE_ATTEMPTS: "10"
