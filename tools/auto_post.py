@@ -2709,6 +2709,10 @@ Sentence variation rule:
 - Occasionally use a one-sentence paragraph for emphasis.
 
 Readability and engagement rules:
+- Put each numbered step on its own separate block
+- Insert a blank line between numbered steps
+- Do not place 3 or more numbered steps in one paragraph
+- If a paragraph becomes dense, split it into 2 to 3 shorter paragraphs
 - Intro must stay under 120 words
 - The TLDR and opening paragraph must create curiosity immediately
 - The first 3 lines must explain why the reader should keep reading
@@ -3072,6 +3076,8 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
 
             body = trim_section_body(body, MAX_SECTION_CHARS)
 
+        body = format_generated_body(body)
+
         if visual_type not in {"photo", "diagram", "workspace"}:
             visual_type = "photo"
 
@@ -3174,7 +3180,9 @@ Task:
         ).strip()
 
         if expanded and len(expanded) > len(body):
-            sections[idx]["body"] = _clean_text(expanded)
+            sections[idx]["body"] = format_generated_body(
+                trim_section_body(expanded, MAX_SECTION_CHARS)
+            )
 
     data["sections"] = sections
     return data
@@ -4726,6 +4734,60 @@ def body_to_html(text: str) -> str:
         return "\n".join(out)
 
     return paragraphs_to_html(text)
+
+
+def format_generated_body(text: str) -> str:
+    text = _clean_text(text)
+    if not text:
+        return ""
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # 1. "workflow: 1. ..." 같은 경우 숫자 단계 앞 강제 줄바꿈
+    text = re.sub(r'([:.!?])\s+(\d+\.\s+)', r'\1\n\n\2', text)
+
+    # 2. 문장 중간에 붙은 번호 단계 분리
+    text = re.sub(r'(?<!\n)(\s+)(\d+\.\s+)', r'\n\n\2', text)
+
+    # 3. 번호 단계 각각 빈 줄 유지
+    text = re.sub(r'\n(\d+\.\s+)', r'\n\n\1', text)
+
+    # 4. 너무 긴 문단은 문장 단위로 쪼개기
+    blocks = re.split(r"\n\s*\n+", text)
+    out = []
+
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        # 번호 리스트 블록이면 그대로 유지
+        if re.match(r'^\d+\.\s+', block):
+            out.append(block)
+            continue
+
+        if len(block) > 260 and ". " in block:
+            parts = re.split(r'(?<=[.!?])\s+', block)
+            chunk = []
+            chunk_len = 0
+
+            for part in parts:
+                chunk.append(part)
+                chunk_len += len(part)
+
+                if chunk_len >= 140:
+                    out.append(" ".join(chunk).strip())
+                    chunk = []
+                    chunk_len = 0
+
+            if chunk:
+                out.append(" ".join(chunk).strip())
+        else:
+            out.append(block)
+
+    text = "\n\n".join(out)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
 
 
 def build_json_ld(
