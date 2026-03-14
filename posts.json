@@ -1,5 +1,92 @@
 [
   {
+    "title": "How Employees Can Cope with Change at Work Without Losing Focus",
+    "slug": "how-employees-can-cope-with-change-at-work-without-losing-focus",
+    "category": "Productivity",
+    "description": "Learn how to effectively manage workplace change and maintain productivity through practical strategies and mindset shifts.",
+    "date": "2026-03-14T02:12:51Z",
+    "updated": "2026-03-14T02:12:51Z",
+    "thumbnail": "assets/posts/how-employees-can-cope-with-change-at-work-without-losing-focus/pexels-1.jpg",
+    "image": "assets/posts/how-employees-can-cope-with-change-at-work-without-losing-focus/pexels-1.jpg",
+    "url": "posts/how-employees-can-cope-with-change-at-work-without-losing-focus.html",
+    "keyword": "how to handle change at work",
+    "cluster": "Productivity",
+    "post_type": "normal",
+    "pillar_slug": "how-to-organize-your-freelance-work-for-maximum-efficiency-without-burni",
+    "audience": "employees facing organizational change",
+    "problem": "dealing with uncertainty and stress from workplace changes",
+    "outcome": "a clearer strategy to navigate workplace transitions effectively",
+    "angle": "practical strategies and mindset shifts to embrace change",
+    "intent_type": "howto",
+    "search_intent_summary": "Guidance for employees on managing change in their workplace effectively.",
+    "faq_questions": [
+      "What are the best practices for managing change at work?",
+      "How can I support colleagues during a transition?"
+    ],
+    "tldr_focus": [
+      "Recognize misconceptions about change to reduce anxiety.",
+      "Follow a structured workflow to embrace change proactively."
+    ]
+  },
+  {
+    "title": "How Digital Creators Can Streamline Sales with Automation Tools",
+    "slug": "how-digital-creators-can-streamline-sales-with-automation-tools",
+    "category": "Make Money",
+    "description": "Unlock the potential of your digital products by automating your sales process. Learn how automation can save time and increase revenue.",
+    "date": "2026-03-14T02:09:54Z",
+    "updated": "2026-03-14T02:09:54Z",
+    "thumbnail": "assets/posts/how-digital-creators-can-streamline-sales-with-automation-tools/unsplash-1.jpg",
+    "image": "assets/posts/how-digital-creators-can-streamline-sales-with-automation-tools/unsplash-1.jpg",
+    "url": "posts/how-digital-creators-can-streamline-sales-with-automation-tools.html",
+    "keyword": "how to automate your sales process for digital products",
+    "cluster": "Make Money",
+    "post_type": "normal",
+    "pillar_slug": "5-proven-digital-systems-to-build-extra-income-without-a-full-time-job",
+    "audience": "digital product creators",
+    "problem": "difficulty in consistently closing sales due to manual processes",
+    "outcome": "a streamlined, automated sales process that maximizes revenue and saves time",
+    "angle": "how to simplify and enhance your sales process through automation tools",
+    "intent_type": "howto",
+    "search_intent_summary": "A practical guide for digital creators looking to automate their sales processes.",
+    "faq_questions": [
+      "What are the best automation tools for digital product sales?",
+      "How much time can I save by automating my sales process?"
+    ],
+    "tldr_focus": [
+      "The importance of automating sales processes for creators.",
+      "Key tools and workflows for successful automation."
+    ]
+  },
+  {
+    "title": "Smart Asset Allocation Strategies for First-Time Investors",
+    "slug": "smart-asset-allocation-strategies-for-first-time-investors",
+    "category": "Investing",
+    "description": "Discover practical asset allocation strategies that simplify investing for beginners in the US and EU. Build a balanced portfolio with confidence!",
+    "date": "2026-03-14T02:07:09Z",
+    "updated": "2026-03-14T02:07:09Z",
+    "thumbnail": "assets/posts/smart-asset-allocation-strategies-for-first-time-investors/unsplash-1.jpg",
+    "image": "assets/posts/smart-asset-allocation-strategies-for-first-time-investors/unsplash-1.jpg",
+    "url": "posts/smart-asset-allocation-strategies-for-first-time-investors.html",
+    "keyword": "best asset allocation strategies for a beginner portfolio",
+    "cluster": "Investing",
+    "post_type": "normal",
+    "pillar_slug": "beginner-s-guide-choosing-your-first-etf-portfolio-for-success",
+    "audience": "beginner investors in the US and EU",
+    "problem": "most newbies feel overwhelmed by the complexity of asset allocation",
+    "outcome": "a clear understanding of straightforward asset allocation strategies for beginners",
+    "angle": "unpacking common misconceptions about asset allocation",
+    "intent_type": "howto",
+    "search_intent_summary": "New investors are seeking beginner-friendly asset allocation strategies.",
+    "faq_questions": [
+      "What is the best asset allocation for a beginner?",
+      "How often should I review my investment allocation?"
+    ],
+    "tldr_focus": [
+      "Avoid common misconceptions about asset allocation.",
+      "Understand the role of different asset classes in your portfolio."
+    ]
+  },
+  {
     "title": "6 Best Passive Income Ideas for Busy Professionals",
     "slug": "6-best-passive-income-ideas-for-busy-professionals",
     "category": "Make Money",
