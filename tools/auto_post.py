@@ -4496,8 +4496,6 @@ def build_image_asset_for_section(
     log("IMG", f"No image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
 
-sections = data.get("sections", [])
-
 for sec in sections:
     if isinstance(sec, dict):
         sec["category"] = category
@@ -5658,6 +5656,9 @@ def main() -> int:
         description = data["description"] or planning.get("description") or short_desc(title)
         category = data["category"] or planning.get("category") or effective_category
         sections = data["sections"]
+        for sec in sections:
+            sec["body"] = format_generated_body(sec.get("body", ""))
+
         for sec in sections:
             sec["body"] = format_generated_body(sec.get("body", ""))
 
