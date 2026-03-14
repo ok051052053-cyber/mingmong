@@ -3181,8 +3181,6 @@ Task:
 
         if expanded and len(expanded) > len(body):
             sections[idx]["body"] = format_generated_body(expanded)
-                trim_section_body(expanded, MAX_SECTION_CHARS)
-            )
 
     data["sections"] = sections
     return data
