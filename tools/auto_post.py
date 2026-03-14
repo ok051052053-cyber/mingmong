@@ -1708,8 +1708,11 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                     return False
 
             if target_category == "Investing":
-                banned = {"chatgpt", "prompt", "prompts", "ai writing", "meeting notes", "crm", "invoicing"}
-                if any(x in nkw for x in banned):
+                banned_terms = {"chatgpt", "prompt", "prompts", "crm", "invoicing"}
+                banned_phrases = ["ai writing", "meeting notes"]
+                if kw_tokens & banned_terms:
+                    return False
+                if any(x in nkw for x in banned_phrases):
                     return False
 
             if target_category == "Software Reviews":
@@ -1739,27 +1742,25 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 
     fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
     fallback = filter_keywords_by_opportunity(fallback, existing_titles)
-
-    target_category = cluster_to_category(cluster_name)
     fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
 
     return fallback, cluster_name, "normal", current_pillar_slug
 
-auto_keywords: List[str] = []
-if len(clean_base) < MIN_KEYWORD_POOL:
-    try:
-        auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
-        google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
-        merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
-        merged = filter_keywords_by_opportunity(merged, existing_titles)
-        if merged:
-            save_keywords(merged)
-            return merged, "General", "normal", ""
-    except Exception as e:
-        log("KW", f"Auto keyword generation failed: {e}")
+    auto_keywords: List[str] = []
+    if len(clean_base) < MIN_KEYWORD_POOL:
+        try:
+            auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
+            google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
+            merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
+            merged = filter_keywords_by_opportunity(merged, existing_titles)
+            if merged:
+                save_keywords(merged)
+                return merged, "General", "normal", ""
+        except Exception as e:
+            log("KW", f"Auto keyword generation failed: {e}")
 
-clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
-return clean_base, "General", "normal", ""
+    clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
+    return clean_base, "General", "normal", ""
 
 
 def build_run_plan(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> List[Dict[str, str]]:
