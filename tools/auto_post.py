@@ -3132,7 +3132,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [220, 320, 320, 320, 320, 220]
+    min_targets = [900, 1400, 1400, 1400, 1400, 900]
 
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
@@ -3217,7 +3217,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 1900
+    min_target_len = 9000
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3231,8 +3231,8 @@ Important revision:
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand every weak section materially.
-- Section 1 and section 6 must each be at least 220 characters.
-- Sections 2, 3, 4, and 5 must each be at least 320 characters.
+- Section 1 and section 6 must each be at least 900 characters.
+- Sections 2, 3, 4, and 5 must each be at least 1400 characters.
 - Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
 - Add at least one extra paragraph to every section.
 - Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
