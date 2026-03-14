@@ -977,17 +977,14 @@ def is_search_intent_keyword(keyword: str) -> bool:
     k = normalize_keyword(keyword)
     if not k:
         return False
- 
+
     words = k.split()
-    if len(words) < 4 or len(words) > 18:
+    if len(words) < 3 or len(words) > 18:
         return False
 
-    if len(words) < 5 and not any(tok in k for tok in ["vs", "best", "review"]):
-        return False
- 
     if re.search(r"\b(2019|2020|2021|2022|2023|2024)\b", k):
         return False
- 
+
     broad_bad = {
         "ai",
         "productivity",
@@ -1000,7 +997,7 @@ def is_search_intent_keyword(keyword: str) -> bool:
     }
     if k in broad_bad:
         return False
- 
+
     intent_tokens = [
         "workflow",
         "system",
@@ -1030,24 +1027,40 @@ def is_search_intent_keyword(keyword: str) -> bool:
         "invoicing",
         "budget app",
         "alternatives",
-        "template",
         "script",
         "email example",
-        "alternatives",
         "pricing",
         "free plan",
         "client retention",
         "repeat clients",
+        "note taking",
+        "focus system",
+        "remote work",
+        "project management",
+        "digital side hustle",
+        "ai tools",
+        "productivity tools",
     ]
-    if not any(tok in k for tok in intent_tokens):
-        return False
- 
-    return True
- 
+
+    if len(words) >= 5:
+        return True
+
+    if any(tok in k for tok in intent_tokens):
+        return True
+
+    return False
+
+
 def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     out: List[str] = []
     seen_norm = set()
- 
+
+    total_in = len(keywords)
+    filtered_by_intent = 0
+    filtered_by_seen = 0
+    filtered_by_baseline = 0
+    filtered_by_out = 0
+
     baseline = []
     for x in existing_titles[:800]:
         if isinstance(x, str) and x.strip():
@@ -1055,16 +1068,21 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
     for x in existing_keywords[:1500]:
         if isinstance(x, str) and x.strip():
             baseline.append(x)
- 
+
     for kw in keywords:
         kw = _clean_text(kw)
-        if not kw or not is_search_intent_keyword(kw):
+        if not kw:
             continue
- 
+
+        if not is_search_intent_keyword(kw):
+            filtered_by_intent += 1
+            continue
+
         n = normalize_keyword(kw)
         if not n or n in seen_norm:
+            filtered_by_seen += 1
             continue
- 
+
         skip = False
         for ex in baseline:
             if keyword_too_similar(kw, ex):
@@ -1074,8 +1092,9 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
                 skip = True
                 break
         if skip:
+            filtered_by_baseline += 1
             continue
- 
+
         for kept in out:
             if keyword_too_similar(kw, kept):
                 skip = True
@@ -1084,11 +1103,18 @@ def dedupe_keywords(keywords: List[str], existing_titles: List[str], existing_ke
                 skip = True
                 break
         if skip:
+            filtered_by_out += 1
             continue
- 
+
         seen_norm.add(n)
         out.append(kw)
- 
+
+    log(
+        "KW",
+        f"dedupe_keywords in={total_in} out={len(out)} "
+        f"intent_drop={filtered_by_intent} seen_drop={filtered_by_seen} "
+        f"baseline_drop={filtered_by_baseline} out_drop={filtered_by_out}"
+    )
     return out
  
  
@@ -1660,7 +1686,11 @@ def build_pillar_keyword_pool(cluster_name: str, posts: List[dict], existing_tit
     return merged
  
  
-def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> Tuple[List[str], str, str, str]:
+def build_keyword_pool(
+    base_keywords: List[str],
+    existing_titles: List[str],
+    posts: List[dict],
+) -> Tuple[List[str], str, str, str]:
     existing_keywords = get_existing_keywords_from_posts(posts)
     clean_base = dedupe_keywords(base_keywords, existing_titles, existing_keywords)
 
@@ -1684,6 +1714,7 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
             if pillar_mode:
                 pillar_pool = build_pillar_keyword_pool(cluster_name, posts, existing_titles)
                 if pillar_pool:
+                    log("KW", f"Using pillar pool cluster='{cluster_name}' size={len(pillar_pool)}")
                     return pillar_pool, cluster_name, "pillar", current_pillar_slug
 
             seeds = topic_clusters.get(cluster_name) or []
@@ -1694,60 +1725,129 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
                 if detect_category_from_keyword(kw) == target_category
             ]
 
+            # category detect가 빡세서 아무 것도 안 남는 경우 대비
+            if not cluster_base:
+                cluster_base = clean_base[:]
+
             merged_seed = cluster_base + seeds
             merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
 
             strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
+            soft_cluster_terms = {
+                tok for tok in strict_cluster_terms
+                if len(tok) >= 4 and tok not in {
+                    "best", "guide", "tools", "tool", "apps", "app",
+                    "software", "system", "review", "reviews",
+                    "beginners", "beginner"
+                }
+            }
 
             def is_cluster_relevant(kw: str) -> bool:
-                if detect_category_from_keyword(kw) != target_category:
-                    return False
-
                 nkw = normalize_keyword(kw)
                 kw_tokens = set(nkw.split())
+                detected = detect_category_from_keyword(kw)
 
+                # 1) 카테고리 판별이 다르더라도 완전 즉시 탈락하지 않음
+                category_match = (detected == target_category)
+
+                # 2) 카테고리별 금지어
                 if target_category == "AI Tools":
                     banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
                     if kw_tokens & banned:
                         return False
 
-                if target_category == "Investing":
+                elif target_category == "Investing":
                     banned_terms = {"chatgpt", "prompt", "prompts", "crm", "invoicing"}
-                    banned_phrases = ["ai writing", "meeting notes"]
+                    banned_phrases = ["ai writing", "meeting notes", "note taking"]
                     if kw_tokens & banned_terms:
                         return False
                     if any(x in nkw for x in banned_phrases):
                         return False
 
-                if target_category == "Software Reviews":
-                    must_have = {
+                elif target_category == "Software Reviews":
+                    soft_must_have = {
                         "software", "tool", "tools", "app", "apps", "platform",
                         "crm", "invoicing", "notion", "clickup", "review",
-                        "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
+                        "reviews", "vs", "compare", "comparison",
+                        "alternative", "alternatives", "pricing", "free plan"
                     }
-                    if not (kw_tokens & must_have):
+                    if not any(tok in nkw for tok in soft_must_have):
                         return False
 
-                if strict_cluster_terms:
-                    overlap = len(kw_tokens & strict_cluster_terms)
-                    if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
+                elif target_category == "Make Money":
+                    banned = {"etf", "etfs", "stocks", "dividend", "portfolio"}
+                    if kw_tokens & banned:
                         return False
 
-                return True
+                elif target_category == "Productivity":
+                    banned = {"etf", "stocks", "dividend", "portfolio", "investing"}
+                    if kw_tokens & banned:
+                        return False
+
+                elif target_category == "Side Hustles":
+                    banned = {"etf", "stocks", "dividend", "portfolio"}
+                    if kw_tokens & banned:
+                        return False
+
+                # 3) seed overlap은 hard가 아니라 soft 체크
+                overlap = len(kw_tokens & soft_cluster_terms) if soft_cluster_terms else 0
+
+                # category 일치면 웬만하면 통과
+                if category_match:
+                    return True
+
+                # category 불일치여도 seed 단어 겹치면 통과
+                if overlap >= 1:
+                    return True
+
+                # 일부 카테고리는 표현 다양성이 커서 널널하게 허용
+                if target_category in {"Make Money", "Productivity", "Side Hustles"}:
+                    broad_signals = {
+                        "make money", "extra income", "side hustle", "workflow",
+                        "focus", "planning", "remote work", "task management",
+                        "project management", "productivity", "automation"
+                    }
+                    if any(sig in nkw for sig in broad_signals):
+                        return True
+
+                return False
 
             merged_all = dedupe_keywords(merged_seed, existing_titles, existing_keywords)
             merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
             merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
 
+            log(
+                "KW",
+                f"cluster='{cluster_name}' category='{target_category}' "
+                f"seeds={len(seeds)} clean_base={len(clean_base)} "
+                f"cluster_base={len(cluster_base)} merged_seed={len(merged_seed)} "
+                f"merged_all={len(merged_all)}"
+            )
+
             if merged_all:
                 save_keywords(merged_all)
                 return merged_all, cluster_name, "normal", current_pillar_slug
 
+            # fallback 1: category 필터 완화
             fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
             fallback = filter_keywords_by_opportunity(fallback, existing_titles)
-            fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
+            fallback = [kw for kw in fallback if is_cluster_relevant(kw) or detect_category_from_keyword(kw) == target_category]
 
-            return fallback, cluster_name, "normal", current_pillar_slug
+            log("KW", f"fallback1 cluster='{cluster_name}' size={len(fallback)}")
+
+            if fallback:
+                save_keywords(fallback)
+                return fallback, cluster_name, "normal", current_pillar_slug
+
+            # fallback 2: seed 우선 사용
+            seed_only = dedupe_keywords(seeds, existing_titles, existing_keywords)
+            seed_only = filter_keywords_by_opportunity(seed_only, existing_titles)
+
+            log("KW", f"fallback2 seed_only cluster='{cluster_name}' size={len(seed_only)}")
+
+            if seed_only:
+                save_keywords(seed_only)
+                return seed_only, cluster_name, "normal", current_pillar_slug
 
         except Exception as e:
             log("KW", f"Cluster keyword generation failed: {e}")
@@ -1755,17 +1855,39 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
     auto_keywords: List[str] = []
     if len(clean_base) < MIN_KEYWORD_POOL:
         try:
-            auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
-            google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
-            merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
+            auto_keywords = generate_auto_keywords(
+                clean_base or base_keywords,
+                existing_titles,
+                existing_keywords,
+            )
+            google_keywords = expand_keywords_from_google(
+                clean_base or base_keywords,
+                existing_titles,
+                existing_keywords,
+            )
+
+            merged = dedupe_keywords(
+                clean_base + auto_keywords + google_keywords,
+                existing_titles,
+                existing_keywords,
+            )
             merged = filter_keywords_by_opportunity(merged, existing_titles)
+
+            log(
+                "KW",
+                f"general auto clean_base={len(clean_base)} "
+                f"auto={len(auto_keywords)} google={len(google_keywords)} merged={len(merged)}"
+            )
+
             if merged:
                 save_keywords(merged)
                 return merged, "General", "normal", ""
+
         except Exception as e:
             log("KW", f"Auto keyword generation failed: {e}")
 
     clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
+    log("KW", f"final fallback clean_base={len(clean_base)}")
     return clean_base, "General", "normal", ""
 
 
