@@ -3537,43 +3537,76 @@ def build_post_level_image_queries(sections: List[Dict[str, str]]) -> List[str]:
     theme = detect_post_image_theme(sections)
 
     if theme == "investing":
-        return [
-            "finance dashboard spreadsheet",
-            "investment portfolio laptop",
-            "budget planning screen",
-            "stock market analytics",
+        queries = [
             "personal finance workspace",
-            "etf analysis laptop",
+            "investment portfolio laptop",
+            "budget planning desk",
+            "finance dashboard laptop",
+            "stock market workspace",
+            "etf investing laptop",
+            "financial planning desk",
+            "home office finance",
+            "money management workspace",
+            "investor desk laptop",
+            "retirement planning desk",
+            "spreadsheet finance laptop",
         ]
-
-    if theme == "software":
-        return [
+    elif theme == "software":
+        queries = [
             "software dashboard workspace",
-            "team planning whiteboard",
-            "client meeting laptop",
-            "project management screen",
-            "startup collaboration office",
             "crm dashboard laptop",
+            "project management screen",
+            "team collaboration office",
+            "startup workspace laptop",
+            "saas dashboard screen",
+            "productivity desk setup",
+            "digital workspace monitor",
+            "office whiteboard planning",
+            "modern business workspace",
+            "client management dashboard",
+            "remote work desk laptop",
         ]
-
-    if theme == "client":
-        return [
+    elif theme == "client":
+        queries = [
             "client meeting documents",
-            "video call laptop",
-            "contract review desk",
-            "freelancer planning workspace",
-            "business proposal meeting",
+            "business proposal desk",
+            "contract review workspace",
             "invoice payment laptop",
+            "freelancer desk setup",
+            "video call home office",
+            "customer meeting office",
+            "consulting workspace desk",
+            "business paperwork desk",
+            "service business laptop",
+            "meeting room documents",
+            "small business workspace",
+        ]
+    else:
+        queries = [
+            "team meeting planning",
+            "business whiteboard discussion",
+            "project workflow laptop",
+            "startup collaboration workspace",
+            "calendar planning desk",
+            "professional meeting room",
+            "modern office workspace",
+            "productivity desk setup",
+            "remote work desk",
+            "business laptop coffee desk",
+            "planning notebook workspace",
+            "office collaboration table",
         ]
 
-    return [
-        "team meeting planning",
-        "business whiteboard discussion",
-        "project workflow laptop",
-        "startup collaboration workspace",
-        "calendar planning desk",
-        "professional meeting room",
-    ]
+    seen = set()
+    out = []
+    for q in queries:
+        nq = normalize_keyword(q)
+        if nq in seen:
+            continue
+        seen.add(nq)
+        out.append(q)
+
+    return out
 
 
 def normalize_asset_id(source: str, raw_id: str) -> str:
@@ -4149,31 +4182,114 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
         candidate_sections = sections[:]
 
     post_queries = build_post_level_image_queries(candidate_sections)
+
+    section_queries = dedupe_section_image_queries(candidate_sections, slug)
+    all_queries = post_queries + section_queries
+
+    # 추가 fallback query
+    theme = detect_post_image_theme(candidate_sections)
+    if theme == "investing":
+        all_queries += [
+            "financial workspace",
+            "investment planning desk",
+            "money spreadsheet desk",
+            "personal budgeting laptop",
+        ]
+    elif theme == "software":
+        all_queries += [
+            "digital dashboard workspace",
+            "business software screen",
+            "office laptop workspace",
+            "analytics dashboard desk",
+        ]
+    elif theme == "client":
+        all_queries += [
+            "client paperwork desk",
+            "business call laptop",
+            "service consultation office",
+            "professional desk documents",
+        ]
+    else:
+        all_queries += [
+            "office desk laptop",
+            "business planning notebook",
+            "modern workspace",
+            "team office desk",
+        ]
+
+    deduped_queries = []
+    seen_queries = set()
+    for q in all_queries:
+        q = (q or "").strip()
+        if not q:
+            continue
+        nq = normalize_keyword(q)
+        if nq in seen_queries:
+            continue
+        seen_queries.add(nq)
+        deduped_queries.append(q)
+
     collected_assets = []
+    collected_fingerprints = set()
+    target_collect = max(COLLECT_TARGET_IMAGES, MIN_REQUIRED_IMAGES + 3)
 
     log("IMG", f"build_visual_assets slug='{slug}' sections={len(sections)} candidate_sections={len(candidate_sections)}")
     log("IMG", f"post-level queries={post_queries}")
+    log("IMG", f"section queries={section_queries}")
+    log("IMG", f"all deduped queries={deduped_queries}")
 
-    for q in post_queries:
-        if len(collected_assets) >= MIN_REQUIRED_IMAGES:
+    for q in deduped_queries:
+        if len(collected_assets) >= target_collect:
             break
 
-        asset = find_best_asset_for_query(
-            query=q,
-            heading=q,
-            visual_type="photo",
-            used_ids=used_ids,
-        )
+        for source in IMAGE_SOURCE_PRIORITY:
+            if len(collected_assets) >= target_collect:
+                break
 
-        if not asset:
-            continue
+            for page in [1, 2, 3]:
+                if len(collected_assets) >= target_collect:
+                    break
 
-        hotlink_url = (asset.get("hotlink_url") or asset.get("download_url") or "").strip()
-        if not hotlink_url:
-            continue
+                results = cached_search_source(source, q, page=page)
+                log("IMG", f"source='{source}' q='{q}' page={page} results={len(results)}")
 
-        used_ids.add(asset["id"])
-        collected_assets.append(asset)
+                if not results:
+                    continue
+
+                filtered = filter_reusable_assets(results, used_ids=used_ids)
+                if not filtered:
+                    continue
+
+                ranked = sorted(
+                    filtered,
+                    key=lambda x: (
+                        float(x.get("score") or 0.0),
+                        int(x.get("width") or 0) * int(x.get("height") or 0),
+                    ),
+                    reverse=True,
+                )
+
+                for asset in ranked:
+                    if len(collected_assets) >= target_collect:
+                        break
+
+                    hotlink_url = (asset.get("hotlink_url") or asset.get("download_url") or "").strip()
+                    if not hotlink_url:
+                        continue
+
+                    fp = "|".join([
+                        str(asset.get("source") or "").strip().lower(),
+                        str(asset.get("raw_id") or asset.get("id") or "").strip(),
+                        str(asset.get("creator_name") or "").strip().lower(),
+                        str(asset.get("download_url") or asset.get("hotlink_url") or "").strip().lower(),
+                    ])
+
+                    if fp in collected_fingerprints:
+                        continue
+
+                    used_ids.add(asset["id"])
+                    collected_fingerprints.add(fp)
+                    collected_assets.append(asset)
 
     used["asset_ids"] = sorted(list(used_ids))
     save_json(USED_IMAGES_JSON, used)
