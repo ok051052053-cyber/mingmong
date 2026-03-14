@@ -1663,88 +1663,94 @@ def build_pillar_keyword_pool(cluster_name: str, posts: List[dict], existing_tit
 def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> Tuple[List[str], str, str, str]:
     existing_keywords = get_existing_keywords_from_posts(posts)
     clean_base = dedupe_keywords(base_keywords, existing_titles, existing_keywords)
- 
+
     if CLUSTER_MODE:
-        topic_clusters = load_topic_clusters()
-        cluster_name = pick_next_cluster(posts, topic_clusters)
- 
-        if cluster_recent_saturation(posts, cluster_name, window=10) >= 3:
-            alternatives = [c for c in topic_clusters.keys() if c != cluster_name]
-            if alternatives:
-                cluster_name = random.choice(alternatives)
- 
-        pillar_mode = should_make_pillar(posts, cluster_name)
-        current_pillar = get_cluster_pillar(posts, cluster_name)
-        current_pillar_slug = (current_pillar.get("slug") or "").strip()
- 
-        if pillar_mode:
-            pillar_pool = build_pillar_keyword_pool(cluster_name, posts, existing_titles)
-            if pillar_pool:
-                return pillar_pool, cluster_name, "pillar", current_pillar_slug
- 
-        seeds = topic_clusters.get(cluster_name) or []
-        target_category = cluster_to_category(cluster_name)
+        cluster_name = "General"
+        current_pillar_slug = ""
 
-        cluster_base = [
-            kw for kw in clean_base
-            if detect_category_from_keyword(kw) == target_category
-        ]
+        try:
+            topic_clusters = load_topic_clusters()
+            cluster_name = pick_next_cluster(posts, topic_clusters)
 
-        merged_seed = cluster_base + seeds
-        merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
+            if cluster_recent_saturation(posts, cluster_name, window=10) >= 3:
+                alternatives = [c for c in topic_clusters.keys() if c != cluster_name]
+                if alternatives:
+                    cluster_name = random.choice(alternatives)
 
-        strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
+            pillar_mode = should_make_pillar(posts, cluster_name)
+            current_pillar = get_cluster_pillar(posts, cluster_name)
+            current_pillar_slug = (current_pillar.get("slug") or "").strip()
 
-        def is_cluster_relevant(kw: str) -> bool:
-            if detect_category_from_keyword(kw) != target_category:
-                return False
+            if pillar_mode:
+                pillar_pool = build_pillar_keyword_pool(cluster_name, posts, existing_titles)
+                if pillar_pool:
+                    return pillar_pool, cluster_name, "pillar", current_pillar_slug
 
-            nkw = normalize_keyword(kw)
-            kw_tokens = set(nkw.split())
+            seeds = topic_clusters.get(cluster_name) or []
+            target_category = cluster_to_category(cluster_name)
 
-            if target_category == "AI Tools":
-                banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
-                if kw_tokens & banned:
+            cluster_base = [
+                kw for kw in clean_base
+                if detect_category_from_keyword(kw) == target_category
+            ]
+
+            merged_seed = cluster_base + seeds
+            merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
+
+            strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
+
+            def is_cluster_relevant(kw: str) -> bool:
+                if detect_category_from_keyword(kw) != target_category:
                     return False
 
-            if target_category == "Investing":
-                banned_terms = {"chatgpt", "prompt", "prompts", "crm", "invoicing"}
-                banned_phrases = ["ai writing", "meeting notes"]
-                if kw_tokens & banned_terms:
-                    return False
-                if any(x in nkw for x in banned_phrases):
-                    return False
+                nkw = normalize_keyword(kw)
+                kw_tokens = set(nkw.split())
 
-            if target_category == "Software Reviews":
-                must_have = {
-                    "software", "tool", "tools", "app", "apps", "platform",
-                    "crm", "invoicing", "notion", "clickup", "review",
-                    "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
-                }
-                if not (kw_tokens & must_have):
-                    return False
+                if target_category == "AI Tools":
+                    banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
+                    if kw_tokens & banned:
+                        return False
 
-            if strict_cluster_terms:
-                overlap = len(kw_tokens & strict_cluster_terms)
-                if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
-                    return False
+                if target_category == "Investing":
+                    banned_terms = {"chatgpt", "prompt", "prompts", "crm", "invoicing"}
+                    banned_phrases = ["ai writing", "meeting notes"]
+                    if kw_tokens & banned_terms:
+                        return False
+                    if any(x in nkw for x in banned_phrases):
+                        return False
 
-            return True
+                if target_category == "Software Reviews":
+                    must_have = {
+                        "software", "tool", "tools", "app", "apps", "platform",
+                        "crm", "invoicing", "notion", "clickup", "review",
+                        "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
+                    }
+                    if not (kw_tokens & must_have):
+                        return False
 
-        merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
+                if strict_cluster_terms:
+                    overlap = len(kw_tokens & strict_cluster_terms)
+                    if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
+                        return False
 
-        if merged_all:
-            save_keywords(merged_all)
-            return merged_all, cluster_name, "normal", current_pillar_slug
+                return True
 
-    except Exception as e:
-        log("KW", f"Cluster keyword generation failed: {e}")
+            merged_all = dedupe_keywords(merged_seed, existing_titles, existing_keywords)
+            merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
+            merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
 
-    fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
-    fallback = filter_keywords_by_opportunity(fallback, existing_titles)
-    fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
+            if merged_all:
+                save_keywords(merged_all)
+                return merged_all, cluster_name, "normal", current_pillar_slug
 
-    return fallback, cluster_name, "normal", current_pillar_slug
+            fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
+            fallback = filter_keywords_by_opportunity(fallback, existing_titles)
+            fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
+
+            return fallback, cluster_name, "normal", current_pillar_slug
+
+        except Exception as e:
+            log("KW", f"Cluster keyword generation failed: {e}")
 
     auto_keywords: List[str] = []
     if len(clean_base) < MIN_KEYWORD_POOL:
