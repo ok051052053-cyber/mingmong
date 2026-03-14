@@ -67,9 +67,9 @@ jobs:
           POSTS_PER_RUN: "3"
           MODEL: "gpt-4o-mini"
 
-          MIN_CHARS: "6000"
-          MIN_SECTION_CHARS: "525"
-          MAX_SECTION_CHARS: "1500"
+          MIN_CHARS: "4500"
+          MIN_SECTION_CHARS: "350"
+          MAX_SECTION_CHARS: "1000"
           
           MAX_KEYWORD_TRIES: "100"
           MAX_GENERATE_ATTEMPTS: "10"
