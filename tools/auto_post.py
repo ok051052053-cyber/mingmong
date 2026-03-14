@@ -3247,7 +3247,7 @@ Important revision:
         )
 
         for sec in data.get("sections", []):
-        sec["body"] = trim_section_body(sec.get("body", ""), MAX_SECTION_CHARS)
+            sec["body"] = trim_section_body(sec.get("body", ""), MAX_SECTION_CHARS)
 
         total_body_len = len(
             "".join((s.get("body", "") or "") for s in data.get("sections", []))
