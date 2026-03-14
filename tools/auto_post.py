@@ -97,7 +97,7 @@ MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "3200"))
 MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "260"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "320"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "650"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
 print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
@@ -3074,7 +3074,7 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
             )
             body = re.sub(r"\n{3,}", "\n\n", body).strip()
 
-            body = trim_section_body(body, MAX_SECTION_CHARS)
+        body = format_generated_body(body)
 
         body = format_generated_body(body)
 
@@ -3180,7 +3180,7 @@ Task:
         ).strip()
 
         if expanded and len(expanded) > len(body):
-            sections[idx]["body"] = format_generated_body(
+            sections[idx]["body"] = format_generated_body(expanded)
                 trim_section_body(expanded, MAX_SECTION_CHARS)
             )
 
@@ -3253,9 +3253,6 @@ Important revision:
             cluster_name=cluster_name,
             post_type=post_type,
         )
-
-        for sec in data.get("sections", []):
-            sec["body"] = trim_section_body(sec.get("body", ""), MAX_SECTION_CHARS)
 
         total_body_len = len(
             "".join((s.get("body", "") or "") for s in data.get("sections", []))
@@ -5257,6 +5254,11 @@ def main() -> int:
         description = data["description"] or planning.get("description") or short_desc(title)
         category = data["category"] or planning.get("category") or effective_category
         sections = data["sections"]
+        for sec in sections:
+            sec["body"] = trim_section_body(
+                format_generated_body(sec.get("body", "")),
+                MAX_SECTION_CHARS,
+            )
         tldr = data["tldr"]
         faq = data["faq"]
         editorial_note = data.get("editorial_note", "")
