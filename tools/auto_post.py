@@ -3252,10 +3252,11 @@ def expand_short_sections(
         target_len = min_targets[idx] if idx < len(min_targets) else 1200
 
         if len(body) >= target_len:
+            continue
 
         if current_total_len >= MAX_CHARS:
             continue
-
+         
         prompt = f"""
 You are expanding one article section for a practical editorial blog post.
 
