@@ -3367,10 +3367,10 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
             })
 
     if category == "Investing" and clean_sections and not has_real_scenario_section(clean_sections):
-        insert_at = max(1, len(clean_sections) // 2)
-        clean_sections.insert(
-            insert_at,
-            build_real_scenario_section(keyword=keyword, category=category)
+        replace_at = min(3, len(clean_sections) - 1)
+        clean_sections[replace_at] = build_real_scenario_section(
+            keyword=keyword,
+            category=category
         )
 
     faq = data.get("faq") or []
@@ -3842,12 +3842,26 @@ def build_image_query_candidates(query: str, heading: str, visual_type: str) -> 
     return candidates[:6]
  
 
-def detect_post_image_theme(sections: List[Dict[str, str]]) -> str:
+def detect_post_image_theme(sections: List[Dict[str, str]], category: str = "") -> str:
+    category = (category or "").strip()
+
+    if category == "Investing":
+        return "investing"
+    if category == "Software Reviews":
+        return "software"
+    if category == "Make Money":
+        return "client"
+    if category == "Side Hustles":
+        return "client"
+    if category == "Productivity":
+        return "workspace"
+    if category == "AI Tools":
+        return "software"
+
     joined = " ".join(
         [
             (sec.get("heading") or "") + " " +
-            (sec.get("image_query") or "") + " " +
-            (sec.get("body") or "")
+            (sec.get("image_query") or "")
             for sec in sections
         ]
     ).lower()
@@ -3858,74 +3872,58 @@ def detect_post_image_theme(sections: List[Dict[str, str]]) -> str:
     if any(x in joined for x in ["software", "app", "platform", "tool", "saas", "crm", "dashboard"]):
         return "software"
 
-    if any(x in joined for x in ["client", "onboarding", "contract", "invoice", "proposal", "call", "meeting"]):
+    if any(x in joined for x in ["client", "onboarding", "contract", "invoice", "proposal", "call", "meeting", "side hustle"]):
         return "client"
 
     return "workspace"
 
 
-def build_post_level_image_queries(sections: List[Dict[str, str]]) -> List[str]:
-    theme = detect_post_image_theme(sections)
+def build_post_level_image_queries(sections: List[Dict[str, str]], category: str = "") -> List[str]:
+    theme = detect_post_image_theme(sections, category=category)
 
     if theme == "investing":
         queries = [
-            "personal finance workspace",
-            "investment portfolio laptop",
-            "budget planning desk",
-            "finance dashboard laptop",
-            "stock market workspace",
-            "etf investing laptop",
-            "financial planning desk",
-            "home office finance",
-            "money management workspace",
-            "investor desk laptop",
-            "retirement planning desk",
-            "spreadsheet finance laptop",
+            "person reviewing ETF allocation chart",
+            "beginner investor planning monthly contributions",
+            "investment allocation notebook chart",
+            "personal finance planning with papers",
+            "budgeting and investing worksheet",
+            "retirement planning discussion",
+            "financial plan with calculator documents",
+            "portfolio review papers on desk",
         ]
     elif theme == "software":
         queries = [
-            "software dashboard workspace",
-            "crm dashboard laptop",
-            "project management screen",
-            "team collaboration office",
-            "startup workspace laptop",
-            "saas dashboard screen",
-            "productivity desk setup",
-            "digital workspace monitor",
-            "office whiteboard planning",
-            "modern business workspace",
-            "client management dashboard",
-            "remote work desk laptop",
+            "team reviewing project management software",
+            "software comparison on office screen",
+            "small team collaboration whiteboard",
+            "saas product demo meeting",
+            "project planning discussion in office",
+            "people using software dashboard together",
+            "team workflow planning board",
+            "business software training session",
         ]
     elif theme == "client":
         queries = [
-            "client meeting documents",
-            "business proposal desk",
-            "contract review workspace",
-            "invoice payment laptop",
-            "freelancer desk setup",
-            "video call home office",
-            "customer meeting office",
-            "consulting workspace desk",
-            "business paperwork desk",
-            "service business laptop",
-            "meeting room documents",
-            "small business workspace",
+            "freelancer client call at desk",
+            "consultant meeting with client documents",
+            "small business planning session",
+            "side hustle packaging products at home",
+            "creator working with camera and laptop",
+            "service business paperwork and meeting",
+            "person planning extra income work",
+            "home office side hustle setup",
         ]
     else:
         queries = [
-            "team meeting planning",
-            "business whiteboard discussion",
-            "project workflow laptop",
-            "startup collaboration workspace",
-            "calendar planning desk",
-            "professional meeting room",
-            "modern office workspace",
-            "productivity desk setup",
-            "remote work desk",
-            "business laptop coffee desk",
-            "planning notebook workspace",
-            "office collaboration table",
+            "team task planning whiteboard",
+            "busy professional organizing calendar",
+            "productivity planning notebook and timer",
+            "office workflow discussion",
+            "task management sticky notes board",
+            "weekly planning desk with notebook",
+            "team collaboration table meeting",
+            "focused work planning session",
         ]
 
     seen = set()
@@ -4498,7 +4496,10 @@ def build_image_asset_for_section(
     log("IMG", f"No image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
  
- 
+for sec in sections:
+    if isinstance(sec, dict):
+        sec["category"] = category
+
 def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
     used_raw = load_json(USED_IMAGES_JSON, {})
     used = ensure_used_schema(used_raw)
@@ -4512,13 +4513,23 @@ def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List
     if not candidate_sections:
         candidate_sections = sections[:]
 
-    post_queries = build_post_level_image_queries(candidate_sections)
+    category = ""
+    if candidate_sections and isinstance(candidate_sections[0], dict):
+        category = (candidate_sections[0].get("category") or "").strip()
 
+    section_queries = dedupe_section_image_queries(candidate_sections, slug)
+    post_queries = build_post_level_image_queries(candidate_sections, category=category)
+    all_queries = section_queries + post_queries
+
+    post_queries = build_post_level_image_queries(candidate_sections, category=category)
+    section_queries = dedupe_section_image_queries(candidate_sections, slug)
+
+    all_queries = section_queries + post_queries
+ 
     section_queries = dedupe_section_image_queries(candidate_sections, slug)
     all_queries = post_queries + section_queries
 
-    # 추가 fallback query
-    theme = detect_post_image_theme(candidate_sections)
+    theme = detect_post_image_theme(candidate_sections, category=category)
     if theme == "investing":
         all_queries += [
             "financial workspace",
