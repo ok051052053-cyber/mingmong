@@ -95,9 +95,9 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "8000"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "525"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "2000"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "5300"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "350"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "1350"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 
 print(f"[CONFIG] MIN_CHARS={MIN_CHARS} MIN_SECTION_CHARS={MIN_SECTION_CHARS}")
@@ -2016,7 +2016,7 @@ Schema:
 }}
 
 Hard rules:
-- Each section goal must be rich enough to support a very long-form article section of 700 to 900+ characters
+- Each section goal must be rich enough to support a practical article section of 450 to 600 characters
 - All 6 sections must require concrete examples, timing detail, tradeoffs, consequences, and operational specifics
 - At least 4 sections must require a concrete example with numbers, timing, cost, percentage, amount, or workflow detail
 - No section may be planned as a short explanation-only section
@@ -2626,17 +2626,17 @@ Opening rules:
 - The opening should feel like a direct answer, not a warm-up
 
 Length rules:
-- The combined length of all 6 section bodies alone must be at least 9000 characters
+- The combined length of all 6 section bodies alone must be at least 6000 characters
 - Do not count the title, description, faq, tldr, or editorial_note toward this minimum
-- Aim for 9600 to 12000 total characters in the full JSON response
+- Aim for 6400 to 8000 total characters in the full JSON response
 - Keep sections focused and avoid filler
 - Do not add generic explanations just to increase length
 
 Hard section length rules:
 - Every section body must be substantial.
-- Section 1 and section 6 must each be at least 600 characters.
-- Sections 2, 3, 4, and 5 must each be at least 840 characters.
-- The combined body length of all sections must be at least 5700 characters.
+- Section 1 and section 6 must each be at least 400 characters.
+- Sections 2, 3, 4, and 5 must each be at least 560 characters.
+- The combined body length of all sections must be at least 3800 characters.
 - Do not leave any section as a short summary.
 - If a section feels short, extend it with:
   one concrete example
@@ -2742,9 +2742,9 @@ Internal-link and cluster rules:
 - Write hooks as natural next-step lines
 
 Length and completeness rules:
-- Total text must be at least 16000 characters
-- Do not finish early if the article is under 16000 characters
-- Expand sections with more concrete examples and operational detail until the article passes 16000 characters
+- Total text must be at least 10500 characters
+- Do not finish early if the article is under 10500 characters
+- Expand sections with more concrete examples and operational detail until the article passes 10500 characters
 - Each section body must meet the minimum length target before you finish.
 - Do not return the article until all 6 sections are fully developed.
 - FAQ must have 3 to 5 realistic follow-up questions
@@ -3132,7 +3132,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [675, 1050, 1050, 1050, 1050, 675]
+    min_targets = [450, 700, 700, 700, 700, 450]
 
     for idx, sec in enumerate(sections[:6]):
         if not isinstance(sec, dict):
@@ -3217,7 +3217,7 @@ def generate_deep_post(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
 )
 
-    min_target_len = 6750
+    min_target_len = 4500
     retry_count = 0
 
     while total_body_len < min_target_len and retry_count < 2:
@@ -3230,13 +3230,12 @@ Important revision:
 - Your previous draft was too short.
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
-- Expand every weak section materially.
-- Section 1 and section 6 must each be at least 675 characters.
-- Sections 2, 3, 4, and 5 must each be at least 1050 characters.
-- Add more concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences.
-- Add at least one extra paragraph to every section.
-- Add at least one concrete scenario with timing or money to sections 2, 3, 4, and 5.
-- If a section is still short, keep expanding that section instead of rewriting the title or faq.
+- Expand only sections that are clearly too thin.
+- Section 1 and section 6 must each be at least 450 characters.
+- Sections 2, 3, 4, and 5 must each be at least 700 characters.
+- Add concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences where needed.
+- Do not add filler just to increase length.
+- If a section is still short, expand that section instead of rewriting the title or faq.
 - Return valid JSON only.
 """
 
