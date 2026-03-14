@@ -1695,71 +1695,71 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 
         strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
 
-def is_cluster_relevant(kw: str) -> bool:
-    if detect_category_from_keyword(kw) != target_category:
-        return False
+        def is_cluster_relevant(kw: str) -> bool:
+            if detect_category_from_keyword(kw) != target_category:
+                return False
 
-    nkw = normalize_keyword(kw)
-    kw_tokens = set(nkw.split())
+            nkw = normalize_keyword(kw)
+            kw_tokens = set(nkw.split())
 
-    if target_category == "AI Tools":
-        banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
-        if kw_tokens & banned:
-            return False
+            if target_category == "AI Tools":
+                banned = {"stock", "stocks", "etf", "etfs", "portfolio", "dividend", "investing"}
+                if kw_tokens & banned:
+                    return False
 
-    if target_category == "Investing":
-        banned = {"chatgpt", "prompt", "prompts", "ai writing", "meeting notes", "crm", "invoicing"}
-        if any(x in nkw for x in banned):
-            return False
+            if target_category == "Investing":
+                banned = {"chatgpt", "prompt", "prompts", "ai writing", "meeting notes", "crm", "invoicing"}
+                if any(x in nkw for x in banned):
+                    return False
 
-    if target_category == "Software Reviews":
-        must_have = {
-            "software", "tool", "tools", "app", "apps", "platform",
-            "crm", "invoicing", "notion", "clickup", "review",
-            "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
-        }
-        if not (kw_tokens & must_have):
-            return False
+            if target_category == "Software Reviews":
+                must_have = {
+                    "software", "tool", "tools", "app", "apps", "platform",
+                    "crm", "invoicing", "notion", "clickup", "review",
+                    "reviews", "vs", "compare", "comparison", "alternative", "alternatives"
+                }
+                if not (kw_tokens & must_have):
+                    return False
 
-    if strict_cluster_terms:
-        overlap = len(kw_tokens & strict_cluster_terms)
-        if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
-            return False
+            if strict_cluster_terms:
+                overlap = len(kw_tokens & strict_cluster_terms)
+                if overlap == 0 and target_category in {"AI Tools", "Investing", "Software Reviews"}:
+                    return False
 
-    return True
+            return True
 
-merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
+        merged_all = [kw for kw in merged_all if is_cluster_relevant(kw)]
 
-            if merged_all:
-                save_keywords(merged_all)
-                return merged_all, cluster_name, "normal", current_pillar_slug
+        if merged_all:
+            save_keywords(merged_all)
+            return merged_all, cluster_name, "normal", current_pillar_slug
 
-        except Exception as e:
-            log("KW", f"Cluster keyword generation failed: {e}")
- 
-        fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
-        fallback = filter_keywords_by_opportunity(fallback, existing_titles)
+    except Exception as e:
+        log("KW", f"Cluster keyword generation failed: {e}")
 
-        target_category = cluster_to_category(cluster_name)
-        fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
+    fallback = dedupe_keywords(seeds + clean_base, existing_titles, existing_keywords)
+    fallback = filter_keywords_by_opportunity(fallback, existing_titles)
 
-        return fallback, cluster_name, "normal", current_pillar_slug
- 
-    auto_keywords: List[str] = []
-    if len(clean_base) < MIN_KEYWORD_POOL:
-        try:
-            auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
-            google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
-            merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
-            merged = filter_keywords_by_opportunity(merged, existing_titles)
-            if merged:
-                save_keywords(merged)
-                return merged, "General", "normal", ""
-        except Exception as e:
-            log("KW", f"Auto keyword generation failed: {e}")
- 
-    clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
-    return clean_base, "General", "normal", ""
+    target_category = cluster_to_category(cluster_name)
+    fallback = [kw for kw in fallback if is_cluster_relevant(kw)]
+
+    return fallback, cluster_name, "normal", current_pillar_slug
+
+auto_keywords: List[str] = []
+if len(clean_base) < MIN_KEYWORD_POOL:
+    try:
+        auto_keywords = generate_auto_keywords(clean_base or base_keywords, existing_titles, existing_keywords)
+        google_keywords = expand_keywords_from_google(clean_base or base_keywords, existing_titles, existing_keywords)
+        merged = dedupe_keywords(clean_base + auto_keywords + google_keywords, existing_titles, existing_keywords)
+        merged = filter_keywords_by_opportunity(merged, existing_titles)
+        if merged:
+            save_keywords(merged)
+            return merged, "General", "normal", ""
+    except Exception as e:
+        log("KW", f"Auto keyword generation failed: {e}")
+
+clean_base = filter_keywords_by_opportunity(clean_base, existing_titles)
+return clean_base, "General", "normal", ""
 
 
 def build_run_plan(base_keywords: List[str], existing_titles: List[str], posts: List[dict]) -> List[Dict[str, str]]:
