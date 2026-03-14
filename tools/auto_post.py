@@ -22,20 +22,29 @@ def log(stage: str, message: str) -> None:
                               
 
 def safe_json_loads(text: str, default=None):
+    if not text:
+        return default or {}
+
+    text = text.strip()
+
+    # remove markdown json block
+    if text.startswith("```"):
+        text = text.split("```")[1]
+
     try:
         return json.loads(text)
     except Exception:
-        try:
-            start = text.find("{")
-            end = text.rfind("}") + 1
-            if start != -1 and end != -1:
-                return json.loads(text[start:end])
-        except Exception:
-            pass
+        pass
 
-    if default is None:
-        default = {}
-    return default
+    try:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start != -1 and end != -1:
+            return json.loads(text[start:end])
+    except Exception:
+        pass
+
+    return default or {}
 
 
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
