@@ -22,14 +22,18 @@ def log(stage: str, message: str) -> None:
                               
 
 def safe_json_loads(text: str, default=None):
+    if default is None:
+        default = {}
+
     if not text:
-        return default or {}
+        return default
 
     text = text.strip()
 
-    # remove markdown json block
+    # fenced json 제거
     if text.startswith("```"):
-        text = text.split("```")[1]
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
 
     try:
         return json.loads(text)
@@ -39,12 +43,12 @@ def safe_json_loads(text: str, default=None):
     try:
         start = text.find("{")
         end = text.rfind("}") + 1
-        if start != -1 and end != -1:
+        if start != -1 and end != -1 and end > start:
             return json.loads(text[start:end])
     except Exception:
         pass
 
-    return default or {}
+    return default
 
 
 UNSPLASH_SEARCH_CACHE: Dict[str, List[dict]] = {}
@@ -3015,13 +3019,25 @@ Table requirements:
 {table_rules}
 """.strip()
  
-def is_generic_title(title: str) -> bool:
-    t = _norm_title(title)
-    if not t:
+def is_generic_title(title: str, keyword: str = "") -> bool:
+    t = (title or "").strip().lower()
+    k = (keyword or "").strip().lower()
+
+    if len(t) < 35:
         return True
- 
-    if any(t.startswith(x) for x in BANNED_TITLE_PATTERNS):
-        return True
+
+    vague_patterns = [
+        "how to make money",
+        "common mistakes",
+        "beginner guide",
+        "simple tips",
+    ]
+
+    if any(p in t for p in vague_patterns):
+        if k and k not in t:
+            return True
+
+    return False
  
     broad_bad = [
         "ai tools",
@@ -3321,13 +3337,6 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         visual_type = _clean_text(s.get("visual_type", "photo")).lower()
         alt_text = _clean_text(s.get("alt_text", "")) or heading
 
-    if category == "Investing" and clean_sections and not has_real_scenario_section(clean_sections):
-        insert_at = max(1, len(clean_sections) // 2)
-        clean_sections.insert(
-            insert_at,
-            build_real_scenario_section(keyword=keyword, category=category)
-        )
-     
         if intent_type != "comparison":
             body = re.sub(
                 r'<div class="table-wrap">.*?</div>',
@@ -3342,8 +3351,6 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
                 flags=re.IGNORECASE | re.DOTALL,
             )
             body = re.sub(r"\n{3,}", "\n\n", body).strip()
-
-        body = format_generated_body(body)
 
         body = format_generated_body(body)
 
@@ -5766,7 +5773,7 @@ def main() -> int:
 
     if made == 0:
         log("MAIN", "No posts generated this run.")
-        raise RuntimeError("No posts generated this run")
+        return 0
 
     save_posts_index(posts)
     log("MAIN", f"Finished build_id={BUILD_ID} made={made}")
