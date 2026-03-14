@@ -859,7 +859,7 @@ def token_signature(text: str, top_n: int = 12) -> str:
         }
     ]
     counts = Counter(words)
-    ranked = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[:top_n]
+    ranked = sorted(couㅋnts.items(), key=lambda x: (-x[1], x[0]))[:top_n]
     return "|".join([w for w, _ in ranked])
  
  
@@ -4495,10 +4495,6 @@ def build_image_asset_for_section(
 
     log("IMG", f"No image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
-
-for sec in sections:
-    if isinstance(sec, dict):
-        sec["category"] = category
 
 def build_visual_assets(slug: str, sections: List[Dict[str, str]]) -> Tuple[List[str], List[str], List[str]]:
     used_raw = load_json(USED_IMAGES_JSON, {})
