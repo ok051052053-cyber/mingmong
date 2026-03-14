@@ -4495,7 +4495,9 @@ def build_image_asset_for_section(
 
     log("IMG", f"No image found for slug='{slug}' idx={idx} query='{clean_query}'")
     return "", alt_text, None, used_ids
- 
+
+sections = data.get("sections", [])
+
 for sec in sections:
     if isinstance(sec, dict):
         sec["category"] = category
