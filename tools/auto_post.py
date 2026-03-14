@@ -1692,24 +1692,8 @@ def build_keyword_pool(base_keywords: List[str], existing_titles: List[str], pos
 
         merged_seed = cluster_base + seeds
         merged_seed = [x for x in merged_seed if isinstance(x, str) and x.strip()]
- 
-        try:
-            cluster_keywords = generate_cluster_keywords(
-                cluster_name=cluster_name,
-                seed_keywords=merged_seed,
-                existing_titles=existing_titles,
-                existing_keywords=existing_keywords,
-            )
-            google_keywords = expand_keywords_from_google(merged_seed, existing_titles, existing_keywords)
-            merged_all = dedupe_keywords(
-    cluster_base + seeds + cluster_keywords + google_keywords,
-    existing_titles,
-    existing_keywords,
-)
-merged_all = filter_keywords_by_opportunity(merged_all, existing_titles)
 
-target_category = cluster_to_category(cluster_name)
-strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
+        strict_cluster_terms = set(normalize_keyword(" ".join(seeds)).split())
 
 def is_cluster_relevant(kw: str) -> bool:
     if detect_category_from_keyword(kw) != target_category:
