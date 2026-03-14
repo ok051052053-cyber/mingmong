@@ -3386,28 +3386,27 @@ Important revision:
 
 data = trim_article_to_max_chars(data, MAX_CHARS)
 
+total_body_len = len(
+    "".join((s.get("body", "") or "") for s in data.get("sections", []))
+)
 
-    total_body_len = len(
-        "".join((s.get("body", "") or "") for s in data.get("sections", []))
+if total_body_len < min_target_len:
+    log("ARTICLE", f"After section expansion still short len={total_body_len}")
+
+elapsed = time.time() - t0
+log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
+
+if not data.get("description"):
+    data["description"] = planning.get("description") or short_desc(data.get("title", ""))
+
+if not data.get("category"):
+    data["category"] = planning.get("category") or pick_category(
+        keyword=keyword,
+        cluster_name=cluster_name,
+        post_type=post_type,
     )
 
-    if total_body_len < min_target_len:
-        log("ARTICLE", f"After section expansion still short len={total_body_len}")
- 
-    elapsed = time.time() - t0
-    log("GEN", f"Full generation keyword='{keyword}' took {elapsed:.2f}s")
-
-    if not data.get("description"):
-        data["description"] = planning.get("description") or short_desc(data.get("title", ""))
-
-    if not data.get("category"):
-        data["category"] = planning.get("category") or pick_category(
-            keyword=keyword,
-            cluster_name=cluster_name,
-            post_type=post_type,
-        )
-
-    return data, planning
+return data, planning
 
 
 def trim_article_to_max_chars(text: str, max_chars: int) -> str:
