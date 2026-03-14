@@ -859,7 +859,7 @@ def token_signature(text: str, top_n: int = 12) -> str:
         }
     ]
     counts = Counter(words)
-    ranked = sorted(couㅋnts.items(), key=lambda x: (-x[1], x[0]))[:top_n]
+    ranked = sorted(counts.items(), key=lambda x: (-x[1], x[0]))[:top_n]
     return "|".join([w for w, _ in ranked])
  
  
