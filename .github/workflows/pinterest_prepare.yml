@@ -9,25 +9,33 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: pip install requests
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - run: mkdir -p pinterest_images data
-
-      - run: test -f data/pinterest_uploaded.json || echo "[]" > data/pinterest_uploaded.json
+      - name: Prepare folders
+        run: |
+          mkdir -p pinterest_images
+          mkdir -p data
+          test -f data/pinterest_uploaded.json || echo "[]" > data/pinterest_uploaded.json
 
       - name: Generate images
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
-          PINTEREST_MODE: upload-only
+
+          PINTEREST_MODE: generate-only
           PINTEREST_SEO_MODE: 1
           PINTEREST_DAILY_LIMIT: 1
 
@@ -37,15 +45,13 @@ jobs:
           PINTEREST_BOARD_PRODUCTIVITY: ${{ secrets.PINTEREST_BOARD_PRODUCTIVITY }}
           PINTEREST_BOARD_SOFTWARE_REVIEWS: ${{ secrets.PINTEREST_BOARD_SOFTWARE_REVIEWS }}
           PINTEREST_BOARD_INVESTING: ${{ secrets.PINTEREST_BOARD_INVESTING }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
-          PINTEREST_MODE: generate-only
+
         run: python tools/pinterest_auto.py
 
       - name: Commit images
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pinterest_images
           git diff --cached --quiet || git commit -m "Add Pinterest images"
           git push
