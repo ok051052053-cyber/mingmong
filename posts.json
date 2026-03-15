@@ -1,5 +1,150 @@
 [
   {
+    "title": "7 Steps to Launch a Low-Maintenance Side Hustle",
+    "slug": "7-steps-to-launch-a-low-maintenance-side-hustle",
+    "category": "Side Hustles",
+    "description": "This article provides a structured method for busy professionals to launch a low-maintenance side hustle without sacrificing their personal time.",
+    "date": "2026-03-15T12:37:49Z",
+    "updated": "2026-03-15T12:37:49Z",
+    "thumbnail": "assets/posts/7-steps-to-launch-a-low-maintenance-side-hustle/pexels-1.jpg",
+    "image": "assets/posts/7-steps-to-launch-a-low-maintenance-side-hustle/pexels-1.jpg",
+    "url": "posts/7-steps-to-launch-a-low-maintenance-side-hustle.html",
+    "keyword": "step-by-step guide to launching a low-maintenance side hustle",
+    "cluster": "Side Hustles",
+    "post_type": "normal",
+    "pillar_slug": "how-to-start-a-side-business-while-working-full-time-a-step-by-step-appr",
+    "audience": "busy professionals looking to start a side hustle",
+    "problem": "finding time and resources to launch a new venture is challenging",
+    "outcome": "a clear roadmap to establish a low-maintenance side hustle",
+    "angle": "systematic approach to side hustle execution without overwhelming effort",
+    "intent_type": "howto",
+    "search_intent_summary": "Learn how to efficiently start a low-maintenance side hustle.",
+    "faq_questions": [
+      "What types of side hustles require minimal maintenance?",
+      "How much time should I dedicate weekly to my side hustle?"
+    ],
+    "tldr_focus": [
+      "Identify who can successfully start a side hustle.",
+      "Learn the critical steps to launching without overwhelming effort."
+    ]
+  },
+  {
+    "title": "Notion vs Trello: 5 Key Differences for Beginners",
+    "slug": "notion-vs-trello-5-key-differences-for-beginners",
+    "category": "Software Reviews",
+    "description": "Discover essential differences between Notion and Trello for project management, helping beginners make an informed choice.",
+    "date": "2026-03-15T12:36:06Z",
+    "updated": "2026-03-15T12:36:06Z",
+    "thumbnail": "assets/posts/notion-vs-trello-5-key-differences-for-beginners/pexels-1.jpg",
+    "image": "assets/posts/notion-vs-trello-5-key-differences-for-beginners/pexels-1.jpg",
+    "url": "posts/notion-vs-trello-5-key-differences-for-beginners.html",
+    "keyword": "notion vs trello for project management: which is better for beginners?",
+    "cluster": "Software Reviews",
+    "post_type": "normal",
+    "pillar_slug": "how-small-business-owners-can-compare-software-without-overspending",
+    "audience": "beginner project managers and freelancers",
+    "problem": "Beginners struggle to choose the right project management tool between Notion and Trello.",
+    "outcome": "Clarified decision-making to select the most effective software for project management needs.",
+    "angle": "Practical comparison highlighting unique strengths and common pitfalls.",
+    "intent_type": "comparison",
+    "search_intent_summary": "Beginners want to know which project management tool is better: Notion or Trello.",
+    "faq_questions": [
+      "What are the main features that differentiate Notion and Trello?",
+      "Which tool is better for a solo freelancer just starting out?"
+    ],
+    "tldr_focus": [
+      "Understand the key differences between Notion and Trello.",
+      "Learn which tool is best suited for specific project management needs."
+    ]
+  },
+  {
+    "title": "9 Easy Ways to Make Extra Money After Work This Month",
+    "slug": "9-easy-ways-to-make-extra-money-after-work-this-month",
+    "category": "Make Money",
+    "description": "Discover practical side hustles you can start this month after hours to boost your income without overwhelming your schedule.",
+    "date": "2026-03-15T12:34:25Z",
+    "updated": "2026-03-15T12:34:25Z",
+    "thumbnail": "assets/posts/9-easy-ways-to-make-extra-money-after-work-this-month/unsplash-1.jpg",
+    "image": "assets/posts/9-easy-ways-to-make-extra-money-after-work-this-month/unsplash-1.jpg",
+    "url": "posts/9-easy-ways-to-make-extra-money-after-work-this-month.html",
+    "keyword": "how to make extra money after work reddit",
+    "cluster": "Make Money",
+    "post_type": "pillar",
+    "pillar_slug": "9-easy-ways-to-make-extra-money-after-work-this-month",
+    "audience": "busy professionals looking for side income",
+    "problem": "finding feasible ways to make extra money without sacrificing evenings",
+    "outcome": "practical strategies to generate additional income efficiently",
+    "angle": "exploring unconventional yet accessible side gigs for after-hours work",
+    "intent_type": "howto",
+    "search_intent_summary": "How can I make extra money after my regular job?",
+    "faq_questions": [
+      "What is the best side hustle to start quickly?",
+      "How much time should I realistically set aside for a side gig?"
+    ],
+    "tldr_focus": [
+      "Easy side hustles fit into your schedule",
+      "Tips to maximize earnings without burnout"
+    ]
+  },
+  {
+    "title": "7 Steps to Structure a Simple Portfolio for Maximum Returns",
+    "slug": "7-steps-to-structure-a-simple-portfolio-for-maximum-returns",
+    "category": "Investing",
+    "description": "Discover practical steps to construct a simple investment portfolio designed to maximize your returns while managing risk. It's easier than you think!",
+    "date": "2026-03-15T12:32:52Z",
+    "updated": "2026-03-15T12:32:52Z",
+    "thumbnail": "assets/posts/7-steps-to-structure-a-simple-portfolio-for-maximum-returns/pexels-1.jpg",
+    "image": "assets/posts/7-steps-to-structure-a-simple-portfolio-for-maximum-returns/pexels-1.jpg",
+    "url": "posts/7-steps-to-structure-a-simple-portfolio-for-maximum-returns.html",
+    "keyword": "how to structure a simple portfolio for maximum returns",
+    "cluster": "Investing",
+    "post_type": "normal",
+    "pillar_slug": "how-to-start-investing-with-just-200-a-month",
+    "audience": "beginner investors looking to maximize returns",
+    "problem": "many new investors struggle to create a well-structured portfolio that maximizes returns while managing risk",
+    "outcome": "learn how to build a simple investment portfolio that balances growth and safety effectively",
+    "angle": "a straightforward guide to portfolio structuring for beginners",
+    "intent_type": "howto",
+    "search_intent_summary": "Create an investment portfolio that effectively balances risk and returns.",
+    "faq_questions": [
+      "How much should I invest in each asset class?",
+      "How often should I review my portfolio?"
+    ],
+    "tldr_focus": [
+      "Beginner investors often misunderstand portfolio construction.",
+      "Structuring a portfolio with the right asset allocation is crucial."
+    ]
+  },
+  {
+    "title": "6 AI Tools That Can Automate Your Workflow Setups",
+    "slug": "6-ai-tools-that-can-automate-your-workflow-setups",
+    "category": "AI Tools",
+    "description": "Discover 6 AI tools perfect for freelancers and small business owners to automate workflows and boost productivity.",
+    "date": "2026-03-15T12:30:16Z",
+    "updated": "2026-03-15T12:30:16Z",
+    "thumbnail": "assets/posts/6-ai-tools-that-can-automate-your-workflow-setups/pixabay-1.jpg",
+    "image": "assets/posts/6-ai-tools-that-can-automate-your-workflow-setups/pixabay-1.jpg",
+    "url": "posts/6-ai-tools-that-can-automate-your-workflow-setups.html",
+    "keyword": "AI tools that can automate your workflow setup",
+    "cluster": "AI Tools",
+    "post_type": "normal",
+    "pillar_slug": "how-solo-entrepreneurs-can-build-an-effective-ai-tool-stack",
+    "audience": "freelancers and small business owners",
+    "problem": "Inconsistent workflows lead to wasted time and missed deadlines.",
+    "outcome": "Streamlined workflow automation that saves hours weekly.",
+    "angle": "Explore how AI tools can automate tasks and enhance productivity.",
+    "intent_type": "howto",
+    "search_intent_summary": "Find effective AI tools to automate your workflows easily.",
+    "faq_questions": [
+      "What are the best AI tools for automating workflows?",
+      "How can I effectively integrate AI tools into my business?"
+    ],
+    "tldr_focus": [
+      "Identify key user groups needing automation.",
+      "Explore specific tools for efficient workflows."
+    ]
+  },
+  {
     "title": "6 Steps to Balance Your Time Across 3 Side Hustles",
     "slug": "6-steps-to-balance-your-time-across-3-side-hustles",
     "category": "Side Hustles",
