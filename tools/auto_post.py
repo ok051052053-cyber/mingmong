@@ -5068,7 +5068,7 @@ def trim_article_to_max_chars(data: Dict[str, Any], max_chars: int = MAX_CHARS) 
 
     data["sections"] = new_sections
     return data
-
+ 
 
 def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     text = _clean_text(text)
@@ -5155,12 +5155,19 @@ def format_generated_body(text: str) -> str:
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
+    # 본문 맨 앞의 마크다운 제목 제거
     text = re.sub(r'^\s{0,3}#{1,6}\s+.+?(?:\n+|$)', '', text, count=1).strip()
 
-    text = re.sub(r'([:.!?])\s+(?=\d+\.\s+)', r'\1\n\n', text)
+    # "workflow: 1. ..." 형태를 리스트 시작으로 분리
+    text = re.sub(r'([:.!?])\s+(?=\d+\.\s+)', r'\1\n', text)
 
-    text = re.sub(r'(?<!\n)(?<!^)\s+(?=\d+\.\s+)', r'\n\n', text)
+    # 문장 중간에 붙은 번호 리스트를 줄바꿈
+    text = re.sub(r'(?<!\n)\s+(?=\d+\.\s+)', r'\n', text)
 
+    # 문장 중간에 붙은 하이픈 리스트를 줄바꿈
+    text = re.sub(r'(?<!\n)\s+(?=-\s+)', r'\n', text)
+
+    # 번호 리스트 앞뒤 공백 정리
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
 
     lines = text.split("\n")
@@ -5172,15 +5179,12 @@ def format_generated_body(text: str) -> str:
             normalized_lines.append("")
             continue
 
-        # 번호 리스트 줄은 한 줄로 유지
-        if re.match(r'^\d+\.\s+', stripped):
-            normalized_lines.append(stripped)
-        else:
-            normalized_lines.append(stripped)
+        normalized_lines.append(stripped)
 
     text = "\n".join(normalized_lines)
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
     return text
+ 
 
 def build_json_ld(
     *,
