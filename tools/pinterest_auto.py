@@ -17,8 +17,8 @@ IMAGES_DIR = ROOT / "pinterest_images"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN", "").strip()
 
-# 중요
 PINTEREST_MODE = os.getenv("PINTEREST_MODE", "full").strip().lower()
+PINTEREST_SEO_MODE = os.getenv("PINTEREST_SEO_MODE", "1") == "1"
 
 BOARD_MAP = {
     "AI Tools": os.getenv("PINTEREST_BOARD_AI_TOOLS", "").strip(),
@@ -156,7 +156,10 @@ def create_pin(title, description, link, board_id, image_url):
             "url": image_url,
         },
     }
-
+    
+    log(f"[PIN DESC] {description}")
+    log(f"[PIN CREATE PAYLOAD] {json.dumps(payload, ensure_ascii=False)[:1500]}")
+    
     r = requests.post(
         url,
         headers=pinterest_headers(True),
@@ -172,12 +175,117 @@ def create_pin(title, description, link, board_id, image_url):
     return r.json()
 
 
+def build_seo_keywords(title: str, category: str) -> str:
+    raw = f"{title} {category}".lower()
+
+    replacements = {
+        "ai tools": ["ai tools", "automation", "productivity tools"],
+        "side hustles": ["side hustle", "online business", "passive income"],
+        "make money": ["make money online", "income ideas", "digital income"],
+        "productivity": ["productivity tips", "workflow", "time management"],
+        "software reviews": ["software review", "best tools", "app comparison"],
+        "investing": ["investing tips", "beginner investing", "wealth building"],
+    }
+
+    bucket = replacements.get((category or "").strip().lower(), [])
+    parts = [title.strip()] + bucket
+    parts = [x for x in parts if x]
+
+    seen = []
+    for p in parts:
+        if p not in seen:
+            seen.append(p)
+
+    return ", ".join(seen[:6])
+
+
+def generate_pinterest_description(title: str, category: str, final_url: str, fallback_desc: str = "") -> str:
+    fallback_desc = (fallback_desc or "").strip()
+    keywords = build_seo_keywords(title, category)
+
+    if not PINTEREST_SEO_MODE:
+        text = f"{title}\n\n{fallback_desc}\n\nRead more: {final_url}"
+        return text[:500]
+
+    prompt = f"""
+Write a Pinterest pin description in English.
+
+Goal:
+- High click-through rate
+- SEO-friendly
+- Natural and human
+- Clear and specific
+- No hashtags
+- No emojis
+- 2 to 4 short sentences
+- Under 400 characters
+- Include strong search intent keywords naturally
+- End with a soft CTA
+
+Title: {title}
+Category: {category}
+Related keywords: {keywords}
+Article URL: {final_url}
+Fallback article description: {fallback_desc}
+
+Return plain text only.
+""".strip()
+
+    try:
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "gpt-4.1-mini",
+            "temperature": 0.7,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You write short Pinterest descriptions that feel natural and are optimized for search and clicks."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                },
+            ],
+        }
+
+        r = requests.post(url, headers=headers, json=payload, timeout=60)
+
+        if r.status_code != 200:
+            log(f"[PINTEREST SEO] STATUS {r.status_code}")
+            log(f"[PINTEREST SEO] BODY {r.text[:1200]}")
+            text = f"{title}. {fallback_desc} Learn more here: {final_url}"
+            return text[:500]
+
+        data = r.json()
+        text = data["choices"][0]["message"]["content"].strip()
+        text = " ".join(text.split())
+
+        if final_url not in text:
+            text = f"{text} Read more: {final_url}"
+
+        return text[:500]
+
+    except Exception as e:
+        log(f"[PINTEREST SEO] FALLBACK {repr(e)}")
+        text = f"{title}. {fallback_desc} Read more: {final_url}"
+        return text[:500]
+
+
 def describe_post(post, final_url):
+    title = (post.get("title") or "").strip()
+    desc = (post.get("description") or "").strip()
+    category = (post.get("category") or "").strip()
 
-    title = post.get("title", "")
-    desc = post.get("description", "")
-
-    return f"{title}\n\n{desc}\n\nRead more: {final_url}"[:500]
+    return generate_pinterest_description(
+        title=title,
+        category=category,
+        final_url=final_url,
+        fallback_desc=desc,
+    )
 
 
 def main():
