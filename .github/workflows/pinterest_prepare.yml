@@ -27,6 +27,18 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_MODE: upload-only
+          PINTEREST_SEO_MODE: 1
+          PINTEREST_DAILY_LIMIT: 1
+
+          PINTEREST_BOARD_AI_TOOLS: ${{ secrets.PINTEREST_BOARD_AI_TOOLS }}
+          PINTEREST_BOARD_SIDE_HUSTLES: ${{ secrets.PINTEREST_BOARD_SIDE_HUSTLES }}
+          PINTEREST_BOARD_MAKE_MONEY: ${{ secrets.PINTEREST_BOARD_MAKE_MONEY }}
+          PINTEREST_BOARD_PRODUCTIVITY: ${{ secrets.PINTEREST_BOARD_PRODUCTIVITY }}
+          PINTEREST_BOARD_SOFTWARE_REVIEWS: ${{ secrets.PINTEREST_BOARD_SOFTWARE_REVIEWS }}
+          PINTEREST_BOARD_INVESTING: ${{ secrets.PINTEREST_BOARD_INVESTING }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
           PINTEREST_MODE: generate-only
         run: python tools/pinterest_auto.py
 
