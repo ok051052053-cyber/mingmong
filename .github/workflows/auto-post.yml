@@ -103,6 +103,30 @@ jobs:
         run: |
           python -u tools/auto_post.py
 
+      - name: Patch GA4 into existing post HTML files
+        env:
+          GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
+        run: |
+          set -e
+
+          if [ -z "$GA_MEASUREMENT_ID" ]; then
+            echo "GA_MEASUREMENT_ID is empty"
+            exit 1
+          fi
+
+          for file in posts/*.html; do
+            [ -f "$file" ] || continue
+
+            if grep -q "googletagmanager.com/gtag/js?id=" "$file"; then
+              echo "Skip already patched: $file"
+              continue
+            fi
+
+            perl -0pi -e 's#</head>#<script async src="https://www.googletagmanager.com/gtag/js?id='"$GA_MEASUREMENT_ID"'"></script>\n<script>\nwindow.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('\''js'\'', new Date());\ngtag('\''config'\'', '\'''"$GA_MEASUREMENT_ID"''\'');\n</script>\n</head>#' "$file"
+
+            echo "Patched: $file"
+          done
+
       - name: Build sitemap
         env:
           SITE_URL: "https://mingmonglife.com"
