@@ -5094,6 +5094,7 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
         cut.rfind("? "),
         cut.rfind("! "),
         cut.rfind("\n\n"),
+        cut.rfind("\n"),
     )
 
     if last_break >= 160:
@@ -5101,7 +5102,11 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     else:
         trimmed = cut.strip()
 
-    return trimmed.rstrip(" .")
+    trimmed = trimmed.rstrip(" .")
+
+    trimmed = re.sub(r'(?:\n|\s)+\d+\.?$', "", trimmed).strip()
+
+    return trimmed
 
 
 def body_to_html(text: str) -> str:
@@ -5139,16 +5144,53 @@ def format_generated_body(text: str) -> str:
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    # 1. "workflow: 1. ..." 같은 경우 숫자 단계 앞 강제 줄바꿈
+    text = re.sub(r'^\s{0,3}#{1,6}\s+.+?(?:\n+|$)', "", text, count=1).strip()
+
+    first_line_match = re.match(r'^([^\n]{8,120})\n+\1(?:\n+|$)', text)
+    if first_line_match:
+        text = text[first_line_match.end():].strip()
+
     text = re.sub(r'([:.!?])\s+(\d+\.\s+)', r'\1\n\n\2', text)
 
-    # 2. 문장 중간에 붙은 번호 단계 분리
     text = re.sub(r'(?<!\n)(\s+)(\d+\.\s+)', r'\n\n\2', text)
 
-    # 3. 번호 단계 각각 빈 줄 유지
     text = re.sub(r'\n(\d+\.\s+)', r'\n\n\1', text)
 
-    # 4. 너무 긴 문단은 문장 단위로 쪼개기
+    blocks = re.split(r"\n\s*\n+", text)
+    out = []
+
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        if re.match(r'^\d+\.\s+', block):
+            out.append(block)
+            continue
+
+        if len(block) > 260 and ". " in block:
+            parts = re.split(r'(?<=[.!?])\s+', block)
+            chunk = []
+            chunk_len = 0
+
+            for part in parts:
+                chunk.append(part)
+                chunk_len += len(part)
+
+                if chunk_len >= 140:
+                    out.append(" ".join(chunk).strip())
+                    chunk = []
+                    chunk_len = 0
+
+            if chunk:
+                out.append(" ".join(chunk).strip())
+        else:
+            out.append(block)
+
+    text = "\n\n".join(out)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
     blocks = re.split(r"\n\s*\n+", text)
     out = []
 
