@@ -5060,17 +5060,7 @@ def trim_article_to_max_chars(data: Dict[str, Any], max_chars: int = MAX_CHARS) 
 
         trimmed = body
         if len(body) > target_len:
-            cut = body[:target_len]
-            last_break = max(
-                cut.rfind("\n\n"),
-                cut.rfind(". "),
-                cut.rfind("! "),
-                cut.rfind("? "),
-            )
-            if last_break >= int(target_len * 0.75):
-                trimmed = cut[:last_break].strip()
-            else:
-                trimmed = cut.strip()
+            trimmed = trim_section_body(body, target_len)
 
         new_sec = dict(sec)
         new_sec["body"] = format_generated_body(trimmed)
@@ -5106,14 +5096,13 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     if last_sentence_end >= 160:
         trimmed = cut[:last_sentence_end + 1].strip()
     else:
-
+        last_para_break = cut.rfind("\n\n")
         last_line_break = cut.rfind("\n")
         safe_break = max(last_para_break, last_line_break)
 
         if safe_break >= 160:
             trimmed = cut[:safe_break].strip()
         else:
-         
             parts = re.split(r'(?<=[.!?])\s+', cut)
             if len(parts) >= 2:
                 trimmed = " ".join(parts[:-1]).strip()
@@ -5130,7 +5119,7 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
             trimmed = ""
 
     return trimmed
-
+ 
 
 def body_to_html(text: str) -> str:
     text = (text or "").strip()
@@ -5166,89 +5155,32 @@ def format_generated_body(text: str) -> str:
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    text = re.sub(r'^\s{0,3}#{1,6}\s+.+?(?:\n+|$)', "", text, count=1).strip()
+    text = re.sub(r'^\s{0,3}#{1,6}\s+.+?(?:\n+|$)', '', text, count=1).strip()
 
-    first_line_match = re.match(r'^([^\n]{8,120})\n+\1(?:\n+|$)', text)
-    if first_line_match:
-        text = text[first_line_match.end():].strip()
+    text = re.sub(r'([:.!?])\s+(?=\d+\.\s+)', r'\1\n\n', text)
 
-    text = re.sub(r'([:.!?])\s+(\d+\.\s+)', r'\1\n\n\2', text)
+    text = re.sub(r'(?<!\n)(?<!^)\s+(?=\d+\.\s+)', r'\n\n', text)
 
-    text = re.sub(r'(?<!\n)(\s+)(\d+\.\s+)', r'\n\n\2', text)
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
 
-    text = re.sub(r'\n(\d+\.\s+)', r'\n\n\1', text)
+    lines = text.split("\n")
+    normalized_lines = []
 
-    blocks = re.split(r"\n\s*\n+", text)
-    out = []
-
-    for block in blocks:
-        block = block.strip()
-        if not block:
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            normalized_lines.append("")
             continue
 
-        if re.match(r'^\d+\.\s+', block):
-            out.append(block)
-            continue
-
-        if len(block) > 260 and ". " in block:
-            parts = re.split(r'(?<=[.!?])\s+', block)
-            chunk = []
-            chunk_len = 0
-
-            for part in parts:
-                chunk.append(part)
-                chunk_len += len(part)
-
-                if chunk_len >= 140:
-                    out.append(" ".join(chunk).strip())
-                    chunk = []
-                    chunk_len = 0
-
-            if chunk:
-                out.append(" ".join(chunk).strip())
+        # 번호 리스트 줄은 한 줄로 유지
+        if re.match(r'^\d+\.\s+', stripped):
+            normalized_lines.append(stripped)
         else:
-            out.append(block)
+            normalized_lines.append(stripped)
 
-    text = "\n\n".join(out)
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    text = "\n".join(normalized_lines)
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
     return text
-
-    blocks = re.split(r"\n\s*\n+", text)
-    out = []
-
-    for block in blocks:
-        block = block.strip()
-        if not block:
-            continue
-
-        # 번호 리스트 블록이면 그대로 유지
-        if re.match(r'^\d+\.\s+', block):
-            out.append(block)
-            continue
-
-        if len(block) > 260 and ". " in block:
-            parts = re.split(r'(?<=[.!?])\s+', block)
-            chunk = []
-            chunk_len = 0
-
-            for part in parts:
-                chunk.append(part)
-                chunk_len += len(part)
-
-                if chunk_len >= 140:
-                    out.append(" ".join(chunk).strip())
-                    chunk = []
-                    chunk_len = 0
-
-            if chunk:
-                out.append(" ".join(chunk).strip())
-        else:
-            out.append(block)
-
-    text = "\n\n".join(out)
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-    return text
-
 
 def build_json_ld(
     *,
