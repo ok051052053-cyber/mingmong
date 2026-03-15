@@ -26,6 +26,16 @@ BOARD_MAP = {
 
 DAILY_LIMIT = int(os.getenv("PINTEREST_DAILY_LIMIT", "10"))
 
+
+def test_pinterest_token():
+    headers = {
+        "Authorization": f"Bearer {PINTEREST_ACCESS_TOKEN}"
+    }
+    r = requests.get("https://api.pinterest.com/v5/boards", headers=headers, timeout=30)
+    print("STATUS:", r.status_code)
+    print("BODY:", r.text[:500])
+
+
 def load_json(path, default):
     if not path.exists():
         return default
@@ -122,6 +132,9 @@ def upload_pin(title, description, link, image_path, board_id):
 
 
 def main():
+
+    test_pinterest_token()
+    return
 
     posts = load_json(POSTS_JSON, [])
     uploaded = load_json(UPLOADED_JSON, [])
