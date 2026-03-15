@@ -48,6 +48,8 @@ def save_json(path: Path, data) -> None:
 
 def full_url(url: str) -> str:
     url = (url or "").strip()
+    if not url:
+        return SITE_URL
     if url.startswith("http://") or url.startswith("https://"):
         return url
     return f"{SITE_URL}/{url.lstrip('/')}"
@@ -76,9 +78,6 @@ def require_env() -> None:
 
 
 def test_pinterest_token() -> dict:
-    """
-    인증 확인 + 보드 목록 확인
-    """
     url = "https://api.pinterest.com/v5/boards"
     r = requests.get(url, headers=pinterest_headers(), timeout=30)
 
@@ -92,8 +91,8 @@ def test_pinterest_token() -> dict:
         )
 
     data = r.json()
-
     items = data.get("items", [])
+
     if items:
         log("[TOKEN TEST] Boards found:")
         for item in items[:20]:
@@ -128,7 +127,7 @@ Headline text:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "gpt-image-1-mini",
+        "model": "gpt-image-1",
         "size": "1024x1536",
         "quality": "low",
         "prompt": prompt,
@@ -155,47 +154,44 @@ Headline text:
     return path
 
 
-def register_media_upload() -> dict:
+def ensure_public_image_copy(image_path: Path, slug: str) -> str:
     """
-    Pinterest media 등록
-    공식 docs 상 media 등록 후 업로드 정보를 받는 흐름이다. :contentReference[oaicite:1]{index=1}
+    생성한 이미지를 정적 사이트 경로에도 복사해서
+    배포 후 공개 URL로 접근 가능하게 만든다.
     """
-    url = "https://api.pinterest.com/v5/media"
-    payload = {
-        "media_type": "image"
-    }
+    public_dir = ROOT / "pinterest_images"
+    public_dir.mkdir(parents=True, exist_ok=True)
 
-    r = requests.post(
-        url,
-        headers=pinterest_headers(json_mode=True),
-        json=payload,
-        timeout=60,
-    )
+    public_path = public_dir / f"{slug}.png"
 
-    log(f"[MEDIA REGISTER] STATUS: {r.status_code}")
-    log(f"[MEDIA REGISTER] BODY: {safe_preview(r.text, 1500)}")
+    if image_path.resolve() != public_path.resolve():
+        with open(image_path, "rb") as src:
+            binary = src.read()
+        with open(public_path, "wb") as dst:
+            dst.write(binary)
 
-    r.raise_for_status()
-    return r.json()
+    public_url = f"{SITE_URL}/pinterest_images/{slug}.png"
+    log(f"[IMAGE PUBLIC URL] {public_url}")
+    return public_url
 
 
-def upload_binary_to_pinterest(upload_url: str, image_path: Path) -> None:
-    with open(image_path, "rb") as f:
-        binary = f.read()
+def verify_public_image(image_url: str) -> None:
+    """
+    Pinterest가 image_url을 읽으려면 외부 공개 접근이 가능해야 한다.
+    """
+    try:
+        r = requests.get(image_url, timeout=30)
+        log(f"[IMAGE VERIFY] STATUS: {r.status_code} URL={image_url}")
+        if r.status_code != 200:
+            raise RuntimeError(
+                f"Public image URL not accessible yet: {image_url} "
+                f"(status={r.status_code})"
+            )
+    except requests.RequestException as e:
+        raise RuntimeError(f"Failed to verify public image URL: {image_url} ({e})") from e
 
-    headers = {
-        "Content-Type": "image/png"
-    }
 
-    r = requests.put(upload_url, headers=headers, data=binary, timeout=120)
-
-    log(f"[MEDIA BINARY UPLOAD] STATUS: {r.status_code}")
-    log(f"[MEDIA BINARY UPLOAD] BODY: {safe_preview(r.text, 800)}")
-
-    r.raise_for_status()
-
-
-def create_pin(title: str, description: str, link: str, board_id: str, media_source: dict) -> dict:
+def create_pin(title: str, description: str, link: str, board_id: str, image_url: str) -> dict:
     url = "https://api.pinterest.com/v5/pins"
 
     payload = {
@@ -203,7 +199,10 @@ def create_pin(title: str, description: str, link: str, board_id: str, media_sou
         "title": title[:100],
         "description": description[:500],
         "link": link,
-        "media_source": media_source,
+        "media_source": {
+            "source_type": "image_url",
+            "url": image_url,
+        },
     }
 
     log(f"[PIN CREATE] PAYLOAD: {json.dumps(payload, ensure_ascii=False)[:1500]}")
@@ -222,55 +221,8 @@ def create_pin(title: str, description: str, link: str, board_id: str, media_sou
     return r.json()
 
 
-def upload_pin(title: str, description: str, link: str, image_path: Path, board_id: str) -> dict:
-    """
-    1) media 등록
-    2) 업로드 URL 받기
-    3) 이미지 바이너리 업로드
-    4) pin 생성
-    """
-    media_info = register_media_upload()
-
-    media_id = media_info.get("id") or media_info.get("media_id")
-    upload_url = media_info.get("upload_url")
-
-    if not upload_url:
-        raise RuntimeError(
-            f"Pinterest media register succeeded but no upload_url found. "
-            f"Response: {json.dumps(media_info, ensure_ascii=False)}"
-        )
-
-    upload_binary_to_pinterest(upload_url, image_path)
-
-    # Pinterest 응답 구조가 앱/계정 상태에 따라 조금 다를 수 있어서
-    # media_source를 두 방식으로 순차 시도
-    attempts = []
-
-    if media_id:
-        attempts.append({
-            "source_type": "image_id",
-            "image_id": media_id,
-        })
-
-    attempts.append({
-        "source_type": "image_url",
-        "url": upload_url,
-    })
-
-    last_error = None
-
-    for media_source in attempts:
-        try:
-            log(f"[PIN CREATE] Trying media_source={media_source}")
-            return create_pin(title, description, link, board_id, media_source)
-        except requests.HTTPError as e:
-            last_error = e
-            log(f"[PIN CREATE] Attempt failed: {e}")
-
-    if last_error:
-        raise last_error
-
-    raise RuntimeError("Pin creation failed for unknown reason.")
+def upload_pin(title: str, description: str, link: str, image_url: str, board_id: str) -> dict:
+    return create_pin(title, description, link, board_id, image_url)
 
 
 def describe_post(post: dict, final_url: str) -> str:
@@ -297,9 +249,8 @@ def main() -> None:
     log(f"[CONFIG] TOKEN_PREFIX={(PINTEREST_ACCESS_TOKEN or '')[:8]}")
     log(f"[CONFIG] POSTS={len(posts)} ALREADY_UPLOADED={len(uploaded_slugs)}")
 
-    boards_data = test_pinterest_token()
+    test_pinterest_token()
 
-    # 디버그만 하고 끝내고 싶으면 secret 또는 workflow env로 1 설정
     if DEBUG_ONLY:
         log("[DEBUG] PINTEREST_DEBUG_ONLY=1, stopping after board/token test.")
         return
@@ -336,8 +287,14 @@ def main() -> None:
 
         try:
             image_path = generate_image(title, slug)
+            public_image_url = ensure_public_image_copy(image_path, slug)
+
+            # 주의:
+            # 이 URL은 실제 배포 후 200 응답이어야 Pinterest가 읽을 수 있다.
+            verify_public_image(public_image_url)
+
             description = describe_post(post, final_url)
-            result = upload_pin(title, description, final_url, image_path, board_id)
+            result = upload_pin(title, description, final_url, public_image_url, board_id)
 
             uploaded.append(slug)
             save_json(UPLOADED_JSON, uploaded)
