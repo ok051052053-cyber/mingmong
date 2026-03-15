@@ -102,8 +102,9 @@ Headline:
     }
 
     payload = {
-        "model": "gpt-image-1",
+        "model": "gpt-image-1-mini",
         "size": "1024x1536",
+        "quality": "low",
         "prompt": prompt,
     }
 
