@@ -36,7 +36,7 @@ jobs:
           PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
 
           PINTEREST_MODE: generate-only
-          PINTEREST_SEO_MODE: 1
+          PINTEREST_SEO_MODE: 0
           PINTEREST_DAILY_LIMIT: 1
 
           PINTEREST_BOARD_AI_TOOLS: ${{ secrets.PINTEREST_BOARD_AI_TOOLS }}
@@ -45,7 +45,6 @@ jobs:
           PINTEREST_BOARD_PRODUCTIVITY: ${{ secrets.PINTEREST_BOARD_PRODUCTIVITY }}
           PINTEREST_BOARD_SOFTWARE_REVIEWS: ${{ secrets.PINTEREST_BOARD_SOFTWARE_REVIEWS }}
           PINTEREST_BOARD_INVESTING: ${{ secrets.PINTEREST_BOARD_INVESTING }}
-
         run: python tools/pinterest_auto.py
 
       - name: Commit images
