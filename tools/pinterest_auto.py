@@ -334,9 +334,10 @@ def main():
             if PINTEREST_MODE == "generate-only":
 
                 generate_image(title, slug)
-
+            
                 log("[MODE] generate only")
 
+                count += 1
                 continue
 
             # MODE 2 업로드만
