@@ -109,7 +109,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
 MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "400"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "250"))
 MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "1350"))
 MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
 MAX_CHARS = int(os.environ.get("MAX_CHARS", str(int(MIN_CHARS * 1.3))))
@@ -2189,6 +2189,31 @@ Schema:
     "point 2"
   ]
 }}
+
+TITLE RULES:
+- title must include a number when possible
+- prefer formats like:
+  "7 AI Tools That..."
+  "5 Mistakes..."
+  "How I..."
+- avoid long academic phrasing
+- keep title under 65 characters
+
+TITLE STYLE RULES:
+- Prefer shorter blog-style titles.
+- When natural include numbers like:
+  "5 AI Tools That..."
+  "7 Mistakes..."
+- Avoid long academic phrasing like:
+  "How Entrepreneurs Can..."
+- Keep titles under 65 characters when possible.
+
+WRITING STYLE RULES:
+- paragraphs must be short (2–3 lines max)
+- break ideas into multiple paragraphs
+- prefer lists and bullets
+- avoid long editorial paragraphs
+- write for fast blog reading
 
 Hard rules:
 - Each section goal must be rich enough to support a practical article section of 450 to 600 characters
