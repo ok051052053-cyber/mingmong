@@ -5088,23 +5088,46 @@ def trim_section_body(text: str, max_chars: int = MAX_SECTION_CHARS) -> str:
     if len(text) <= max_chars:
         return text
 
-    cut = text[:max_chars]
-    last_break = max(
+    cut = text[:max_chars].strip()
+
+    sentence_endings = [
         cut.rfind(". "),
         cut.rfind("? "),
         cut.rfind("! "),
-        cut.rfind("\n\n"),
-        cut.rfind("\n"),
-    )
+        cut.rfind(".\n"),
+        cut.rfind("?\n"),
+        cut.rfind("!\n"),
+        cut.rfind(".\""),
+        cut.rfind("?\""),
+        cut.rfind("!\""),
+    ]
+    last_sentence_end = max(sentence_endings)
 
-    if last_break >= 160:
-        trimmed = cut[:last_break + 1].strip()
+    if last_sentence_end >= 160:
+        trimmed = cut[:last_sentence_end + 1].strip()
     else:
-        trimmed = cut.strip()
 
-    trimmed = trimmed.rstrip(" .")
+        last_line_break = cut.rfind("\n")
+        safe_break = max(last_para_break, last_line_break)
+
+        if safe_break >= 160:
+            trimmed = cut[:safe_break].strip()
+        else:
+         
+            parts = re.split(r'(?<=[.!?])\s+', cut)
+            if len(parts) >= 2:
+                trimmed = " ".join(parts[:-1]).strip()
+            else:
+                trimmed = cut.strip()
 
     trimmed = re.sub(r'(?:\n|\s)+\d+\.?$', "", trimmed).strip()
+
+    if trimmed and trimmed[-1] not in '.!?"”\'':
+        parts = re.split(r'(?<=[.!?])\s+', trimmed)
+        if len(parts) >= 2:
+            trimmed = " ".join(parts[:-1]).strip()
+        else:
+            trimmed = ""
 
     return trimmed
 
@@ -5114,7 +5137,6 @@ def body_to_html(text: str) -> str:
     if not text:
         return ""
 
-    # HTML table이 포함된 경우
     if "<table" in text.lower() and "</table>" in text.lower():
         blocks = re.split(r"\n\s*\n+", text)
         out = []
