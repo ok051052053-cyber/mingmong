@@ -79,6 +79,11 @@ def test_pinterest_token():
 
     log(f"[TOKEN TEST] STATUS {r.status_code}")
 
+    data = r.json()
+
+    for board in data.get("items", []):
+        log(f"[BOARD] {board['name']} -> {board['id']}")
+
     if r.status_code != 200:
         raise RuntimeError(f"Pinterest token invalid {r.text}")
 
