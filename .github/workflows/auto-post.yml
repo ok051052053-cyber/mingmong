@@ -61,6 +61,7 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           ADSENSE_CLIENT: ${{ secrets.ADSENSE_CLIENT }}
+          GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
 
           SITE_NAME: "MingMong"
           SITE_URL: "https://mingmonglife.com"
