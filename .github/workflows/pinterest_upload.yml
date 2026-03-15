@@ -1,0 +1,28 @@
+name: Pinterest Upload
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - run: mkdir -p data
+
+      - run: test -f data/pinterest_uploaded.json || echo "[]" > data/pinterest_uploaded.json
+
+      - name: Upload Pinterest pins
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_MODE: upload-only
+        run: python tools/pinterest_auto.py
