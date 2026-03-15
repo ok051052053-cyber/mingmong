@@ -175,20 +175,37 @@ def ensure_public_image_copy(image_path: Path, slug: str) -> str:
     return public_url
 
 
-def verify_public_image(image_url: str) -> None:
+import time
+
+def verify_public_image(image_url: str, retries: int = 12, delay: int = 20) -> None:
     """
-    Pinterest가 image_url을 읽으려면 외부 공개 접근이 가능해야 한다.
+    공개 이미지 URL이 살아날 때까지 대기
+    최대 retries번 확인하고 각 시도 사이 delay초 대기
     """
-    try:
-        r = requests.get(image_url, timeout=30)
-        log(f"[IMAGE VERIFY] STATUS: {r.status_code} URL={image_url}")
-        if r.status_code != 200:
-            raise RuntimeError(
-                f"Public image URL not accessible yet: {image_url} "
-                f"(status={r.status_code})"
-            )
-    except requests.RequestException as e:
-        raise RuntimeError(f"Failed to verify public image URL: {image_url} ({e})") from e
+    last_status = None
+    last_body = ""
+
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(image_url, timeout=30)
+            last_status = r.status_code
+            last_body = safe_preview(r.text, 300)
+
+            log(f"[IMAGE VERIFY] attempt={attempt}/{retries} status={r.status_code} url={image_url}")
+
+            if r.status_code == 200:
+                return
+
+        except requests.RequestException as e:
+            log(f"[IMAGE VERIFY] attempt={attempt}/{retries} error={repr(e)}")
+
+        if attempt < retries:
+            time.sleep(delay)
+
+    raise RuntimeError(
+        f"Public image URL not accessible yet: {image_url} "
+        f"(last_status={last_status}, body={last_body})"
+    )
 
 
 def create_pin(title: str, description: str, link: str, board_id: str, image_url: str) -> dict:
