@@ -5392,7 +5392,7 @@ def render_post_html(
   crossorigin="anonymous"></script>
 """.rstrip()
 
-ga_tag = build_ga_tag()
+    ga_tag = build_ga_tag()
  
     guide_badge = ""
     if post_type == "pillar":
