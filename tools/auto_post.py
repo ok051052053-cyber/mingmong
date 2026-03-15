@@ -120,7 +120,8 @@ print(
 )
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "35"))
 ADSENSE_CLIENT = os.environ.get("ADSENSE_CLIENT", "").strip()
- 
+GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "").strip()
+
 AUTHOR_NAME = os.environ.get("AUTHOR_NAME", "MingMong Editorial").strip()
 AUTHOR_URL = os.environ.get("AUTHOR_URL", f"{SITE_URL}/about.html").strip()
 SITE_TAGLINE = os.environ.get(
@@ -5252,7 +5253,22 @@ def build_json_ld(
  
     return "\n".join(blocks)
  
- 
+
+def build_ga_tag() -> str:
+    if not GA_MEASUREMENT_ID:
+        return ""
+
+    return f"""
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){{dataLayer.push(arguments);}}
+gtag('js', new Date());
+gtag('config', '{GA_MEASUREMENT_ID}');
+</script>
+""".strip()
+
+
 def render_post_html(
     *,
     title: str,
@@ -5375,6 +5391,8 @@ def render_post_html(
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={html_escape(ADSENSE_CLIENT)}"
   crossorigin="anonymous"></script>
 """.rstrip()
+
+ga_tag = build_ga_tag()
  
     guide_badge = ""
     if post_type == "pillar":
@@ -5416,6 +5434,7 @@ def render_post_html(
   <meta name="robots" content="index,follow,max-image-preview:large">
  
   <link rel="stylesheet" href="../style.css?v=10">
+{ga_tag}
 {adsense_tag}
 {json_ld}
 </head>
