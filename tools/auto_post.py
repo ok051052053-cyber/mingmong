@@ -4959,11 +4959,12 @@ def paragraphs_to_html(text: str) -> str:
         return ""
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r'(?<!\n)(\s+)(\d+\.\s+)', r'\n\2', text)
+    text = re.sub(r'(?<!\n)\s+(?=\d+\.\s+)', r'\n', text)
+    text = re.sub(r'(?<!\n)\s+(?=-\s+)', r'\n', text)
 
     blocks = re.split(r"\n\s*\n+", text)
-
     out = []
+
     for block in blocks:
         block = block.strip()
         if not block:
@@ -4973,37 +4974,55 @@ def paragraphs_to_html(text: str) -> str:
         if not lines:
             continue
 
+        paragraph_buf = []
         numbered_items = []
         bullet_items = []
-        is_numbered_block = True
-        is_bullet_block = True
+
+        def flush_paragraph():
+            nonlocal paragraph_buf
+            if paragraph_buf:
+                para = " ".join(paragraph_buf).strip()
+                if para:
+                    out.append(f"<p>{html_escape(para)}</p>")
+                paragraph_buf = []
+
+        def flush_numbered():
+            nonlocal numbered_items
+            if numbered_items:
+                items = "".join(f"<li>{html_escape(item)}</li>" for item in numbered_items)
+                out.append(f"<ol>{items}</ol>")
+                numbered_items = []
+
+        def flush_bullets():
+            nonlocal bullet_items
+            if bullet_items:
+                items = "".join(f"<li>{html_escape(item)}</li>" for item in bullet_items)
+                out.append(f"<ul>{items}</ul>")
+                bullet_items = []
 
         for ln in lines:
             m_num = re.match(r"^\s*(\d+)\.\s+(.*)$", ln)
             m_bullet = re.match(r"^\s*[-*]\s+(.*)$", ln)
 
             if m_num:
+                flush_paragraph()
+                flush_bullets()
                 numbered_items.append(m_num.group(2).strip())
-            else:
-                is_numbered_block = False
+                continue
 
             if m_bullet:
+                flush_paragraph()
+                flush_numbered()
                 bullet_items.append(m_bullet.group(1).strip())
-            else:
-                is_bullet_block = False
+                continue
 
-        if is_numbered_block and numbered_items:
-            items = "".join(f"<li>{html_escape(item)}</li>" for item in numbered_items)
-            out.append(f"<ol>{items}</ol>")
-            continue
+            flush_numbered()
+            flush_bullets()
+            paragraph_buf.append(ln)
 
-        if is_bullet_block and bullet_items:
-            items = "".join(f"<li>{html_escape(item)}</li>" for item in bullet_items)
-            out.append(f"<ul>{items}</ul>")
-            continue
-
-        para = " ".join(lines)
-        out.append(f"<p>{html_escape(para)}</p>")
+        flush_paragraph()
+        flush_numbered()
+        flush_bullets()
 
     return "\n".join(out)
 
