@@ -1506,12 +1506,9 @@ def build_cluster_keyword_prompt(
     existing_titles: List[str],
     existing_keywords: List[str],
 ) -> str:
-    seed_block = "
-".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
-    title_block = "
-".join([f"- {x}" for x in existing_titles[:70]])
-    existing_kw_block = "
-".join([f"- {x}" for x in existing_keywords[:120]])
+    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:70]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:120]])
 
     return f"""
 You generate high-quality editorial keyword ideas for a practical blog targeting US and EU readers.
@@ -1609,12 +1606,9 @@ def generate_cluster_keywords(
  
  
 def build_general_keyword_prompt(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> str:
-    seed_block = "
-".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
-    title_block = "
-".join([f"- {x}" for x in existing_titles[:60]])
-    existing_kw_block = "
-".join([f"- {x}" for x in existing_keywords[:120]])
+    seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:60]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:120]])
 
     return f"""
 You generate editorial-quality keyword ideas for a practical niche blog.
@@ -2060,8 +2054,7 @@ def build_cluster_guardrails(cluster_name: str) -> str:
 
 
 def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
-    avoid_block = "
-".join([f"- {x}" for x in avoid_titles[:50]]) if avoid_titles else "- none"
+    avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:50]]) if avoid_titles else "- none"
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     intent_type = infer_search_intent_type(keyword, category_hint)
     cluster_guardrails = build_cluster_guardrails(cluster_name)
@@ -3190,7 +3183,7 @@ def expand_short_sections(
 
         if current_total_len >= MAX_CHARS:
             continue
-
+         
         prompt = f"""
 You are expanding one article section for a practical editorial blog post.
 
@@ -3213,12 +3206,9 @@ Task:
 - Rewrite and expand this section only
 - Keep the same heading and same core topic
 - Make the section at least {target_len} characters
-- Increase information density not fluff
 - Add concrete examples
-- Add realistic numbers, timing, tradeoffs, thresholds, and consequences
-- Add one scenario or case with sequence and outcome
-- Explain why the advice matters in practice
-- Avoid generic phrases and repeated ideas
+- Add realistic numbers, timing, tradeoffs, and consequences
+- Add one scenario or case
 - Do not write a conclusion for the whole article
 - Do not output JSON
 - Output plain section body text only
@@ -3241,7 +3231,8 @@ Task:
 
     data["sections"] = sections
     return data
-
+ 
+ 
 def generate_deep_post(
     *,
     keyword: str,
