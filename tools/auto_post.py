@@ -1507,61 +1507,67 @@ def build_cluster_keyword_prompt(
     existing_keywords: List[str],
 ) -> str:
     seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
-    title_block = "\n".join([f"- {x}" for x in existing_titles[:70]])
-    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:120]])
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:80]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:140]])
 
     return f"""
-You generate high-quality editorial keyword ideas for a practical blog targeting US and EU readers.
+You generate elite editorial keyword ideas for a practical blog targeting US and EU readers.
 
 Current cluster:
 {cluster_name}
 
-Primary objective:
-- suggest keywords that can produce articles worth reading even without SEO
-- every keyword must imply a concrete decision, mistake, comparison, constraint, or measurable outcome
-- keywords must lead to differentiated articles, not interchangeable listicles
+Your mission:
+Generate topics that can create articles people actually finish reading.
+The blog does not want polite filler, vague explainers, recycled listicles, or soft corporate content.
+It wants sharp topics built around hard decisions, real constraints, realistic tradeoffs, and honest outcomes.
 
-Hard rules:
+Output target:
 - exactly {CLUSTER_BATCH} keyword ideas
 - long-tail only
-- no vague educational head terms
-- no inspirational or motivational topics
-- no celebrity, news, politics, medical, or legal topics
-- no outdated year modifiers
-- no duplicate underlying problem stated in slightly different words
-- no keyword that could be answered with generic advice alone
+- each keyword must sound publishable, clickable, and narrow enough to avoid generic writing
+
+Non-negotiable rules:
+- no broad beginner head terms
+- no motivational topics
+- no vague "complete guide" style ideas
+- no celebrity, politics, medical, legal, or news topics
+- no year-stamped trends
+- no duplicate problem phrased with small wording changes
+- no keyword that would naturally produce a safe or generic article
 
 Every keyword must include at least 2 of these:
-- a clear audience
-- a real constraint such as budget, time, volume, skill level, or stage
-- a decision moment
+- a specific audience
+- a hard constraint such as budget, time, workload, skill level, client count, traffic level, or stage
+- a trigger moment
 - a measurable outcome
-- a failure risk or common mistake
+- a common mistake, loss, or failure risk
 
-Strong keyword patterns:
-- best X for Y when Z is true
-- X vs Y for a specific user with a specific limit
-- when to upgrade from free X to paid X
-- mistakes people make when starting X with a real constraint
-- how to choose X for a narrow use case
-- what it costs to start X in a realistic beginner scenario
-- how much X you need for a specific goal
-- 30 day or weekly system tied to one concrete outcome
+Strong patterns:
+- which X actually works for Y under Z constraint
+- X vs Y when a specific limit is true
+- what fails first when beginners try X
+- when free X stops being enough
+- how much X realistically costs, earns, or saves in a narrow scenario
+- 30 day or weekly system for a specific user and a specific outcome
+- what not to choose if your situation is X
 
-Weak patterns to avoid:
-- how entrepreneurs can improve productivity
+Weak patterns to reject:
+- how professionals can improve productivity
 - best tools for everyone
+- effective strategies for growth
 - complete guide to X
 - tips for success
-- strategies for growth
-- anything that sounds like generic SaaS blog filler
+- how to succeed with X
+- any topic that sounds like generic SaaS content
+- any topic that sounds too polite or too safe
 
-Quality filter:
-- prefer keywords with clear buyer, comparison, setup, troubleshooting, or income intent
-- prefer keywords that naturally support one pillar and two follow-up articles
-- prefer keywords that make a reader think this is exactly my situation
-- prefer keywords that can support real numbers, tradeoffs, and examples
-- avoid keywords that are only a softer rewrite of an existing topic
+Editorial standards:
+- prefer topics that force a decision
+- prefer topics that include risk, friction, cost, or hidden downside
+- prefer topics that naturally support numbers, scenarios, and tradeoffs
+- prefer topics that make a reader think this is exactly my problem
+- prefer topics that let the article say some options are bad fits
+- avoid topics that merely summarize options without judgment
 
 Avoid topics too similar to these existing post titles:
 {title_block if title_block else "- none"}
@@ -1580,6 +1586,7 @@ Return valid JSON only:
   ]
 }}
 """.strip()
+
 
 def generate_cluster_keywords(
     cluster_name: str,
@@ -1607,11 +1614,11 @@ def generate_cluster_keywords(
  
 def build_general_keyword_prompt(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> str:
     seed_block = "\n".join([f"- {x}" for x in seed_keywords[:30]]) or "- ai tools to make money online"
-    title_block = "\n".join([f"- {x}" for x in existing_titles[:60]])
-    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:120]])
+    title_block = "\n".join([f"- {x}" for x in existing_titles[:70]])
+    existing_kw_block = "\n".join([f"- {x}" for x in existing_keywords[:140]])
 
     return f"""
-You generate editorial-quality keyword ideas for a practical niche blog.
+You generate elite editorial keyword ideas for a practical niche blog.
 
 Site focus:
 1. AI tools for work and income
@@ -1622,44 +1629,50 @@ Site focus:
 6. side hustles for ordinary workers
 
 Goal:
-- produce keywords that can turn into genuinely useful articles with high dwell time
-- produce topics narrow enough for a newer site yet specific enough to stand out
-- avoid any topic that would create obvious filler or a copy-paste article
+Generate topics that feel more specific, more honest, and more useful than typical SEO blog topics.
+The final article should feel like a smart operator telling the reader what actually works, what fails, and what to choose next.
 
 Hard rules:
 - exactly 14 keyword ideas
 - long-tail only
 - no broad definitions
-- no generic inspiration
+- no motivational or inspirational topics
 - no vague guide language
-- no celebrity or news topics
-- no medical, legal, political, or unsafe topics
-- no multiple keywords that are the same problem with minor wording changes
+- no celebrity, news, political, medical, legal, or unsafe topics
+- no duplicate underlying topics with slight wording changes
+- no topics that would naturally produce filler
 
 Each keyword must contain at least 2 of the following:
 - audience
 - constraint
 - trigger moment
 - measurable outcome
-- mistake or risk
+- failure risk
 - comparison or buying decision
 
-Prefer keywords like:
-- best X for Y under Z constraint
+Prefer keyword shapes like:
+- which X actually works for Y when Z is true
 - X vs Y for a very specific user
-- when free X stops being enough
-- how to start X with a small budget
-- how much X can realistically earn or cost
-- 30 day setup or weekly operating system for one clear situation
-- mistakes beginners make when doing X
+- when free X becomes a bad fit
+- what beginners get wrong about X
+- how much X realistically earns, costs, or saves
+- weekly system for X when the reader has a real limit
+- best X under a specific budget, workload, or business stage
+- what to avoid when starting X
 
-Avoid patterns like:
+Avoid keyword shapes like:
 - how professionals can improve productivity
 - effective strategies for X
 - complete guide to X
 - how to succeed with X
 - best tools for everyone
 - broad educational explainers with no decision angle
+
+Editorial standards:
+- each topic should support a strong opinion or clear recommendation
+- each topic should support concrete numbers, thresholds, or scenarios
+- each topic should give the writer room to say some choices are bad
+- each topic should be narrow enough that the title does not sound like a copy of 50 other blogs
 
 Seed keywords:
 {seed_block}
@@ -1678,6 +1691,7 @@ Return valid JSON only:
   ]
 }}
 """.strip()
+
 
 def generate_auto_keywords(seed_keywords: List[str], existing_titles: List[str], existing_keywords: List[str]) -> List[str]:
     prompt = build_general_keyword_prompt(seed_keywords, existing_titles, existing_keywords)
@@ -2054,14 +2068,14 @@ def build_cluster_guardrails(cluster_name: str) -> str:
 
 
 def build_planning_prompt(keyword: str, avoid_titles: List[str], cluster_name: str, post_type: str) -> str:
-    avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:50]]) if avoid_titles else "- none"
+    avoid_block = "\n".join([f"- {x}" for x in avoid_titles[:60]]) if avoid_titles else "- none"
     category_hint = pick_category(keyword=keyword, cluster_name=cluster_name, post_type=post_type)
     intent_type = infer_search_intent_type(keyword, category_hint)
     cluster_guardrails = build_cluster_guardrails(cluster_name)
 
     return f"""
 You are an elite editorial strategist for a practical niche blog.
-Your job is to design an article plan that feels specific, useful, differentiated, and worth reading.
+Your job is to design an article plan that feels sharp, opinionated, concrete, and impossible to confuse with generic SEO filler.
 
 Keyword:
 {keyword}
@@ -2085,85 +2099,81 @@ Cluster-specific guardrails:
 {cluster_guardrails}
 
 Core objective:
-Create a plan for an article that is impossible to confuse with generic SEO filler.
-The article must feel like it understands a real reader in a real moment with a real decision or problem.
+Create a plan for an article that makes a reader stop scrolling because it sounds more honest and more specific than normal blog content.
+The article must be built around a real user in a real moment making a real decision under a real constraint.
 
-What this site needs more of:
-- titles with a real audience or real constraint
-- sections with practical depth not empty explanations
-- clear differentiation from existing posts
-- realistic numbers, costs, timing, tradeoffs, and consequences
-- stronger reasons to keep reading to the next section
+This site needs:
+- stronger titles
+- higher dwell time
+- clearer decision logic
+- realistic scenarios
+- sharper opinions
+- permission to say some choices are bad fits
 
-What to avoid at all costs:
-- vague titles like "How Entrepreneurs Can..." or "Effective Strategies for..."
-- generic sections that could fit any article
-- broad advice such as "choose the right tool" or "stay consistent"
-- repeating the same article with different wording
-- titles that promise success but do not imply a specific situation
-- section headings that sound like textbook subheadings
-- motivational framing
-- summary-first filler
-- anything that sounds like a generic SaaS content brief
+Do not produce:
+- polite generic intros
+- textbook section headings
+- soft motivational framing
+- broad "how to succeed" content
+- obvious listicles with no point of view
+- articles where every option sounds equally good
+- sections that simply define or summarize
 
 Title rules:
-- title must sound like a real search query or a strong editorial headline rooted in search intent
-- title should usually be under 65 characters
-- when natural include a number, time frame, cost, or constraint
-- title must include at least one of:
+- the title must sound like a real search query or a strong editorial headline tied to search intent
+- the title should usually be under 65 characters
+- the title must include at least one of:
   specific audience
-  concrete constraint
-  measurable outcome
-  clear decision moment
+  hard constraint
+  measurable result
+  trigger moment
   failure risk
-- title must not use abstract words like:
-  strategy
-  blueprint
-  roadmap
-  framework
-  journey
-  success formula
-- title must not sound academic or corporate
-- title must make a reader think this matches my exact situation
+  strong comparison
+- the title should make the reader feel there is something at stake
+- the title may be slightly provocative or contrarian if it still feels useful and credible
+- avoid abstract words like strategy, blueprint, roadmap, framework, journey, success formula
+- avoid titles that could fit dozens of sites
+
+Angle rules:
+- the plan must include a clear point of view
+- the article should not just list options, it should rank, eliminate, or redirect choices
+- the article must include at least one section explaining why common advice fails
+- the article must include at least one section saying when not to do this
+- the article must include at least one section showing what breaks first or what people underestimate
+- the article must give the reader a decision, not just information
 
 Depth rules:
-- every section must require concrete details, not generic explanation
-- at least 4 sections must include a number, timing detail, money detail, threshold, or measurable tradeoff
+- every section must require concrete detail, not generic explanation
+- at least 4 sections must include one or more of:
+  money amount
+  pricing band
+  time estimate
+  count threshold
+  percentage
+  workload condition
+  budget condition
+  timeline
 - at least 2 sections must contain a realistic scenario with sequence and consequence
-- at least 1 section must explain why common advice fails
-- at least 1 section must include when not to do this
-- if the topic is software, include upgrade point, switching friction, hidden cost, and best-fit user
-- if the topic is investing, include practical realism such as monthly amount, allocation percentage, review cadence, or fee drag
-- if the topic is make money or side hustles, include setup effort, income timing, failure points, and what breaks first
-- if the topic is productivity, include actual workload conditions, review cycle, and the tradeoff of the system
-
-Differentiation rules:
-- explicitly describe why this article is not a rewrite of a common topic
-- the angle must be sharper than generic beginner advice
-- choose one primary reader moment such as:
-  starting with a small budget
-  deciding between two tools
-  trying to avoid a common failure
-  outgrowing a free plan
-  needing a weekly system with limited time
-  trying to make a first sale
-- the article must have at least 2 natural follow-up reading moments such as pricing, alternatives, comparisons, mistakes, templates, or next-step decisions
+- if the topic is software, include upgrade point, switching friction, hidden cost, best-fit user, and bad-fit user
+- if the topic is investing, include monthly amount, allocation range, review cadence, fee drag, and realistic beginner behavior
+- if the topic is make money or side hustles, include setup effort, income timing, what fails first, and why most beginners stall
+- if the topic is productivity, include actual workload conditions, review cycle, tradeoffs, and what the system does not fix
 
 Section rules:
-- plan 6 sections
-- no section may be a filler intro or filler conclusion
-- section 1 must identify who this is for and the exact trigger moment
-- section 2 must explain why the default or common advice fails
-- middle sections must carry the practical system, comparison, or decision logic
-- one section must include a realistic example or mini case
-- one section must include mistakes, edge cases, or failure modes
-- final section must end with a decision checklist, recommendation, or next-step action
-- section headings must be concrete and curiosity-producing, not generic
+- plan exactly 6 sections
+- no filler intro and no filler conclusion
+- section 1 must identify the reader, the trigger moment, and what is at stake
+- section 2 must explain why default advice fails
+- middle sections must carry the real comparison, system, or decision logic
+- one section must contain a realistic scenario or mini case
+- one section must contain mistakes, edge cases, or failure modes
+- final section must end with a hard choice, decision checklist, or recommended next move
+- section headings must be concrete and curiosity-producing, not generic or academic
 
 Image rules:
 - image_query must be specific and editorial
-- avoid vague image concepts like productivity concept or business success
-- visual ideas should feel unique to the section context
+- avoid generic concepts like success, productivity concept, business growth, or office teamwork
+- visual ideas should feel grounded in the section
 
 Return valid JSON only with this schema:
 {{
@@ -2176,13 +2186,11 @@ Return valid JSON only with this schema:
   "audience": "narrow audience description",
   "problem": "specific pain point",
   "outcome": "specific transformation or result",
-  "angle": "why this article is different and sharper than generic advice",
-  "novelty_reason": "why this article is not a rewrite of common content",
-  "reader_moment": "the exact moment or situation that triggers the search",
+  "angle": "why this article is sharper than generic advice",
   "section_plan": [
     {{
       "heading": "specific heading",
-      "section_role": "problem|insight|solution|example|decision|checklist|warning",
+      "section_role": "problem|insight|solution|example|decision|checklist|ending",
       "goal": "what this section must achieve",
       "image_query": "2-8 words concrete visual idea",
       "visual_type": "photo|diagram|workspace",
@@ -2201,17 +2209,13 @@ Return valid JSON only with this schema:
 }}
 
 Extra hard rules:
-- do not output generic section headings such as:
-  who this is for
-  decision framework
-  final recommendation
-  practical approach
-  step by step guide
-- every section goal must be rich enough to support at least 450 to 700 characters of body text
-- at least 2 sections must naturally create internal-link opportunities
+- every section goal must be rich enough to support at least 450 to 900 characters of body text
+- at least 2 section headings should create curiosity or tension
+- at least 2 sections must naturally support internal links to related comparisons, alternatives, or next-step guides
 - at least 2 sections must include a cost, time, count, percentage, or threshold
-- the plan must be good enough that a human editor would publish it without saying this feels generic
+- the plan must be opinionated enough that a generic content writer would struggle to produce it without thinking
 """.strip()
+
 
 def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
     clean_raw = _find_balanced_json(text)
@@ -2602,9 +2606,9 @@ def build_article_prompt(
 Visual rules:
 - Use photo or workspace for normal sections when an image helps.
 - Do NOT use SVG infographic tables.
-- Do NOT force diagram visuals for comparison sections.
+- Do NOT force diagram visuals for every section.
 - If a section includes an HTML comparison table, do not add an image to that section.
-- Comparison data should appear as an HTML table inside the body when a table is genuinely useful.
+- Comparison data should appear as an HTML table inside the body only when a table is genuinely useful.
 - Use real product names, not placeholders like Option A or Option B.
 """
 
@@ -2635,8 +2639,8 @@ Planning JSON:
 {json.dumps(planning, ensure_ascii=False, indent=2)}
 
 Mission:
-Write an article that is genuinely useful, highly specific, and clearly better than generic SEO content.
-The article should feel like it was written by someone who understands messy real-world decisions, not by a tool stitching together obvious advice.
+Write an article that feels more specific, more decisive, and more honest than typical SEO blog content.
+The piece should feel like it was written by someone who has seen what actually works, what wastes time, and what beginners usually get wrong.
 
 Output must be valid JSON only.
 
@@ -2671,18 +2675,29 @@ Non-negotiable writing rules:
 - do not write a padded intro
 - do not write an empty conclusion
 - do not repeat the same point in multiple sections
+- do not write like a safe brand blog
+- do not write like a school essay
 - do not use stale phrases like:
   in today's fast-paced world
   choosing the right tool
   boost productivity
   streamline your workflow
   this article will explore
-- do not write corporate or academic copy
-- do not over-explain obvious definitions
-- do not make the article sound like a template that could fit 20 other keywords
+  there are many options available
+- do not explain obvious definitions unless the distinction matters to the decision
+- do not make every option sound good
+- do not hide behind neutral language when one option is clearly weak
+
+Style rules:
+- be practical, sharp, and concrete
+- it is okay to be mildly provocative or contrarian if the advice stays useful and accurate
+- if common advice is bad for this reader, say so directly
+- if a popular option is a bad fit, say so directly
+- if something usually fails in the first 30 to 90 days, say that clearly
+- make the reader feel that something is at stake
 
 Specificity rules:
-- every section must include concrete operational detail
+- every section must include operational detail
 - at least 4 sections must include one or more of:
   money amount
   price point
@@ -2690,31 +2705,35 @@ Specificity rules:
   count threshold
   percentage
   workload condition
+  budget condition
 - at least 2 sections must include a realistic scenario with sequence and consequence
 - include tradeoffs, not just recommendations
 - include what breaks first or what goes wrong when advice is applied badly
-- include at least one point that contradicts lazy common advice
+- include at least one point that directly contradicts lazy common advice
 - include at least one point that makes the reader rethink a default assumption
 
 Engagement rules:
-- the first paragraph of section 1 must make the reader feel seen
+- section 1 must open with tension, risk, or a decision problem, not a bland setup
 - sections should create forward motion so the reader wants the next section
 - use short paragraphs and high information density
 - explain why the detail matters, not just what to do
+- give the reader a reason to keep reading beyond the first screen
 - make each section distinct in purpose and payoff
 
 Differentiation rules:
-- use the planning angle and novelty_reason aggressively
-- this article must have a sharper point of view than competing generic content
+- use the planning angle aggressively
 - make the article specific to the reader moment in the planning JSON
 - name concrete user types when useful instead of saying everyone
-- if comparing tools or options, explain who should choose which one and why
+- rank, eliminate, or narrow choices when possible
+- if comparing tools or options, explain who should choose which one and who should avoid each option
 - if teaching a process, explain when it fails and how to adjust
+- do not write an article that could be swapped with another keyword and still make sense
 
 Title and description rules:
 - keep the planned title sharp and human
 - the title should not feel like boilerplate
 - the description should promise practical value and a real decision outcome
+- titles may use tension, contrast, or a hard filter if it improves clickability without becoming clickbait
 
 Section body rules:
 - each section must be substantial
@@ -2723,7 +2742,7 @@ Section body rules:
 - every section must earn its place
 - no section may be a throwaway bridge section
 - do not use bullets unless they clearly improve scannability
-- when you use bullets, make them information-dense not generic
+- when you use bullets, make them information-dense, specific, and judgment-oriented
 
 What strong writing looks like here:
 - clear audience segmentation
@@ -2739,6 +2758,7 @@ What strong writing looks like here:
   review cadence
   first-sale timeline
 - specific mistakes and what happens next
+- a recommendation that forces a choice
 
 What weak writing looks like here:
 - generic encouragement
@@ -2747,6 +2767,7 @@ What weak writing looks like here:
 - titles and headings that could fit any blog
 - tool descriptions copied from landing pages
 - vague phrases like save time, work smarter, succeed faster without supporting detail
+- neutral summaries with no judgment
 
 FAQ rules:
 - questions must sound like real follow-up questions
@@ -2771,283 +2792,6 @@ Mode specific requirements:
 Table requirements:
 {table_rules}
 """.strip()
-
-def is_generic_title(title: str, keyword: str = "") -> bool:
-    t = (title or "").strip().lower()
-    k = (keyword or "").strip().lower()
-
-    if len(t) < 35:
-        return True
-
-    vague_patterns = [
-        "how to make money",
-        "common mistakes",
-        "beginner guide",
-        "simple tips",
-    ]
-
-    if any(p in t for p in vague_patterns):
-        if k and k not in t:
-            return True
-
-    return False
- 
-    broad_bad = [
-        "ai tools",
-        "productivity tools",
-        "investing guide",
-        "make money guide",
-        "software reviews",
-        "remote work tools",
-        "side hustles",
-    ]
-    if t in broad_bad:
-        return True
- 
-    words = t.split()
-    if len(words) < 4:
-        return True
- 
-    useful_patterns = [
-        "best ",
-        " vs ",
-        "review",
-        "worth it",
-        "for beginners",
-        "how to ",
-        "checklist",
-        "system",
-        "workflow",
-    ]
-    if any(p in t for p in useful_patterns):
-        return False
- 
-    audience_terms = [
-        "beginner", "beginners", "young professionals", "freelancer", "freelancers",
-        "creator", "creators", "consultant", "consultants", "small team", "small teams",
-        "remote worker", "remote workers", "solo", "one person", "investor", "investors",
-        "full time worker", "full time workers",
-    ]
-    problem_terms = [
-        "workflow", "checklist", "system", "template", "playbook", "review",
-        "comparison", "pricing", "portfolio", "watchlist", "income", "side hustle",
-        "software", "stocks", "etf", "alternatives", "worth it", "budget app",
-    ]
-    has_audience = any(x in t for x in audience_terms)
-    has_problem = any(x in t for x in problem_terms)
- 
-    return not (has_audience or has_problem)
- 
- 
-def opening_too_generic(text: str) -> bool:
-    t = (text or "").lower().strip()[:550]
-    return any(p in t for p in BANNED_OPENING_PHRASES)
- 
- 
-def make_fingerprint(title: str, sections: List[Dict[str, str]], tldr: str, faq: List[Dict[str, str]]) -> str:
-    parts = [title.strip(), (tldr or "").strip()[:400]]
-    for s in sections[:8]:
-        parts.append((s.get("heading") or "").strip())
-        parts.append((s.get("body") or "").strip()[:500])
-    for item in (faq or [])[:5]:
-        parts.append((item.get("q") or "").strip()[:200])
-        parts.append((item.get("a") or "").strip()[:200])
- 
-    joined = "\n".join([p for p in parts if p])
-    return hashlib.sha1(joined.encode("utf-8")).hexdigest()
- 
-
-def quality_check_post(
-    data: Dict[str, Any],
-    keyword: str = "",
-    post_type: str = "normal",
-) -> Tuple[bool, str]:
-    title = _clean_text(data.get("title", ""))
-    tldr = _clean_text(data.get("tldr", ""))
-    sections = data.get("sections", [])
-    faq = data.get("faq", [])
-    category = _clean_text(data.get("category", ""))
-    editorial_note = _clean_text(data.get("editorial_note", ""))
-    intent_type = _clean_text(data.get("intent_type", "")).lower()
-
-    if not title:
-        return False, "missing-title"
-
-    if is_generic_title(title):
-        return False, "generic-title"
-
-    if category not in ALLOWED_CATEGORIES:
-        return False, "bad-category"
-
-    if not isinstance(sections, list):
-        return False, "bad-sections"
-
-    if len(sections) != 6:
-        return False, "bad-sections"
-
-    clean_headings = []
-    html_table_count = 0
-
-    for idx, s in enumerate(sections):
-        if not isinstance(s, dict):
-            return False, "bad-section-item"
-
-        heading = _clean_text(s.get("heading", ""))
-        body = _clean_text(s.get("body", ""))
-        image_query = _clean_text(s.get("image_query", ""))
-        visual_type = _clean_text(s.get("visual_type", "")).lower()
-        alt_text = _clean_text(s.get("alt_text", ""))
-
-        if not heading or not body:
-            return False, "missing-section-content"
-
-        has_html_table = "<table" in body.lower() and "</table>" in body.lower()
-        if has_html_table:
-            html_table_count += 1
-
-        if has_table_like_text(body) and intent_type != "comparison":
-            return False, "table-like-text-detected"
-
-        if has_html_table and intent_type != "comparison":
-            return False, "unexpected-html-table"
-
-        min_len = 180 if idx in {0, 5} else 300
-        if len(body) < min_len:
-            return False, f"thin-section-{idx+1}-{len(body)}"
-
-        if visual_type and visual_type not in {"photo", "diagram", "workspace"}:
-            return False, "bad-visual-type"
-
-        if not image_query:
-            return False, "missing-image-query"
-
-        if not alt_text:
-            return False, "missing-alt-text"
-
-        clean_headings.append(_norm_title(heading))
-
-    if len(set(clean_headings)) < len(clean_headings):
-        return False, "duplicate-headings"
-
-    if intent_type == "comparison" and html_table_count > 1:
-        return False, "too-many-html-tables"
-
-    if not tldr or len(tldr) < 60:
-        return False, "weak-tldr"
-
-    if not isinstance(faq, list):
-        return False, "bad-faq"
-
-    valid_faq = 0
-    for item in faq[:5]:
-        if isinstance(item, dict):
-            q = _clean_text(item.get("q", ""))
-            a = _clean_text(item.get("a", ""))
-            if q and a:
-                valid_faq += 1
-
-    if valid_faq < 2:
-        return False, "bad-faq"
-
-    if not editorial_note:
-        return False, "missing-editorial-note"
-
-    joined = "\n".join(
-        [title, tldr] +
-        [(_clean_text(s.get("heading", "")) + "\n" + _clean_text(s.get("body", ""))) for s in sections] +
-        [(_clean_text(item.get("q", "")) + "\n" + _clean_text(item.get("a", ""))) for item in faq if isinstance(item, dict)]
-    )
-
-    min_total_chars = max(3000, int(MIN_CHARS * 0.75))
-    if len(joined) < min_total_chars:
-        return False, f"too-short-{len(joined)}"
-
-    total_body_len = sum(
-        len((_clean_text(s.get("body", "")) if isinstance(s, dict) else ""))
-        for s in sections
-    )
-
-    if total_body_len > MAX_CHARS + 300:
-        return False, f"too-long-{total_body_len}"
- 
-    nk = normalize_keyword(keyword)
-    nt = normalize_keyword(title)
-    if nk and nt and nk == nt and len(nt.split()) <= 6:
-        return False, "title-too-close-to-keyword"
-
-    return True, "ok"
- 
- 
-def post_semantically_too_close(
-    keyword: str,
-    planning: Dict[str, Any],
-    posts: List[dict],
-    threshold: float = TOPIC_SIM_THRESHOLD,
-) -> bool:
-    new_parts = [
-        normalize_keyword(keyword),
-        normalize_keyword(planning.get("audience", "")),
-        normalize_keyword(planning.get("problem", "")),
-        normalize_keyword(planning.get("outcome", "")),
-        normalize_keyword(planning.get("angle", "")),
-        normalize_keyword(planning.get("title", "")),
-    ]
-    new_text = " ".join([x for x in new_parts if x]).strip()
-    if not new_text:
-        return False
- 
-    recent_posts = posts[:160]
-    for p in recent_posts:
-        if not isinstance(p, dict):
-            continue
- 
-        old_parts = [
-            normalize_keyword(p.get("keyword", "")),
-            normalize_keyword(p.get("title", "")),
-            normalize_keyword(p.get("description", "")),
-            normalize_keyword(p.get("audience", "")),
-            normalize_keyword(p.get("problem", "")),
-            normalize_keyword(p.get("cluster", "")),
-            normalize_keyword(p.get("category", "")),
-        ]
-        old_text = " ".join([x for x in old_parts if x]).strip()
-        if not old_text:
-            continue
- 
-        if semantic_overlap_score(new_text, old_text) >= threshold:
-            return True
- 
-    return False
-
-def build_real_scenario_section(keyword: str, category: str = "") -> Dict[str, str]:
-    heading = "A Real Scenario for Beginner Investors"
-
-    body = (
-        "Imagine a beginner investor starting with just $100 per month. "
-        "Instead of waiting until they have a large lump sum, they begin with a simple recurring plan. "
-        "For example, they may put $60 into a broad market ETF, $20 into a dividend ETF, and keep the last $20 in cash or a bond fund for stability. "
-        "The account may still look small in the first few months, but the important shift is behavioral. "
-        "They are building consistency, reducing the urge to time the market, and learning how a real portfolio behaves through ups and downs. "
-        "After a year, this investor has not only contributed $1,200, but also built a repeatable long-term habit that is much easier to maintain than chasing quick gains."
-    )
-
-    return {
-        "heading": heading,
-        "body": body,
-        "image_query": "beginner investor monthly ETF portfolio plan",
-        "visual_type": "diagram",
-        "alt_text": "Example of a beginner investor building a portfolio with small monthly contributions",
-    }
-
-
-def has_real_scenario_section(sections: List[Dict[str, Any]]) -> bool:
-    for sec in sections:
-        if not isinstance(sec, dict):
-            continue
-        heading = (sec.get("heading") or "").strip().lower()
-        if "real scenario" in heading:
-            return True
-    return False
 
 
 def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_type: str) -> Dict[str, Any]:
@@ -3183,7 +2927,7 @@ def expand_short_sections(
 
         if current_total_len >= MAX_CHARS:
             continue
-         
+
         prompt = f"""
 You are expanding one article section for a practical editorial blog post.
 
@@ -3206,9 +2950,12 @@ Task:
 - Rewrite and expand this section only
 - Keep the same heading and same core topic
 - Make the section at least {target_len} characters
+- Increase information density, not fluff
 - Add concrete examples
-- Add realistic numbers, timing, tradeoffs, and consequences
-- Add one scenario or case
+- Add realistic numbers, timing, tradeoffs, thresholds, and consequences
+- Add one scenario or mini case with sequence and outcome
+- Add one sentence that challenges lazy common advice if relevant
+- Make the section more decisive and more useful, not more polite
 - Do not write a conclusion for the whole article
 - Do not output JSON
 - Output plain section body text only
@@ -3231,8 +2978,8 @@ Task:
 
     data["sections"] = sections
     return data
- 
- 
+
+
 def generate_deep_post(
     *,
     keyword: str,
