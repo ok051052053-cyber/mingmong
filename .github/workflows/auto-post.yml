@@ -66,21 +66,21 @@ jobs:
           SITE_NAME: "MingMong"
           SITE_URL: "https://mingmonglife.com"
 
-          POSTS_PER_RUN: "4"
+          POSTS_PER_RUN: "2"
           MODEL_PLANNER: "gpt-4o-mini"
-          MODEL_WRITER: "gpt-4o-mini"
+          MODEL_WRITER: "gpt-4o"
 
-          MIN_CHARS: "7800"
-          MIN_SECTION_CHARS: "450"
-          MAX_SECTION_CHARS: "1300"
-          MAX_CHARS: "9200"
+          MIN_CHARS: "8200"
+          MIN_SECTION_CHARS: "500"
+          MAX_SECTION_CHARS: "1500"
+          MAX_CHARS: "10500"
 
           MAX_KEYWORD_TRIES: "120"
           MAX_GENERATE_ATTEMPTS: "12"
 
-          TITLE_SIM_THRESHOLD: "0.90"
-          KEYWORD_SIM_THRESHOLD: "0.84"
-          TOPIC_SIM_THRESHOLD: "0.74"
+          TITLE_SIM_THRESHOLD: "0.88"
+          KEYWORD_SIM_THRESHOLD: "0.82"
+          TOPIC_SIM_THRESHOLD: "0.72"
 
           MIN_KEYWORD_POOL: "24"
           CLUSTER_MODE: "1"
@@ -93,10 +93,10 @@ jobs:
           GOOGLE_SUGGEST_PER_QUERY: "10"
           GOOGLE_SUGGEST_SCORE_THRESHOLD: "-0.05"
 
-          RELATED_POST_LIMIT: "4"
+          RELATED_POST_LIMIT: "5"
 
           SECTION_COUNT_MIN: "6"
-          SECTION_COUNT_MAX: "6"
+          SECTION_COUNT_MAX: "7"
 
           UNSPLASH_MIN_WIDTH: "2000"
           UNSPLASH_MIN_HEIGHT: "1200"
@@ -113,8 +113,8 @@ jobs:
           set -e
 
           if [ -z "$GA_MEASUREMENT_ID" ]; then
-            echo "GA_MEASUREMENT_ID is empty"
-            exit 1
+            echo "GA_MEASUREMENT_ID is empty, skipping GA patch step"
+            exit 0
           fi
 
           for file in posts/*.html; do
