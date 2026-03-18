@@ -883,6 +883,221 @@ def semantic_overlap_score(a: str, b: str) -> float:
     return round((jaccard * 0.62) + (sig_score * 0.38), 4)
 
 
+SCENARIO_SIGNALS = {
+    "for example", "in practice", "scenario", "case", "let's say", "let us say",
+    "suppose", "imagine", "if you are", "if you're", "week 1", "month 1",
+    "first sale", "first client", "timeline", "what happens next"
+}
+
+
+def count_signal_hits(text: str, signals: List[str]) -> int:
+    base = normalize_keyword(text)
+    hits = 0
+    for sig in signals:
+        if normalize_keyword(sig) in base:
+            hits += 1
+    return hits
+
+
+def has_real_scenario_section(sections: List[Dict[str, Any]]) -> bool:
+    for sec in sections or []:
+        body = normalize_keyword((sec.get("heading", "") or "") + " " + (sec.get("body", "") or ""))
+        if not body:
+            continue
+        score = 0
+        if re.search(r"\b(day|days|week|weeks|month|months|hour|hours|client|clients|sale|sales|lead|leads)\b", body):
+            score += 1
+        if re.search(r"\b\d+[k%]?\b", body):
+            score += 1
+        if any(normalize_keyword(sig) in body for sig in SCENARIO_SIGNALS):
+            score += 1
+        if score >= 2:
+            return True
+    return False
+
+
+def build_real_scenario_section(keyword: str, category: str = "") -> Dict[str, Any]:
+    base_heading = "A realistic scenario before you commit"
+    kw = keyword.strip() or "this choice"
+
+    if category == "Investing":
+        body = (
+            "Suppose you are investing 300 dollars a month and you already know your real problem is not stock picking but consistency. "
+            "Month 1 feels easy. By month 3 the market drops 8 percent and your account balance is below what you put in. "
+            "That is usually the moment beginners abandon the plan or start chasing whatever looks safer that week. "
+            "A workable setup is one you can keep through a boring month and a red month, not one that only feels smart on payday. "
+            "If a portfolio choice needs constant reassurance, frequent switching, or daily checking to feel tolerable, it is already too fragile for a beginner. "
+            "The better test is simple: can you keep buying for six months, review once a month, and accept that the first visible win may be discipline rather than returns. "
+            "That scenario filters out most bad beginner choices faster than any spreadsheet."
+        )
+    else:
+        body = (
+            f"Imagine trying {kw} with a real constraint instead of ideal conditions. You have about 5 to 7 hours a week, a limited budget, and not much tolerance for systems that only look good on paper. "
+            "Week 1 feels exciting because setup work counts as progress. Week 2 is where friction shows up: unclear next steps, weak feedback, and tasks that take longer than promised. "
+            "That is why the right choice is not the option with the biggest upside headline. It is the option that still makes sense after the first delay, the first boring task, and the first small failure. "
+            "Use that scenario to judge whether this idea survives real life or only survives a motivational YouTube video."
+        )
+
+    return {
+        "heading": base_heading,
+        "body": body,
+        "image_query": f"{kw} planning realistic scenario",
+        "visual_type": "workspace",
+        "alt_text": base_heading,
+    }
+
+
+def make_fingerprint(title: str, sections: List[Dict[str, Any]], tldr: str, faq: List[Dict[str, str]]) -> str:
+    title_part = normalize_keyword(title)
+    heading_part = " | ".join(normalize_keyword(sec.get("heading", "")) for sec in (sections or [])[:8])
+    body_part = " ".join(normalize_keyword(sec.get("body", ""))[:280] for sec in (sections or [])[:4])
+    faq_part = " | ".join(normalize_keyword((item.get("q", "") + " " + item.get("a", "")))[:140] for item in (faq or [])[:4])
+    raw = " || ".join([title_part, heading_part, normalize_keyword(tldr), body_part, faq_part])
+    raw = re.sub(r"\s+", " ", raw).strip()
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def post_semantically_too_close(keyword: str, cand_planning: Dict[str, Any], posts: List[dict]) -> bool:
+    candidate_bits = [
+        keyword,
+        cand_planning.get("title", ""),
+        cand_planning.get("audience", ""),
+        cand_planning.get("problem", ""),
+        cand_planning.get("outcome", ""),
+        cand_planning.get("angle", ""),
+        cand_planning.get("search_intent_summary", ""),
+    ]
+    candidate_text = " ".join(str(x) for x in candidate_bits if x).strip()
+    candidate_sig = token_signature(candidate_text)
+
+    if not candidate_text:
+        return False
+
+    for post in posts[:450]:
+        if not isinstance(post, dict):
+            continue
+
+        existing_bits = [
+            post.get("keyword", ""),
+            post.get("title", ""),
+            post.get("audience", ""),
+            post.get("problem", ""),
+            post.get("outcome", ""),
+            post.get("angle", ""),
+            post.get("search_intent_summary", ""),
+        ]
+        existing_text = " ".join(str(x) for x in existing_bits if x).strip()
+        if not existing_text:
+            continue
+
+        kw_score = semantic_overlap_score(keyword, str(post.get("keyword", "")))
+        topic_score = semantic_overlap_score(candidate_text, existing_text)
+        sig_score = similarity_ratio(candidate_sig, token_signature(existing_text))
+
+        same_audience = semantic_overlap_score(cand_planning.get("audience", ""), post.get("audience", "")) >= 0.8
+        same_problem = semantic_overlap_score(cand_planning.get("problem", ""), post.get("problem", "")) >= 0.8
+
+        if kw_score >= 0.88:
+            return True
+        if topic_score >= 0.84:
+            return True
+        if topic_score >= 0.76 and sig_score >= 0.82:
+            return True
+        if same_audience and same_problem and topic_score >= 0.72:
+            return True
+
+    return False
+
+
+def quality_check_post(data: Dict[str, Any], keyword: str = "", post_type: str = "normal") -> Tuple[bool, str]:
+    if not isinstance(data, dict):
+        return False, "post is not a dict"
+
+    title = _clean_text(data.get("title", ""))
+    description = _clean_text(data.get("description", ""))
+    sections = data.get("sections") or []
+    faq = data.get("faq") or []
+    tldr = _clean_text(data.get("tldr", ""))
+    editorial_note = _clean_text(data.get("editorial_note", ""))
+    category = _clean_text(data.get("category", ""))
+    intent_type = _clean_text(data.get("intent_type", ""))
+
+    if not title or len(title) < 34:
+        return False, "title too short"
+    if len(title) > 72:
+        return False, "title too long"
+    if any(bp in normalize_keyword(title) for bp in BANNED_TITLE_PATTERNS):
+        return False, "banned title pattern"
+    if not description or len(description) < 110:
+        return False, "description too thin"
+    if not isinstance(sections, list) or len(sections) < max(SECTION_COUNT_MIN, 6):
+        return False, "not enough sections"
+
+    total_body_len = 0
+    scenario_sections = 0
+    weak_sections = 0
+    for idx, sec in enumerate(sections[:10]):
+        heading = _clean_text(sec.get("heading", ""))
+        body = _clean_text(sec.get("body", ""))
+        if not heading or not body:
+            return False, f"section {idx+1} missing heading or body"
+        if normalize_keyword(heading) in [normalize_keyword(x) for x in WEAK_SECTION_HEADINGS]:
+            weak_sections += 1
+        min_len = 420 if idx in {0, len(sections)-1} else 620
+        if len(body) < min_len:
+            return False, f"section {idx+1} too short"
+        total_body_len += len(body)
+        if count_signal_hits(body, list(SCENARIO_SIGNALS)) >= 1 and re.search(r"\b\d+", body):
+            scenario_sections += 1
+        lower_body = normalize_keyword(body)
+        if any(x in lower_body for x in [normalize_keyword(p) for p in BANNED_OPENING_PHRASES]) and idx == 0:
+            return False, "generic opening"
+        shallow_hits = sum(1 for x in BANNED_SHALLOW_ADVICE if normalize_keyword(x) in lower_body)
+        if shallow_hits >= 2:
+            return False, f"section {idx+1} too generic"
+
+    if total_body_len < max(MIN_CHARS, 7600):
+        return False, "body length below target"
+    if weak_sections >= 2:
+        return False, "too many weak section headings"
+    if scenario_sections < 2:
+        return False, "not enough realistic scenarios"
+
+    body_blob = " ".join(_clean_text(sec.get("body", "")) for sec in sections)
+    signal_hits = count_signal_hits(body_blob, DEPTH_REQUIRED_SIGNALS)
+    engage_hits = count_signal_hits(body_blob, ENGAGEMENT_REQUIRED_SIGNALS)
+    realism_hits = count_signal_hits(body_blob, REALISM_SIGNALS)
+    cta_hits = count_signal_hits(body_blob, CTA_SIGNALS)
+
+    if signal_hits < 6:
+        return False, "not enough depth signals"
+    if engage_hits < 4:
+        return False, "not enough engagement signals"
+    if realism_hits < 3:
+        return False, "not enough realism signals"
+    if cta_hits < 1:
+        return False, "missing action-oriented close"
+
+    if category in {"Software Reviews", "AI Tools"} and intent_type in {"comparison", "review"}:
+        compare_hits = count_signal_hits(body_blob, REVIEW_COMPARISON_REQUIRED)
+        if compare_hits < 4:
+            return False, "comparison depth too low"
+
+    if category in {"Make Money", "Side Hustles"}:
+        money_hits = count_signal_hits(body_blob, ["income", "time", "hours", "week", "month", "cost", "budget", "first sale", "mistake"])
+        if money_hits < 5:
+            return False, "money article lacks practical thresholds"
+
+    if not isinstance(faq, list) or len(faq) < 3:
+        return False, "faq too short"
+    if not tldr or len(tldr) < 140:
+        return False, "tldr too short"
+    if not editorial_note or len(editorial_note) < 20:
+        return False, "missing editorial note"
+
+    return True, "ok"
+
+
 def has_table_like_text(text: str) -> bool:
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
 
@@ -2109,6 +2324,8 @@ This site needs:
 - realistic scenarios
 - sharper opinions
 - permission to say some choices are bad fits
+- curiosity without fake promises
+- AdSense-safe claims grounded in realistic effort and tradeoffs
 
 Do not produce:
 - polite generic intros
@@ -2132,6 +2349,7 @@ Title rules:
   strong comparison
 - the title should make the reader feel there is something at stake
 - the title may be slightly provocative or contrarian if it still feels useful and credible
+- create a clean curiosity gap by implying a costly mistake, a hidden filter, or an uncomfortable truth
 - avoid abstract words like strategy, blueprint, roadmap, framework, journey, success formula
 - avoid titles that could fit dozens of sites
 
@@ -2142,6 +2360,7 @@ Angle rules:
 - the article must include at least one section saying when not to do this
 - the article must include at least one section showing what breaks first or what people underestimate
 - the article must give the reader a decision, not just information
+- the article must earn the click with tension then keep the reader by answering that tension with proof, examples, and consequences
 
 Depth rules:
 - every section must require concrete detail, not generic explanation
@@ -2761,6 +2980,7 @@ What strong writing looks like here:
 - realistic examples with numbers
 - direct statements about tradeoffs
 - honest limits
+- strong open loops that get resolved with evidence instead of hype
 - concrete thresholds such as:
   monthly budget
   client count
@@ -2779,6 +2999,7 @@ What weak writing looks like here:
 - titles and headings that could fit any blog
 - tool descriptions copied from landing pages
 - vague phrases like save time, work smarter, succeed faster without supporting detail
+- fake income claims, guaranteed outcomes, or hype that would weaken trust or AdSense quality
 - neutral summaries with no judgment
 
 FAQ rules:
@@ -5223,9 +5444,6 @@ def main() -> int:
         description = data["description"] or planning.get("description") or short_desc(title)
         category = data["category"] or planning.get("category") or effective_category
         sections = data["sections"]
-        for sec in sections:
-            sec["body"] = format_generated_body(sec.get("body", ""))
-
         for sec in sections:
             sec["body"] = format_generated_body(sec.get("body", ""))
 
