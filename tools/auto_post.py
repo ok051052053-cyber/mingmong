@@ -433,14 +433,14 @@ DEFAULT_TOPIC_CLUSTERS = {
         "how to start a long term portfolio without picking stocks",
     ],
     "Make Money": [
-        "how to make money with ai tools",
-        "how to make money selling digital products",
-        "best online side hustles for beginners",
-        "passive income ideas for young professionals",
-        "how to make money with a niche blog",
-        "how to earn extra income after work",
-        "how to sell templates online",
-        "small online business ideas with low startup cost",
+        "why most ai side hustles fail before the first sale",
+        "best digital products to sell when you have no audience",
+        "how to make your first 100 dollars online without pretending it is passive",
+        "low cost online business ideas that do not depend on posting every day",
+        "what to sell if you are broke but have 5 hours a week",
+        "how to earn extra income after work without becoming a freelancer",
+        "best beginner income systems that survive after week two",
+        "what actually makes money online when you start with less than 100 dollars",
     ],
     "Productivity": [
         "best note taking system for busy professionals",
@@ -463,14 +463,14 @@ DEFAULT_TOPIC_CLUSTERS = {
         "best ai note taking tools",
     ],
     "Side Hustles": [
-        "side hustles with ai tools",
-        "side hustles for engineers",
-        "weekend side hustles for full time workers",
-        "low cost side hustle ideas for beginners",
-        "digital side hustles that can scale",
-        "best side hustles for remote workers",
-        "how to start a side hustle after work",
-        "side hustles that do not require inventory",
+        "7 side hustles remote workers can start with 100 dollars or less",
+        "which side hustle actually fits a full time worker after 8 pm",
+        "best side hustles for remote workers who hate client work",
+        "low cost side hustle ideas that do not need an audience",
+        "what fails first when beginners start a side hustle after work",
+        "digital side hustles that can reach the first 500 dollars without inventory",
+        "weekend side hustles that do not turn into a second full time job",
+        "how to choose one side hustle instead of trying seven at once",
     ],
 }
  
@@ -488,10 +488,10 @@ DEFAULT_PILLAR_TOPICS = {
         "beginner guide to starting a long term portfolio with small amounts",
     ],
     "Make Money": [
-        "how to build extra income with digital systems",
-        "practical online income ideas for beginners",
-        "how to create repeatable income streams online",
-        "how to start earning extra money after work",
+        "how to build extra income without fake passive income promises",
+        "practical online income ideas that survive the first 30 days",
+        "how to create repeatable income streams when you are starting broke",
+        "how to start earning extra money after work without burning out",
     ],
     "Productivity": [
         "how to build a realistic productivity system for work",
@@ -506,10 +506,10 @@ DEFAULT_PILLAR_TOPICS = {
         "software review framework for beginners",
     ],
     "Side Hustles": [
-        "how to choose a side hustle that fits your schedule",
-        "practical side hustle ideas for beginners",
-        "how to start a side hustle while working full time",
-        "side hustle framework for young professionals",
+        "how to choose a side hustle that fits your schedule and actually pays",
+        "practical side hustle ideas that are better than the usual beginner list",
+        "how to start a side hustle while working full time without wasting 30 days",
+        "side hustle framework for people who need money not motivation",
     ],
 }
  
@@ -2118,6 +2118,7 @@ Do not produce:
 - obvious listicles with no point of view
 - articles where every option sounds equally good
 - sections that simply define or summarize
+- listicles that pad weak ideas just to hit a number
 
 Title rules:
 - the title must sound like a real search query or a strong editorial headline tied to search intent
@@ -2156,8 +2157,9 @@ Depth rules:
 - at least 2 sections must contain a realistic scenario with sequence and consequence
 - if the topic is software, include upgrade point, switching friction, hidden cost, best-fit user, and bad-fit user
 - if the topic is investing, include monthly amount, allocation range, review cadence, fee drag, and realistic beginner behavior
-- if the topic is make money or side hustles, include setup effort, income timing, what fails first, and why most beginners stall
+- if the topic is make money or side hustles, include setup effort, income timing, what fails first, why most beginners stall, and which options should be rejected early
 - if the topic is productivity, include actual workload conditions, review cycle, tradeoffs, and what the system does not fix
+- if the keyword implies a count such as 5, 7, or 10, the plan must include exactly that many items in one ranked list section and the items must be numbered continuously
 
 Section rules:
 - plan exactly 6 sections
@@ -2214,6 +2216,7 @@ Extra hard rules:
 - at least 2 sections must naturally support internal links to related comparisons, alternatives, or next-step guides
 - at least 2 sections must include a cost, time, count, percentage, or threshold
 - the plan must be opinionated enough that a generic content writer would struggle to produce it without thinking
+- the final section must force the reader to choose one next move, not admire a list
 """.strip()
 
 
@@ -2425,12 +2428,17 @@ def build_mode_rules(mode: str) -> str:
  
     if mode == "money":
         return """
-- Explain the effort level
-- Explain the time requirement
-- Explain how income is actually generated
-- Include one mistake beginners make
+- Explain the effort level in blunt terms, not optimistic terms
+- Explain the time requirement before the first real result
+- Explain exactly how income is actually generated and what blocks it
+- Include one mistake beginners make in the first 14 days
 - Include one tradeoff that makes the method less attractive for some people
 - Explain who should avoid this path
+- For side hustle and money articles, force a choice instead of ending with generic encouragement
+- If the headline or keyword implies a number such as 5, 7, or 10 ideas, include exactly that many items in one continuous numbered list
+- Do not restart numbering inside the same ranked list
+- At least 2 options must feel less obvious than generic ideas like freelance writing, dropshipping, or print on demand
+- Include one short reality check section that makes clear why most readers quit early
 """
  
     return """
@@ -2518,20 +2526,20 @@ Structure rules:
 - FAQ must remain only in the faq field
 - The sections must appear in this exact order:
 
-  1. Quick Answer
+  1. Quick Answer or Brutal Truth
   2. Why the Default Approach Fails
-  3. The Core Workflow
+  3. The Best Options, Ranked or Filtered
   4. A Real Example or Scenario
-  5. Mistakes and Tradeoffs
-  6. What to Use Next
+  5. Reality Check, Mistakes, and Tradeoffs
+  6. What to Do in the Next 7 Days
 
 Section heading rules:
-- Section 1 must clearly say who this is for
+- Section 1 must clearly say who this is for and what is at risk
 - Section 2 must explain why common advice fails
-- Section 3 must contain the main workflow or system
+- Section 3 must contain the main ranked list, workflow, or decision system
 - Section 4 must show sequence and consequence
-- Section 5 must explain repeat mistakes and tradeoffs
-- Section 6 must leave the reader with a concrete next decision
+- Section 5 must explain repeat mistakes, failure points, and tradeoffs
+- Section 6 must leave the reader with a concrete next decision and one forced choice
 """
 
 
@@ -2687,6 +2695,7 @@ Non-negotiable writing rules:
 - do not explain obvious definitions unless the distinction matters to the decision
 - do not make every option sound good
 - do not hide behind neutral language when one option is clearly weak
+- do not pad the article with fake balance when two or three options are clearly bad fits
 
 Style rules:
 - be practical, sharp, and concrete
@@ -2695,6 +2704,7 @@ Style rules:
 - if a popular option is a bad fit, say so directly
 - if something usually fails in the first 30 to 90 days, say that clearly
 - make the reader feel that something is at stake
+- use pressure, contrast, or a hard filter when it helps the reader decide faster
 
 Specificity rules:
 - every section must include operational detail
@@ -2743,6 +2753,8 @@ Section body rules:
 - no section may be a throwaway bridge section
 - do not use bullets unless they clearly improve scannability
 - when you use bullets, make them information-dense, specific, and judgment-oriented
+- if you use a numbered list, keep the entire ranked list inside one section and number it continuously without restarting at 1
+- for side hustle or money articles, include a short reality check paragraph before the final recommendation
 
 What strong writing looks like here:
 - clear audience segmentation
@@ -4463,6 +4475,32 @@ def paragraphs_to_html(text: str) -> str:
 
     blocks = re.split(r"\n\s*\n+", text)
     out = []
+    list_buffer = []
+    list_kind = None
+    list_start = None
+    expected_next = None
+
+    def flush_list():
+        nonlocal list_buffer, list_kind, list_start, expected_next
+        if not list_buffer:
+            return
+        if list_kind == "ol":
+            start_attr = f' start="{list_start}"' if list_start and list_start != 1 else ""
+            items = "".join(f"<li>{html_escape(item)}</li>" for item in list_buffer)
+            out.append(f"<ol{start_attr}>{items}</ol>")
+        else:
+            items = "".join(f"<li>{html_escape(item)}</li>" for item in list_buffer)
+            out.append(f"<ul>{items}</ul>")
+        list_buffer = []
+        list_kind = None
+        list_start = None
+        expected_next = None
+
+    def flush_paragraph(buf):
+        if buf:
+            para = " ".join(buf).strip()
+            if para:
+                out.append(f"<p>{html_escape(para)}</p>")
 
     for block in blocks:
         block = block.strip()
@@ -4474,55 +4512,45 @@ def paragraphs_to_html(text: str) -> str:
             continue
 
         paragraph_buf = []
-        numbered_items = []
-        bullet_items = []
-
-        def flush_paragraph():
-            nonlocal paragraph_buf
-            if paragraph_buf:
-                para = " ".join(paragraph_buf).strip()
-                if para:
-                    out.append(f"<p>{html_escape(para)}</p>")
-                paragraph_buf = []
-
-        def flush_numbered():
-            nonlocal numbered_items
-            if numbered_items:
-                items = "".join(f"<li>{html_escape(item)}</li>" for item in numbered_items)
-                out.append(f"<ol>{items}</ol>")
-                numbered_items = []
-
-        def flush_bullets():
-            nonlocal bullet_items
-            if bullet_items:
-                items = "".join(f"<li>{html_escape(item)}</li>" for item in bullet_items)
-                out.append(f"<ul>{items}</ul>")
-                bullet_items = []
 
         for ln in lines:
             m_num = re.match(r"^\s*(\d+)\.\s+(.*)$", ln)
             m_bullet = re.match(r"^\s*[-*]\s+(.*)$", ln)
 
             if m_num:
-                flush_paragraph()
-                flush_bullets()
-                numbered_items.append(m_num.group(2).strip())
+                flush_paragraph(paragraph_buf)
+                paragraph_buf = []
+                num = int(m_num.group(1))
+                item = m_num.group(2).strip()
+                if list_kind != "ol":
+                    flush_list()
+                    list_kind = "ol"
+                    list_start = num
+                    expected_next = num
+                elif expected_next is not None and num != expected_next:
+                    flush_list()
+                    list_kind = "ol"
+                    list_start = num
+                    expected_next = num
+                list_buffer.append(item)
+                expected_next = num + 1
                 continue
 
             if m_bullet:
-                flush_paragraph()
-                flush_numbered()
-                bullet_items.append(m_bullet.group(1).strip())
+                flush_paragraph(paragraph_buf)
+                paragraph_buf = []
+                if list_kind != "ul":
+                    flush_list()
+                    list_kind = "ul"
+                list_buffer.append(m_bullet.group(1).strip())
                 continue
 
-            flush_numbered()
-            flush_bullets()
+            flush_list()
             paragraph_buf.append(ln)
 
-        flush_paragraph()
-        flush_numbered()
-        flush_bullets()
+        flush_paragraph(paragraph_buf)
 
+    flush_list()
     return "\n".join(out)
 
 
@@ -4673,36 +4701,42 @@ def format_generated_body(text: str) -> str:
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    # 본문 맨 앞의 마크다운 제목 제거
     text = re.sub(r'^\s{0,3}#{1,6}\s+.+?(?:\n+|$)', '', text, count=1).strip()
-
-    # "workflow: 1. ..." 형태를 리스트 시작으로 분리
     text = re.sub(r'([:.!?])\s+(?=\d+\.\s+)', r'\1\n', text)
-
-    # 문장 중간에 붙은 번호 리스트를 줄바꿈
     text = re.sub(r'(?<!\n)\s+(?=\d+\.\s+)', r'\n', text)
-
-    # 문장 중간에 붙은 하이픈 리스트를 줄바꿈
     text = re.sub(r'(?<!\n)\s+(?=-\s+)', r'\n', text)
-
-    # 번호 리스트 앞뒤 공백 정리
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
 
     lines = text.split("\n")
     normalized_lines = []
+    in_numbered_run = False
+    next_number = 1
 
     for line in lines:
         stripped = line.strip()
         if not stripped:
+            if in_numbered_run:
+                continue
             normalized_lines.append("")
             continue
 
+        m_num = re.match(r'^\s*(\d+)\.\s+(.*)$', stripped)
+        if m_num:
+            item_body = m_num.group(2).strip()
+            if not in_numbered_run:
+                next_number = 1
+                in_numbered_run = True
+            normalized_lines.append(f"{next_number}. {item_body}")
+            next_number += 1
+            continue
+
+        in_numbered_run = False
         normalized_lines.append(stripped)
 
     text = "\n".join(normalized_lines)
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
     return text
- 
+
 
 def build_json_ld(
     *,
