@@ -70,17 +70,17 @@ jobs:
           MODEL_PLANNER: "gpt-4o-mini"
           MODEL_WRITER: "gpt-4o"
 
-          MIN_CHARS: "8200"
-          MIN_SECTION_CHARS: "500"
-          MAX_SECTION_CHARS: "1500"
-          MAX_CHARS: "10500"
+          MIN_CHARS: "5600"
+          MIN_SECTION_CHARS: "320"
+          MAX_SECTION_CHARS: "1100"
+          MAX_CHARS: "7600"
 
           MAX_KEYWORD_TRIES: "120"
-          MAX_GENERATE_ATTEMPTS: "12"
+          MAX_GENERATE_ATTEMPTS: "8"
 
-          TITLE_SIM_THRESHOLD: "0.88"
-          KEYWORD_SIM_THRESHOLD: "0.82"
-          TOPIC_SIM_THRESHOLD: "0.72"
+          TITLE_SIM_THRESHOLD: "0.90"
+          KEYWORD_SIM_THRESHOLD: "0.84"
+          TOPIC_SIM_THRESHOLD: "0.74"
 
           MIN_KEYWORD_POOL: "24"
           CLUSTER_MODE: "1"
@@ -89,14 +89,14 @@ jobs:
           PILLAR_INTERVAL: "6"
 
           GOOGLE_SUGGEST_ENABLED: "1"
-          GOOGLE_SUGGEST_MAX_SEEDS: "10"
-          GOOGLE_SUGGEST_PER_QUERY: "10"
-          GOOGLE_SUGGEST_SCORE_THRESHOLD: "-0.05"
+          GOOGLE_SUGGEST_MAX_SEEDS: "8"
+          GOOGLE_SUGGEST_PER_QUERY: "8"
+          GOOGLE_SUGGEST_SCORE_THRESHOLD: "-0.18"
 
           RELATED_POST_LIMIT: "5"
 
           SECTION_COUNT_MIN: "6"
-          SECTION_COUNT_MAX: "7"
+          SECTION_COUNT_MAX: "6"
 
           UNSPLASH_MIN_WIDTH: "2000"
           UNSPLASH_MIN_HEIGHT: "1200"
@@ -113,7 +113,7 @@ jobs:
           set -e
 
           if [ -z "$GA_MEASUREMENT_ID" ]; then
-            echo "GA_MEASUREMENT_ID is empty, skipping GA patch step"
+            echo "GA_MEASUREMENT_ID is empty. Skip GA patch."
             exit 0
           fi
 
