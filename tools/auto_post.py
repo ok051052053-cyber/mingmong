@@ -835,6 +835,27 @@ def sanitize_title_for_ctr(title: str, keyword: str) -> str:
         t = t[:72].rsplit(" ",1)[0].rstrip(" -:,")
     return t
 
+def make_click_title(keyword: str, ai_title: str = "") -> str:
+    keyword = _clean_text(keyword)
+    ai_title = _clean_text(ai_title)
+
+    base = ai_title or keyword.title()
+
+    patterns = [
+        f"{base}: What Actually Works and What Fails First",
+        f"Before You Choose {base}, Read This",
+        f"{base}: The Good Fit, Bad Fit, and Hidden Cost",
+        f"{base}: What Most People Get Wrong",
+        f"{base}: Which Option Actually Makes Sense?",
+    ]
+
+    title = random.choice(patterns)
+
+    if len(title) > 72:
+        title = title[:72].rsplit(" ", 1)[0].rstrip(" -:,")
+
+    return title
+
 
 def title_score(title: str) -> int:
     score = 0
@@ -2435,7 +2456,8 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
     problem = _clean_text(data.get("problem", ""))
     outcome = _clean_text(data.get("outcome", ""))
     angle = _clean_text(data.get("angle", ""))
-    title = sanitize_title_for_ctr(_clean_text(data.get("title", "")), keyword)
+    raw_ai_title = _clean_text(data.get("title", ""))
+    title = make_click_title(keyword, sanitize_title_for_ctr(raw_ai_title, keyword))
     description = _clean_text(data.get("description", ""))
     category = _clean_text(data.get("category", ""))
     intent = _clean_text(data.get("intent", post_type or "cluster"))
@@ -3034,7 +3056,8 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         log("ARTICLE", f"cleaned_preview={clean_raw[:800]!r}")
         raise ValueError("article JSON parse failed")
 
-    title = sanitize_title_for_ctr(_clean_text(data.get("title", "")) or keyword.title(), keyword)
+    raw_ai_title = _clean_text(data.get("title", "")) or keyword.title()
+    title = make_click_title(keyword, sanitize_title_for_ctr(raw_ai_title, keyword))
     description = _clean_text(data.get("description", "")) or short_desc(title or keyword)
     category = _clean_text(data.get("category", "")) or pick_category(
         keyword=keyword,
