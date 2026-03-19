@@ -90,7 +90,7 @@ ASSETS_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 # =========================================================
 SITE_NAME = os.environ.get("SITE_NAME", "MingMong").strip()
 SITE_URL = os.environ.get("SITE_URL", "https://mingmonglife.com").strip().rstrip("/")
-POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "6"))
+POSTS_PER_RUN = int(os.environ.get("POSTS_PER_RUN", "1"))
 IMG_COUNT = int(os.environ.get("IMG_COUNT", "6"))
 MIN_REQUIRED_IMAGES = int(os.environ.get("MIN_REQUIRED_IMAGES", "5"))
 VISIBLE_MIN_IMAGES = int(os.environ.get("VISIBLE_MIN_IMAGES", "4"))
@@ -108,10 +108,10 @@ print(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
 MODEL_PLANNER = os.environ.get("MODEL_PLANNER", os.environ.get("MODEL", "gpt-4o-mini")).strip()
 MODEL_WRITER = os.environ.get("MODEL_WRITER", os.environ.get("MODEL", "gpt-4o-mini")).strip() 
-MIN_CHARS = int(os.environ.get("MIN_CHARS", "6500"))
-MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "250"))
-MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "1350"))
-MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "10"))
+MIN_CHARS = int(os.environ.get("MIN_CHARS", "4200"))
+MIN_SECTION_CHARS = int(os.environ.get("MIN_SECTION_CHARS", "220"))
+MAX_SECTION_CHARS = int(os.environ.get("MAX_SECTION_CHARS", "980"))
+MAX_KEYWORD_TRIES = int(os.environ.get("MAX_KEYWORD_TRIES", "18"))
 MAX_CHARS = int(os.environ.get("MAX_CHARS", str(int(MIN_CHARS * 1.3))))
 
 print(
@@ -126,7 +126,7 @@ AUTHOR_NAME = os.environ.get("AUTHOR_NAME", "MingMong Editorial").strip()
 AUTHOR_URL = os.environ.get("AUTHOR_URL", f"{SITE_URL}/about.html").strip()
 SITE_TAGLINE = os.environ.get(
     "SITE_TAGLINE",
-    "Practical guides for AI tools, investing, productivity, software, and extra income."
+    "Sharp guides on AI tools, side hustles, software, productivity, and making extra money without fluff."
 ).strip()
  
 TITLE_SIM_THRESHOLD = float(os.environ.get("TITLE_SIM_THRESHOLD", "0.83"))
@@ -197,7 +197,6 @@ BUILD_ID = hashlib.sha1(f"{datetime.now(timezone.utc).isoformat()}-{random.rando
 # =========================================================
 ALLOWED_CATEGORIES = {
     "AI Tools",
-    "Investing",
     "Make Money",
     "Productivity",
     "Software Reviews",
@@ -413,54 +412,44 @@ SECTION_BLUEPRINTS = [
  
 DEFAULT_TOPIC_CLUSTERS = {
     "AI Tools": [
-        "ai tools to make money online",
-        "best ai tools for remote work",
-        "ai tools for small business automation",
-        "ai tools for creators",
-        "chatgpt workflow for productivity",
-        "best ai writing tools for marketers",
-        "ai tools for side hustle",
-        "ai tools that save time at work",
-    ],
-    "Investing": [
-        "how to start investing with 100 dollars a month",
-        "simple 3 etf portfolio for beginners",
-        "how to choose your first etf as a beginner",
-        "monthly investing plan for beginners",
-        "s and p 500 vs total market etf for beginners",
-        "how to build a beginner portfolio with 500 dollars",
-        "best simple portfolio allocation for beginners",
-        "how to start a long term portfolio without picking stocks",
+        "best ai writing tools for marketers who still need human sounding drafts",
+        "chatgpt workflows that save real time for solo operators",
+        "ai tools that help remote workers without adding another dashboard",
+        "best ai tools for repurposing one piece of content into three formats",
+        "cheap ai tools that quietly fail in real marketing workflows",
+        "best ai note taking tools when you hate fixing bad summaries",
+        "which ai writing tool is best for landing pages emails and briefs",
+        "ai tools that save time without creating generic copy",
     ],
     "Make Money": [
-        "why most ai side hustles fail before the first sale",
+        "what actually makes money online when you start with less than 100 dollars",
         "best digital products to sell when you have no audience",
         "how to make your first 100 dollars online without pretending it is passive",
         "low cost online business ideas that do not depend on posting every day",
         "what to sell if you are broke but have 5 hours a week",
         "how to earn extra income after work without becoming a freelancer",
         "best beginner income systems that survive after week two",
-        "what actually makes money online when you start with less than 100 dollars",
+        "why most ai side hustles fail before the first sale",
     ],
     "Productivity": [
-        "best note taking system for busy professionals",
-        "weekly planning system for knowledge workers",
-        "how to organize tasks across multiple projects",
-        "email management system for busy workers",
-        "focus system for remote workers",
-        "meeting notes to task workflow",
-        "how to stop context switching at work",
-        "daily work reset checklist",
+        "how to stop context switching when your day is broken into meetings",
+        "weekly planning system for people who keep carrying work into the weekend",
+        "best note taking system for busy professionals who never review their notes",
+        "email management system for people who answer fast but still fall behind",
+        "how to organize tasks across multiple projects without rebuilding your whole life",
+        "focus system for remote workers who lose the afternoon every day",
+        "meeting notes to task workflow that does not die after one week",
+        "daily work reset checklist for overloaded knowledge workers",
     ],
     "Software Reviews": [
-        "notion vs clickup for solo business",
-        "best email marketing tools for beginners",
-        "best invoicing software for freelancers",
-        "best crm for solo consultants",
-        "best project management software for small teams",
-        "otter ai alternatives for meeting notes",
-        "best budget apps for young professionals",
-        "best ai note taking tools",
+        "notion vs clickup for a one person business with too many moving parts",
+        "best email marketing tools for beginners who hate complex automation",
+        "best invoicing software for freelancers who send less than 20 invoices a month",
+        "best crm for solo consultants who do not want sales team bloat",
+        "best project management software for small teams that need less admin",
+        "otter ai alternatives for meeting notes that still need cleanup",
+        "best budget apps for young professionals who keep overspending after payday",
+        "best ai note taking tools for messy real world meetings",
     ],
     "Side Hustles": [
         "7 side hustles remote workers can start with 100 dollars or less",
@@ -479,13 +468,7 @@ DEFAULT_PILLAR_TOPICS = {
         "how to choose ai tools that actually save time",
         "practical ai tools for work and side income",
         "how to build a useful ai stack for one person businesses",
-        "ai tool buying guide for beginners",
-    ],
-    "Investing": [
-        "simple long term investing plan for beginners",
-        "how beginners can build a portfolio with monthly contributions",
-        "how to choose a simple etf portfolio as a beginner",
-        "beginner guide to starting a long term portfolio with small amounts",
+        "ai tool buying guide for beginners who hate bloated software",
     ],
     "Make Money": [
         "how to build extra income without fake passive income promises",
@@ -809,6 +792,64 @@ def normalize_keyword(s: str) -> str:
     s = re.sub(r"[^a-z0-9\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
+
+
+def title_has_click_tension(title: str) -> bool:
+    t = normalize_keyword(title)
+    patterns = [
+        "most ", "what actually", "why ", "vs ", "versus ", "before you ",
+        "under ", "without ", "after ", "mistake", "fails", "worth it",
+        "bad fit", "waste", "only", "unless", "instead of"
+    ]
+    return any(p in t for p in patterns) or bool(re.search(r"\b\d+\b", t))
+
+
+def title_is_generic(title: str) -> bool:
+    t = normalize_keyword(title)
+    generic_patterns = [
+        "best tools for", "guide to", "how to succeed", "complete guide",
+        "comprehensive guide", "top ways to", "essential tips", "strategies for",
+        "tips for", "ways to improve"
+    ]
+    if any(p in t for p in generic_patterns):
+        return True
+    if len(t.split()) < 6:
+        return True
+    return False
+
+
+def sanitize_title_for_ctr(title: str, keyword: str) -> str:
+    t = _clean_text(title).strip("-: ")
+    if not t:
+        t = keyword.title()
+    t = re.sub(r"\s+", " ", t).strip()
+    if title_is_generic(t):
+        base = keyword.strip().rstrip("?")
+        options = [
+            f"What Actually Works for {base.title()}",
+            f"{base.title()}: The Good Fit, Bad Fit, and Hidden Cost",
+            f"Before You Choose {base.title()}, Read This",
+        ]
+        t = random.choice(options)
+    if len(t) > 72:
+        t = t[:72].rsplit(" ",1)[0].rstrip(" -:,")
+    return t
+
+
+def title_score(title: str) -> int:
+    score = 0
+    t = normalize_keyword(title)
+    if title_has_click_tension(title):
+        score += 2
+    if re.search(r"\b\d+\b", t):
+        score += 1
+    if any(x in t for x in ["under", "without", "after", "before", "instead of", "vs", "worth it"]):
+        score += 1
+    if len(t.split()) <= 12:
+        score += 1
+    if title_is_generic(title):
+        score -= 3
+    return score
  
  
 def title_too_similar(new_title: str, existing_titles: List[str], threshold: float) -> bool:
@@ -1534,8 +1575,6 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
  
     if c == "ai tools":
         return "AI Tools"
-    if c == "investing":
-        return "Investing"
     if c == "make money":
         return "Make Money"
     if c == "productivity":
@@ -1548,12 +1587,6 @@ def cluster_to_category(cluster_name: str, keyword: str = "", post_type: str = "
     comparison_tokens = [" vs ", "versus", "compare", "comparison", "alternative", "alternatives", "review", "worth it"]
     if any(x in k for x in comparison_tokens):
         return "Software Reviews"
- 
-    if any(x in k for x in [
-        "stock", "stocks", "etf", "etfs", "dividend", "portfolio", "investing",
-        "watchlist", "long term", "brokerage", "valuation"
-    ]):
-        return "Investing"
  
     if any(x in k for x in [
         "make money", "income", "monetization", "sell templates", "digital products",
@@ -1792,11 +1825,10 @@ You generate elite editorial keyword ideas for a practical niche blog.
 
 Site focus:
 1. AI tools for work and income
-2. beginner investing
-3. practical make money strategies
-4. productivity systems
-5. software reviews and comparisons
-6. side hustles for ordinary workers
+2. practical make money strategies
+3. productivity systems
+4. software reviews and comparisons
+5. side hustles for ordinary workers
 
 Goal:
 Generate topics that feel more specific, more honest, and more useful than typical SEO blog topics.
@@ -2292,7 +2324,7 @@ Do not produce:
 
 Title rules:
 - the title must sound like a real search query or a strong editorial headline tied to search intent
-- the title should usually be under 65 characters
+- the title should usually be 48 to 68 characters
 - the title must include at least one of:
   specific audience
   hard constraint
@@ -2302,8 +2334,10 @@ Title rules:
   strong comparison
 - the title should make the reader feel there is something at stake
 - the title may be slightly provocative or contrarian if it still feels useful and credible
+- do not use fake first person claims such as I tried, I tested, or I made unless the article clearly frames them as hypothetical or aggregated observations
 - avoid abstract words like strategy, blueprint, roadmap, framework, journey, success formula
 - avoid titles that could fit dozens of sites
+- avoid safe magazine language like complete guide, top tips, ultimate list, or essential ways
 
 Angle rules:
 - the plan must include a clear point of view
@@ -2351,7 +2385,7 @@ Return valid JSON only with this schema:
 {{
   "title": "specific title",
   "description": "155-170 chars meta description not equal to title",
-  "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
+  "category": "AI Tools|Make Money|Productivity|Software Reviews|Side Hustles",
   "intent": "pillar|cluster",
   "intent_type": "comparison|template|review|howto",
   "search_intent_summary": "one sentence about what the reader actually wants",
@@ -2401,7 +2435,7 @@ def parse_planning_json(text: str, keyword: str, cluster_name: str, post_type: s
     problem = _clean_text(data.get("problem", ""))
     outcome = _clean_text(data.get("outcome", ""))
     angle = _clean_text(data.get("angle", ""))
-    title = _clean_text(data.get("title", ""))
+    title = sanitize_title_for_ctr(_clean_text(data.get("title", "")), keyword)
     description = _clean_text(data.get("description", ""))
     category = _clean_text(data.get("category", ""))
     intent = _clean_text(data.get("intent", post_type or "cluster"))
@@ -2773,9 +2807,7 @@ def build_article_prompt(
     mode_rules = build_mode_rules(mode)
     table_rules = build_table_rules(post_type, mode, intent_type)
 
-    if mode == "investing":
-        structure_rules = INVESTING_STRUCTURE_RULES
-    elif mode == "review":
+    if mode == "review":
         structure_rules = REVIEW_STRUCTURE_RULES
     else:
         structure_rules = WORKFLOW_STRUCTURE_RULES
@@ -2791,15 +2823,6 @@ Visual rules:
 """
 
     investing_safety = ""
-    if category == "Investing":
-        investing_safety = """
-Investing safety rules:
-- This is general educational content, not personalized financial advice
-- Do not tell the reader to buy a specific stock today
-- Prefer broad diversified examples such as low-cost index funds or ETFs when examples are needed
-- Focus on process, risk control, allocation habits, fees, time horizon, and beginner mistakes
-- Do not predict returns or guarantee outcomes
-"""
 
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
@@ -2837,7 +2860,7 @@ Schema:
 {{
   "title": "string",
   "description": "string",
-  "category": "AI Tools|Investing|Make Money|Productivity|Software Reviews|Side Hustles",
+  "category": "AI Tools|Make Money|Productivity|Software Reviews|Side Hustles",
   "intent_type": "comparison|template|review|howto",
   "sections": [
     {{
@@ -2880,6 +2903,8 @@ Non-negotiable writing rules:
 
 Style rules:
 - be practical, sharp, and concrete
+- mildly provocative is allowed, but every strong claim must remain defensible
+- never fabricate first-person experience, fake interviews, fake case studies, or fake revenue screenshots
 - it is okay to be mildly provocative or contrarian if the advice stays useful and accurate
 - if common advice is bad for this reader, say so directly
 - if a popular option is a bad fit, say so directly
@@ -2888,6 +2913,8 @@ Style rules:
 - use pressure, contrast, or a hard filter when it helps the reader decide faster
 
 Specificity rules:
+- never invent named success stories, fake companies, fake surveys, or fake personal experience
+- if you need an example, label it clearly as a hypothetical scenario or composite scenario
 - every section must include operational detail
 - at least 4 sections must include one or more of:
   money amount
@@ -2905,6 +2932,8 @@ Specificity rules:
 
 Engagement rules:
 - section 1 must open with tension, risk, or a decision problem, not a bland setup
+- the first 2 sentences should create curiosity, tension, or a practical consequence
+- use short paragraphs and occasional one-line paragraphs when emphasis helps scanning
 - sections should create forward motion so the reader wants the next section
 - use short paragraphs and high information density
 - explain why the detail matters, not just what to do
@@ -2939,6 +2968,8 @@ Section body rules:
 
 What strong writing looks like here:
 - clear audience segmentation
+- one hard truth early in the article
+- one section that clearly says who should skip the recommended option
 - realistic examples with numbers
 - direct statements about tradeoffs
 - honest limits
@@ -3003,7 +3034,7 @@ def parse_article_json(article_raw: str, keyword: str, cluster_name: str, post_t
         log("ARTICLE", f"cleaned_preview={clean_raw[:800]!r}")
         raise ValueError("article JSON parse failed")
 
-    title = _clean_text(data.get("title", "")) or keyword.title()
+    title = sanitize_title_for_ctr(_clean_text(data.get("title", "")) or keyword.title(), keyword)
     description = _clean_text(data.get("description", "")) or short_desc(title or keyword)
     category = _clean_text(data.get("category", "")) or pick_category(
         keyword=keyword,
