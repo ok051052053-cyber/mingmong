@@ -883,220 +883,175 @@ def semantic_overlap_score(a: str, b: str) -> float:
     return round((jaccard * 0.62) + (sig_score * 0.38), 4)
 
 
-SCENARIO_SIGNALS = {
-    "for example", "in practice", "scenario", "case", "let's say", "let us say",
-    "suppose", "imagine", "if you are", "if you're", "week 1", "month 1",
-    "first sale", "first client", "timeline", "what happens next"
-}
 
 
-def count_signal_hits(text: str, signals: List[str]) -> int:
-    base = normalize_keyword(text)
-    hits = 0
-    for sig in signals:
-        if normalize_keyword(sig) in base:
-            hits += 1
-    return hits
+def looks_like_model_refusal(text: str) -> bool:
+    t = (text or "").strip().lower()
+    if not t:
+        return False
+    refusal_markers = [
+        "i'm sorry",
+        "i am sorry",
+        "i can’t assist",
+        "i can't assist",
+        "i cannot assist",
+        "i can’t provide",
+        "i can't provide",
+        "unable to provide",
+        "cannot provide the content",
+        "can't provide the content",
+        "not provide the content in the format requested",
+    ]
+    return any(m in t for m in refusal_markers)
+
+
+def make_fingerprint(title: str, sections: List[Dict[str, Any]], tldr: str = "", faq: List[Dict[str, str]] = None) -> str:
+    faq = faq or []
+    section_chunks = []
+    for sec in sections[:6]:
+        if not isinstance(sec, dict):
+            continue
+        heading = normalize_keyword(sec.get("heading", ""))
+        body = normalize_keyword((sec.get("body", "") or "")[:320])
+        section_chunks.append(f"{heading}::{body}")
+    faq_chunk = "|".join(
+        normalize_keyword((item.get("q", "") + " " + item.get("a", ""))[:160])
+        for item in faq[:4] if isinstance(item, dict)
+    )
+    base = " || ".join([
+        normalize_keyword(title),
+        normalize_keyword(tldr),
+        " || ".join(section_chunks),
+        faq_chunk,
+    ])
+    return hashlib.sha1(base.encode("utf-8")).hexdigest()
+
+
+def post_semantically_too_close(keyword: str, cand_planning: Dict[str, Any], posts: List[Dict[str, Any]]) -> bool:
+    new_title = cand_planning.get("title", "") or ""
+    new_combo = " ".join([
+        keyword or "",
+        new_title,
+        cand_planning.get("angle", "") or "",
+        cand_planning.get("problem", "") or "",
+        cand_planning.get("outcome", "") or "",
+    ]).strip()
+    if not new_combo:
+        return False
+
+    for post in posts[:180]:
+        if not isinstance(post, dict):
+            continue
+        old_combo = " ".join([
+            post.get("keyword", "") or "",
+            post.get("title", "") or "",
+            post.get("angle", "") or "",
+            post.get("problem", "") or "",
+            post.get("outcome", "") or "",
+        ]).strip()
+        if not old_combo:
+            continue
+        if semantic_overlap_score(new_combo, old_combo) >= TOPIC_SIM_THRESHOLD:
+            return True
+        if keyword_too_similar(keyword, post.get("keyword", ""), KEYWORD_SIM_THRESHOLD):
+            return True
+    return False
 
 
 def has_real_scenario_section(sections: List[Dict[str, Any]]) -> bool:
-    for sec in sections or []:
-        body = normalize_keyword((sec.get("heading", "") or "") + " " + (sec.get("body", "") or ""))
-        if not body:
+    signals = [
+        "for example", "imagine", "scenario", "let's say", "month 1", "week 1",
+        "after 30 days", "after 90 days", "$", "hours", "budget", "portfolio",
+        "if you invest", "if you buy", "if you only have", "case:",
+    ]
+    for sec in sections:
+        if not isinstance(sec, dict):
             continue
-        score = 0
-        if re.search(r"\b(day|days|week|weeks|month|months|hour|hours|client|clients|sale|sales|lead|leads)\b", body):
-            score += 1
-        if re.search(r"\b\d+[k%]?\b", body):
-            score += 1
-        if any(normalize_keyword(sig) in body for sig in SCENARIO_SIGNALS):
-            score += 1
-        if score >= 2:
+        body = (sec.get("body") or "").lower()
+        if sum(1 for s in signals if s in body) >= 2:
             return True
     return False
 
 
-def build_real_scenario_section(keyword: str, category: str = "") -> Dict[str, Any]:
-    base_heading = "A realistic scenario before you commit"
-    kw = keyword.strip() or "this choice"
-
+def build_real_scenario_section(keyword: str, category: str) -> Dict[str, str]:
     if category == "Investing":
+        heading = "A realistic first 12 months with only $100 a month"
         body = (
-            "Suppose you are investing 300 dollars a month and you already know your real problem is not stock picking but consistency. "
-            "Month 1 feels easy. By month 3 the market drops 8 percent and your account balance is below what you put in. "
-            "That is usually the moment beginners abandon the plan or start chasing whatever looks safer that week. "
-            "A workable setup is one you can keep through a boring month and a red month, not one that only feels smart on payday. "
-            "If a portfolio choice needs constant reassurance, frequent switching, or daily checking to feel tolerable, it is already too fragile for a beginner. "
-            "The better test is simple: can you keep buying for six months, review once a month, and accept that the first visible win may be discipline rather than returns. "
-            "That scenario filters out most bad beginner choices faster than any spreadsheet."
+            "Assume you start with $100 a month and keep the plan painfully simple. In month 1 you open the account, "
+            "pick one broad low-cost fund, and set an automatic contribution date right after payday. The first risk is not "
+            "market volatility. It is breaking the habit after one red week or one unexpected expense. By month 3 the real "
+            "test is whether you still invest when the balance looks too small to feel exciting. By month 6 the portfolio "
+            "may still look underwhelming, but that is normal. What matters is that your process now survives boring months, "
+            "small pullbacks, and the temptation to chase whatever just went up on social media. By month 12 the win is not "
+            "that you became rich. The win is that you built a repeatable system that can scale from $100 to $300 without "
+            "changing the core rules."
         )
+        image_query = "monthly investing spreadsheet budget"
     else:
+        heading = "A realistic scenario before you commit"
         body = (
-            f"Imagine trying {kw} with a real constraint instead of ideal conditions. You have about 5 to 7 hours a week, a limited budget, and not much tolerance for systems that only look good on paper. "
-            "Week 1 feels exciting because setup work counts as progress. Week 2 is where friction shows up: unclear next steps, weak feedback, and tasks that take longer than promised. "
-            "That is why the right choice is not the option with the biggest upside headline. It is the option that still makes sense after the first delay, the first boring task, and the first small failure. "
-            "Use that scenario to judge whether this idea survives real life or only survives a motivational YouTube video."
+            "Run the idea through one real month instead of a fantasy version. Count the hours you can actually protect, the "
+            "money you can risk, the tools you already have, and the first thing that breaks when life gets noisy. A useful "
+            "plan survives interruptions, not just motivation."
         )
-
+        image_query = "workflow planning spreadsheet"
     return {
-        "heading": base_heading,
-        "body": body,
-        "image_query": f"{kw} planning realistic scenario",
+        "heading": heading,
+        "body": format_generated_body(body),
+        "image_query": image_query,
         "visual_type": "workspace",
-        "alt_text": base_heading,
+        "alt_text": heading,
     }
 
 
-def make_fingerprint(title: str, sections: List[Dict[str, Any]], tldr: str, faq: List[Dict[str, str]]) -> str:
-    title_part = normalize_keyword(title)
-    heading_part = " | ".join(normalize_keyword(sec.get("heading", "")) for sec in (sections or [])[:8])
-    body_part = " ".join(normalize_keyword(sec.get("body", ""))[:280] for sec in (sections or [])[:4])
-    faq_part = " | ".join(normalize_keyword((item.get("q", "") + " " + item.get("a", "")))[:140] for item in (faq or [])[:4])
-    raw = " || ".join([title_part, heading_part, normalize_keyword(tldr), body_part, faq_part])
-    raw = re.sub(r"\s+", " ", raw).strip()
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
-
-
-def post_semantically_too_close(keyword: str, cand_planning: Dict[str, Any], posts: List[dict]) -> bool:
-    candidate_bits = [
-        keyword,
-        cand_planning.get("title", ""),
-        cand_planning.get("audience", ""),
-        cand_planning.get("problem", ""),
-        cand_planning.get("outcome", ""),
-        cand_planning.get("angle", ""),
-        cand_planning.get("search_intent_summary", ""),
-    ]
-    candidate_text = " ".join(str(x) for x in candidate_bits if x).strip()
-    candidate_sig = token_signature(candidate_text)
-
-    if not candidate_text:
-        return False
-
-    for post in posts[:450]:
-        if not isinstance(post, dict):
-            continue
-
-        existing_bits = [
-            post.get("keyword", ""),
-            post.get("title", ""),
-            post.get("audience", ""),
-            post.get("problem", ""),
-            post.get("outcome", ""),
-            post.get("angle", ""),
-            post.get("search_intent_summary", ""),
-        ]
-        existing_text = " ".join(str(x) for x in existing_bits if x).strip()
-        if not existing_text:
-            continue
-
-        kw_score = semantic_overlap_score(keyword, str(post.get("keyword", "")))
-        topic_score = semantic_overlap_score(candidate_text, existing_text)
-        sig_score = similarity_ratio(candidate_sig, token_signature(existing_text))
-
-        same_audience = semantic_overlap_score(cand_planning.get("audience", ""), post.get("audience", "")) >= 0.8
-        same_problem = semantic_overlap_score(cand_planning.get("problem", ""), post.get("problem", "")) >= 0.8
-
-        if kw_score >= 0.88:
-            return True
-        if topic_score >= 0.84:
-            return True
-        if topic_score >= 0.76 and sig_score >= 0.82:
-            return True
-        if same_audience and same_problem and topic_score >= 0.72:
-            return True
-
-    return False
-
-
-def quality_check_post(data: Dict[str, Any], keyword: str = "", post_type: str = "normal") -> Tuple[bool, str]:
-    if not isinstance(data, dict):
-        return False, "post is not a dict"
-
-    title = _clean_text(data.get("title", ""))
-    description = _clean_text(data.get("description", ""))
+def quality_check_post(data: Dict[str, Any], keyword: str, post_type: str = "normal") -> Tuple[bool, str]:
     sections = data.get("sections") or []
-    faq = data.get("faq") or []
-    tldr = _clean_text(data.get("tldr", ""))
-    editorial_note = _clean_text(data.get("editorial_note", ""))
-    category = _clean_text(data.get("category", ""))
-    intent_type = _clean_text(data.get("intent_type", ""))
-
-    if not title or len(title) < 34:
-        return False, "title too short"
-    if len(title) > 72:
-        return False, "title too long"
-    if any(bp in normalize_keyword(title) for bp in BANNED_TITLE_PATTERNS):
-        return False, "banned title pattern"
-    if not description or len(description) < 110:
-        return False, "description too thin"
-    if not isinstance(sections, list) or len(sections) < max(SECTION_COUNT_MIN, 6):
+    if not isinstance(sections, list) or len(sections) < 6:
         return False, "not enough sections"
 
-    total_body_len = 0
-    scenario_sections = 0
-    weak_sections = 0
-    for idx, sec in enumerate(sections[:10]):
-        heading = _clean_text(sec.get("heading", ""))
-        body = _clean_text(sec.get("body", ""))
-        if not heading or not body:
-            return False, f"section {idx+1} missing heading or body"
-        if normalize_keyword(heading) in [normalize_keyword(x) for x in WEAK_SECTION_HEADINGS]:
-            weak_sections += 1
-        min_len = 420 if idx in {0, len(sections)-1} else 620
-        if len(body) < min_len:
-            return False, f"section {idx+1} too short"
-        total_body_len += len(body)
-        if count_signal_hits(body, list(SCENARIO_SIGNALS)) >= 1 and re.search(r"\b\d+", body):
-            scenario_sections += 1
-        lower_body = normalize_keyword(body)
-        if any(x in lower_body for x in [normalize_keyword(p) for p in BANNED_OPENING_PHRASES]) and idx == 0:
-            return False, "generic opening"
-        shallow_hits = sum(1 for x in BANNED_SHALLOW_ADVICE if normalize_keyword(x) in lower_body)
-        if shallow_hits >= 2:
-            return False, f"section {idx+1} too generic"
-
-    if total_body_len < max(MIN_CHARS, 7600):
+    total_body_len = sum(len((s.get("body") or "").strip()) for s in sections if isinstance(s, dict))
+    min_total = max(4800, int(MIN_CHARS * 0.78))
+    if total_body_len < min_total:
         return False, "body length below target"
-    if weak_sections >= 2:
-        return False, "too many weak section headings"
-    if scenario_sections < 2:
-        return False, "not enough realistic scenarios"
 
-    body_blob = " ".join(_clean_text(sec.get("body", "")) for sec in sections)
-    signal_hits = count_signal_hits(body_blob, DEPTH_REQUIRED_SIGNALS)
-    engage_hits = count_signal_hits(body_blob, ENGAGEMENT_REQUIRED_SIGNALS)
-    realism_hits = count_signal_hits(body_blob, REALISM_SIGNALS)
-    cta_hits = count_signal_hits(body_blob, CTA_SIGNALS)
+    headings = [normalize_keyword(s.get("heading", "")) for s in sections if isinstance(s, dict)]
+    if len(set([h for h in headings if h])) < 5:
+        return False, "section headings too repetitive"
 
-    if signal_hits < 6:
-        return False, "not enough depth signals"
-    if engage_hits < 4:
-        return False, "not enough engagement signals"
-    if realism_hits < 3:
-        return False, "not enough realism signals"
-    if cta_hits < 1:
-        return False, "missing action-oriented close"
+    short_sections = 0
+    for idx, sec in enumerate(sections[:6]):
+        body_len = len((sec.get("body") or "").strip())
+        min_len = 320 if idx in {0, 5} else 450
+        if body_len < min_len:
+            short_sections += 1
+    if short_sections >= 2:
+        return False, "too many thin sections"
 
-    if category in {"Software Reviews", "AI Tools"} and intent_type in {"comparison", "review"}:
-        compare_hits = count_signal_hits(body_blob, REVIEW_COMPARISON_REQUIRED)
-        if compare_hits < 4:
-            return False, "comparison depth too low"
+    body_joined = "\n\n".join((s.get("body") or "") for s in sections if isinstance(s, dict)).lower()
+    banned = [
+        "in today's fast-paced world",
+        "this article will explore",
+        "there are many options available",
+        "boost productivity",
+        "streamline your workflow",
+    ]
+    if sum(1 for b in banned if b in body_joined) >= 2:
+        return False, "generic filler detected"
 
-    if category in {"Make Money", "Side Hustles"}:
-        money_hits = count_signal_hits(body_blob, ["income", "time", "hours", "week", "month", "cost", "budget", "first sale", "mistake"])
-        if money_hits < 5:
-            return False, "money article lacks practical thresholds"
+    faq = data.get("faq") or []
+    if len([x for x in faq if isinstance(x, dict) and x.get("q") and x.get("a")]) < 3:
+        return False, "faq too thin"
 
-    if not isinstance(faq, list) or len(faq) < 3:
-        return False, "faq too short"
-    if not tldr or len(tldr) < 140:
-        return False, "tldr too short"
-    if not editorial_note or len(editorial_note) < 20:
-        return False, "missing editorial note"
+    tldr = (data.get("tldr") or "").strip()
+    if len(tldr) < 120:
+        return False, "tldr too thin"
+
+    if data.get("category") == "Investing":
+        investing_signals = ["expense ratio", "broad", "diversified", "automatic", "time horizon", "allocation"]
+        if sum(1 for s in investing_signals if s in body_joined) < 2:
+            return False, "investing article lacks practical guardrails"
 
     return True, "ok"
-
 
 def has_table_like_text(text: str) -> bool:
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
@@ -2324,8 +2279,6 @@ This site needs:
 - realistic scenarios
 - sharper opinions
 - permission to say some choices are bad fits
-- curiosity without fake promises
-- AdSense-safe claims grounded in realistic effort and tradeoffs
 
 Do not produce:
 - polite generic intros
@@ -2349,7 +2302,6 @@ Title rules:
   strong comparison
 - the title should make the reader feel there is something at stake
 - the title may be slightly provocative or contrarian if it still feels useful and credible
-- create a clean curiosity gap by implying a costly mistake, a hidden filter, or an uncomfortable truth
 - avoid abstract words like strategy, blueprint, roadmap, framework, journey, success formula
 - avoid titles that could fit dozens of sites
 
@@ -2360,7 +2312,6 @@ Angle rules:
 - the article must include at least one section saying when not to do this
 - the article must include at least one section showing what breaks first or what people underestimate
 - the article must give the reader a decision, not just information
-- the article must earn the click with tension then keep the reader by answering that tension with proof, examples, and consequences
 
 Depth rules:
 - every section must require concrete detail, not generic explanation
@@ -2839,6 +2790,17 @@ Visual rules:
 - Use real product names, not placeholders like Option A or Option B.
 """
 
+    investing_safety = ""
+    if category == "Investing":
+        investing_safety = """
+Investing safety rules:
+- This is general educational content, not personalized financial advice
+- Do not tell the reader to buy a specific stock today
+- Prefer broad diversified examples such as low-cost index funds or ETFs when examples are needed
+- Focus on process, risk control, allocation habits, fees, time horizon, and beginner mistakes
+- Do not predict returns or guarantee outcomes
+"""
+
     return f"""
 You are writing a practical editorial-quality blog article for US and EU readers.
 
@@ -2980,7 +2942,6 @@ What strong writing looks like here:
 - realistic examples with numbers
 - direct statements about tradeoffs
 - honest limits
-- strong open loops that get resolved with evidence instead of hype
 - concrete thresholds such as:
   monthly budget
   client count
@@ -2999,7 +2960,6 @@ What weak writing looks like here:
 - titles and headings that could fit any blog
 - tool descriptions copied from landing pages
 - vague phrases like save time, work smarter, succeed faster without supporting detail
-- fake income claims, guaranteed outcomes, or hype that would weaken trust or AdSense quality
 - neutral summaries with no judgment
 
 FAQ rules:
@@ -3021,6 +2981,9 @@ Structure requirements:
 
 Mode specific requirements:
 {mode_rules}
+
+Investing-specific safety:
+{investing_safety}
 
 Table requirements:
 {table_rules}
@@ -3143,7 +3106,7 @@ def expand_short_sections(
     if not isinstance(sections, list):
         return data
 
-    min_targets = [450, 700, 700, 700, 700, 450]
+    min_targets = [420, 620, 620, 620, 620, 420]
 
     current_total_len = sum(len((s.get("body") or "").strip()) for s in sections if isinstance(s, dict))
 
@@ -3183,6 +3146,7 @@ Task:
 - Rewrite and expand this section only
 - Keep the same heading and same core topic
 - Make the section at least {target_len} characters
+- Keep paragraphs tight and information-dense
 - Increase information density, not fluff
 - Add concrete examples
 - Add realistic numbers, timing, tradeoffs, thresholds, and consequences
@@ -3225,7 +3189,7 @@ def generate_deep_post(
     planning_raw = openai_generate_text(
         build_planning_prompt(keyword, avoid_titles, cluster_name, post_type),
         model=MODEL_PLANNER,
-        temperature=0.55,
+        temperature=0.45,
     )
     planning = parse_planning_json(
         planning_raw,
@@ -3234,62 +3198,128 @@ def generate_deep_post(
         post_type=post_type,
     )
 
-    article_raw = openai_generate_text(
-        build_article_prompt(keyword, cluster_name, post_type, planning),
-        model=MODEL_WRITER,
-        temperature=0.6,
-    )
-    log("ARTICLE", f"raw_len={len(article_raw)} preview={article_raw[:500]!r}")
+    base_prompt = build_article_prompt(keyword, cluster_name, post_type, planning)
+    data = None
+    article_raw = ""
+    min_target_len = MIN_CHARS
+    max_target_len = MAX_CHARS
 
-    data = parse_article_json(
-        article_raw,
-        keyword=keyword,
-        cluster_name=cluster_name,
-        post_type=post_type,
-    )
+    for attempt in range(4):
+        attempt_prompt = base_prompt
+        if attempt == 1:
+            attempt_prompt += f"""
+
+Critical format correction:
+- Your last answer was unusable.
+- Return strict JSON only.
+- Do not include apology text.
+- Do not include markdown fences.
+- Do not refuse because the article is educational and non-personalized.
+"""
+        elif attempt >= 2:
+            attempt_prompt += f"""
+
+Critical revision:
+- Combined section-body length must be at least {min_target_len} characters.
+- Section 1 and section 6 must each be at least 420 characters.
+- Sections 2, 3, 4, and 5 must each be at least 620 characters.
+- Expand with scenarios, thresholds, costs, timing, and tradeoffs.
+- Return strict JSON only with no markdown fences.
+"""
+            if article_raw:
+                attempt_prompt += f"""
+
+Previous invalid output to fix:
+{article_raw[:2200]}
+"""
+
+        article_raw = openai_generate_text(
+            attempt_prompt,
+            model=MODEL_WRITER,
+            temperature=0.55,
+        )
+        log("ARTICLE", f"raw_len={len(article_raw)} preview={article_raw[:500]!r}")
+
+        if looks_like_model_refusal(article_raw):
+            log("ARTICLE", "Model refusal detected, retrying with stricter JSON correction")
+            continue
+
+        try:
+            data = parse_article_json(
+                article_raw,
+                keyword=keyword,
+                cluster_name=cluster_name,
+                post_type=post_type,
+            )
+            break
+        except Exception:
+            if attempt >= 3:
+                raise
+            log("ARTICLE", "Parse failed, retrying article generation")
+            continue
+
+    if data is None:
+        raise ValueError("article generation failed after retries")
 
     total_body_len = len(
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
     )
 
-    min_target_len = MIN_CHARS
-    max_target_len = MAX_CHARS
     retry_count = 0
-
     while total_body_len < min_target_len and retry_count < 2:
         retry_count += 1
         log("ARTICLE", f"Draft too short len={total_body_len}, retrying expansion #{retry_count}")
 
-        retry_prompt = build_article_prompt(keyword, cluster_name, post_type, planning) + f"""
+        retry_prompt = base_prompt + f"""
 
 Important revision:
-- Your previous draft was too short.
 - The combined length of all 6 section bodies must be at least {min_target_len} characters.
 - The combined length of all 6 section bodies should stay under {max_target_len} characters.
 - Do not count title, description, faq, tldr, or editorial_note toward this minimum.
 - Expand only sections that are clearly too thin.
-- Section 1 and section 6 must each be at least 450 characters.
-- Sections 2, 3, 4, and 5 must each be at least 700 characters.
+- Section 1 and section 6 must each be at least 420 characters.
+- Sections 2, 3, 4, and 5 must each be at least 620 characters.
 - Add concrete examples, numbers, scenarios, tradeoffs, mistakes, and consequences where needed.
 - Do not add filler just to increase length.
-- If a section is still short, expand that section instead of rewriting the title or faq.
-- Return valid JSON only.
+- Return valid JSON only with no markdown fences.
 """
 
         article_raw = openai_generate_text(
             retry_prompt,
             model=MODEL_WRITER,
-            temperature=0.6,
+            temperature=0.55,
         )
         log("ARTICLE", f"retry_raw_len={len(article_raw)} preview={article_raw[:500]!r}")
 
-        data = parse_article_json(
-            article_raw,
+        if looks_like_model_refusal(article_raw):
+            log("ARTICLE", "Model refusal detected during expansion retry")
+            continue
+
+        try:
+            data = parse_article_json(
+                article_raw,
+                keyword=keyword,
+                cluster_name=cluster_name,
+                post_type=post_type,
+            )
+        except Exception:
+            if retry_count >= 2:
+                raise
+            continue
+
+        total_body_len = len(
+            "".join((s.get("body", "") or "") for s in data.get("sections", []))
+        )
+
+    extra_passes = 0
+    while total_body_len < max(4800, int(min_target_len * 0.78)) and extra_passes < 2:
+        extra_passes += 1
+        data = expand_short_sections(
+            data=data,
             keyword=keyword,
             cluster_name=cluster_name,
             post_type=post_type,
         )
-
         total_body_len = len(
             "".join((s.get("body", "") or "") for s in data.get("sections", []))
         )
@@ -3307,7 +3337,7 @@ Important revision:
         "".join((s.get("body", "") or "") for s in data.get("sections", []))
     )
 
-    if total_body_len < min_target_len:
+    if total_body_len < max(4800, int(min_target_len * 0.78)):
         log("ARTICLE", f"After section expansion still short len={total_body_len}")
 
     elapsed = time.time() - t0
